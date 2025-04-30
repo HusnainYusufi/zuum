@@ -1,0 +1,6 @@
+langgraph
+langchain_openai
+python-dotenv
+loguru
+fastapi[all]
+sqlalchemy
