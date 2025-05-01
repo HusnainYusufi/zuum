@@ -32,6 +32,8 @@ class ChatHistory(Base):
     bot_message = Column(Text)
     timestamp = Column(String)
     
+    
+
 # Create all tables
 def create_tables():
     Base.metadata.create_all(bind=engine)
