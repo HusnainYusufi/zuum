@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
+from routes import  transit_chat_router
 
 # Initialize the database
 init_db()
@@ -21,6 +22,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Include routers
+app.include_router(transit_chat_router)
 
 # Initialize the chat states
 state = initialize_chat()
@@ -191,6 +195,8 @@ async def get_transit_chat(stop_id: Optional[int] = None):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
 if __name__ == "__main__":
     import uvicorn
     
@@ -199,3 +205,6 @@ if __name__ == "__main__":
     logger.info(f"Initial question: {response}")
 
     uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+
+
+

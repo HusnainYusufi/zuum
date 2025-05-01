@@ -12,9 +12,22 @@ interface PhoneProps {
   onSendMessage: (message: string) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  isInitialized: boolean;
+  onInitialize: () => void;
+  isBlurred: boolean;
+  onReset: () => void;
 }
 
-const Phone: React.FC<PhoneProps> = ({ messages, onSendMessage, isDarkMode, onToggleDarkMode }) => {
+const Phone: React.FC<PhoneProps> = ({ 
+  messages, 
+  onSendMessage, 
+  isDarkMode, 
+  onToggleDarkMode,
+  isInitialized,
+  onInitialize,
+  isBlurred,
+  onReset
+}) => {
   const [inputMessage, setInputMessage] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -28,14 +41,14 @@ const Phone: React.FC<PhoneProps> = ({ messages, onSendMessage, isDarkMode, onTo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputMessage.trim()) {
+    if (inputMessage.trim() && isInitialized) {
       onSendMessage(inputMessage.trim());
       setInputMessage('');
     }
   };
 
   return (
-    <div className={`phone-container ${isDarkMode ? 'dark-mode' : ''}`}>
+    <div className={`phone-container ${isDarkMode ? 'dark-mode' : ''} ${isBlurred ? 'blurred' : ''}`}>
       <div className="phone">
         <div className="phone-header">
           <div className="phone-notch"></div>
@@ -47,44 +60,65 @@ const Phone: React.FC<PhoneProps> = ({ messages, onSendMessage, isDarkMode, onTo
             </div>
           </div>
         </div>
-        <div className="phone-content">
-          <div className="chat-header">
-            <h2>Transit Chat</h2>
+        
+        <div className="chat-header">
+          <h2>Transit Chat</h2>
+          <div className="header-buttons">
             <button 
-              onClick={onToggleDarkMode} 
-              className="theme-toggle"
-              aria-label={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              onClick={onReset}
+              className="reset-button"
+              aria-label="Reset Chat"
             >
-              {isDarkMode ? '☀️' : '🌙'}
+              🔄
             </button>
+      
           </div>
-          <div className="messages-container">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`message ${message.isUser ? 'user-message' : 'bot-message'}`}
-              >
-                <div className="message-content">
-                  <p>{message.text}</p>
-                  <span className="message-time">{message.timestamp}</span>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-          <form onSubmit={handleSubmit} className="input-container">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="message-input"
-            />
-            <button type="submit" className="send-button">
-              Send
-            </button>
-          </form>
         </div>
+        
+        {!isInitialized && (
+          <div className="initialize-container">
+            <button 
+              onClick={onInitialize}
+              className="initialize-button"
+              disabled={isBlurred}
+            >
+              Start Chat
+            </button>
+          </div>
+        )}
+        
+        <div className="messages-container">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`message ${message.isUser ? 'user-message' : 'bot-message'}`}
+            >
+              <div className="message-content">
+                <p>{message.text}</p>
+                <span className="message-time">{message.timestamp}</span>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        <form onSubmit={handleSubmit} className="input-container">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            placeholder={isInitialized ? "Type your message..." : "Initialize chat to begin..."}
+            className="message-input"
+            disabled={!isInitialized}
+          />
+          <button 
+            type="submit" 
+            className="send-button"
+            disabled={!isInitialized}
+          >
+            Send
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ interface Stop {
   location: string;
   eta: string;
   is_delayed: boolean;
+  thread_id: string;
 }
 
 function App() {
@@ -27,6 +28,9 @@ function App() {
     return savedMode ? JSON.parse(savedMode) : false;
   });
   const [showDashboard, setShowDashboard] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isBlurred, setIsBlurred] = useState(false);
 
   const formatTime = () => {
     const now = new Date();
@@ -49,7 +53,7 @@ function App() {
     setShowDashboard(prev => !prev);
   };
 
-  // Fetch all stops
+  // Fetch all stops and set default selection
   useEffect(() => {
     const fetchStops = async () => {
       try {
@@ -59,157 +63,259 @@ function App() {
         }
         const data = await response.json();
         setStops(data);
+        
+        // Select the first stop by default if no stop is selected
+        if (data.length > 0) {
+          setSelectedStopId(prevId => prevId === null ? data[0].id : prevId);
+        }
       } catch (error) {
         console.error('Error fetching stops:', error);
       }
     };
 
     fetchStops();
-  }, []);
+  }, []); // Only run once on component mount
+
+  // Load messages from localStorage when selectedStopId changes
+  useEffect(() => {
+    if (selectedStopId) {
+      const storedData = localStorage.getItem(`chat-data-${selectedStopId}`);
+      
+      if (storedData) {
+        const { messages: storedMessages, threadId: storedThreadId } = JSON.parse(storedData);
+        setMessages(storedMessages);
+        setThreadId(storedThreadId);
+        setIsInitialized(true);
+      } else {
+        setMessages([]);
+        setThreadId(selectedStopId.toString());
+        setIsInitialized(false);
+      }
+    }
+  }, [selectedStopId]);
 
   // Handle stop selection
   const handleSelectStop = async (stopId: number) => {
+    // Save current messages and thread ID for previous stop if any exist
+    if (selectedStopId && messages.length > 0) {
+      localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+        messages,
+        threadId: threadId
+      }));
+    }
+
     setSelectedStopId(stopId);
     
+    // Get stored chat data for this stop
+    const storedData = localStorage.getItem(`chat-data-${stopId}`);
+    
+    if (storedData) {
+      // If chat data exists, parse and set them
+      const { messages: storedMessages, threadId: storedThreadId } = JSON.parse(storedData);
+      setMessages(storedMessages);
+      setThreadId(storedThreadId);
+      setIsInitialized(true);
+    } else {
+      // If no chat data, reset messages and show initialize state
+      setMessages([]);
+      setThreadId(stopId.toString()); // Set default thread ID to stop ID
+      setIsInitialized(false);
+    }
+  };
+
+  const handleInitializeChat = async () => {
+    if (!selectedStopId) {
+      console.error('No stop selected');
+      return;
+    }
+
+    setIsBlurred(true);
     try {
-      // Fetch chat history for the selected stop
-      const historyResponse = await fetch(`http://localhost:8000/chat-history/${stopId}`);
-      if (historyResponse.ok) {
-        const history = await historyResponse.json();
-        
-        // Convert history to message format
-        const historyMessages: Message[] = [];
-        for (const entry of history) {
-          historyMessages.push({
-            text: entry.user_message,
-            isUser: true,
-            timestamp: entry.timestamp
-          });
-          historyMessages.push({
-            text: entry.bot_message,
-            isUser: false,
-            timestamp: entry.timestamp
-          });
-        }
-        
-        setMessages(historyMessages);
-      } else {
-        // If no history, initialize a new chat with the selected stop
-        const response = await fetch(`http://localhost:8000/transit-chat?stop_id=${stopId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch initial message');
-        }
-        
-        const data = await response.json();
-        
-        // Add initial bot message
-        const botMessage: Message = {
-          text: data.message,
-          isUser: false,
-          timestamp: formatTime()
-        };
-        setMessages([botMessage]);
+      const response = await fetch(`http://localhost:8000/transit-chat/initialize?stop_id=${selectedStopId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to initialize chat');
       }
+
+      const data = await response.json();
+      
+      const initialMessage: Message = {
+        text: data.response,
+        isUser: false,
+        timestamp: formatTime()
+      };
+
+      setMessages([initialMessage]);
+      setThreadId(data.thread_id.toString());
+      
+      // Store chat data
+      localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+        messages: [initialMessage],
+        threadId: data.thread_id.toString()
+      }));
+      
+      setIsInitialized(true);
     } catch (error) {
-      console.error('Error handling stop selection:', error);
-      // Show error message
+      console.error('Error initializing chat:', error);
       const errorMessage: Message = {
-        text: 'Sorry, there was an error connecting to the chat service.',
+        text: 'Sorry, there was an error initializing the chat.',
         isUser: false,
         timestamp: formatTime()
       };
       setMessages([errorMessage]);
+      localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+        messages: [errorMessage],
+        threadId: selectedStopId.toString()
+      }));
+    } finally {
+      setIsBlurred(false);
     }
   };
 
   const handleSendMessage = async (message: string) => {
-    // Add user message
+    if (!threadId) {
+      console.error('Chat not initialized');
+      return;
+    }
+
     const userMessage: Message = {
       text: message,
       isUser: true,
       timestamp: formatTime()
     };
-    setMessages(prev => [...prev, userMessage]);
+    
+    // Add user message and save to localStorage
+    setMessages(prev => {
+      const newMessages = [...prev, userMessage];
+      if (selectedStopId) {
+        localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+          messages: newMessages,
+          threadId: threadId
+        }));
+      }
+      return newMessages;
+    });
 
     try {
-      // Send message to backend with selected stop ID
-      const response = await fetch('http://localhost:8000/transit-chat', {
+      console.log('Sending request with:', { message, thread_id: threadId });
+      const response = await fetch(`http://localhost:8000/transit-chat/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          message,
-          stop_id: selectedStopId 
+          message: message,
+          thread_id: threadId.toString()
         })
       });
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('Response error:', response.status, errorData);
         throw new Error('Network response was not ok');
       }
 
       const data = await response.json();
-      
-      // Add bot response
+      console.log(data);
       const botMessage: Message = {
-        text: data.message,
+        text: data,
         isUser: false,
         timestamp: formatTime()
       };
-      setMessages(prev => [...prev, botMessage]);
+      
+      // Add bot message and save to localStorage
+      setMessages(prev => {
+        const newMessages = [...prev, botMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
     } catch (error) {
       console.error('Error:', error);
-      // Add error message
       const errorMessage: Message = {
         text: 'Sorry, there was an error processing your message.',
         isUser: false,
         timestamp: formatTime()
       };
-      setMessages(prev => [...prev, errorMessage]);
+      
+      // Add error message and save to localStorage
+      setMessages(prev => {
+        const newMessages = [...prev, errorMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
     }
   };
 
-  // Initialize chat when no stop is selected
-  useEffect(() => {
-    if (stops.length === 0 || selectedStopId !== null) {
+  const handleReset = () => {
+    if (!selectedStopId) {
+      console.error('No stop selected');
       return;
     }
+
+    // Clear messages from state
+    setMessages([]);
     
-    const initializeChat = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/transit-chat', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
+    // Clear localStorage for this stop
+    localStorage.removeItem(`chat-data-${selectedStopId}`);
+    
+    // Reset thread ID to stop ID
+    setThreadId(selectedStopId.toString());
+    
+    // Set initialized to true so user can start chatting immediately
+    setIsInitialized(false);
+  };
 
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
+  // Initialize chat when no stop is selected
+  // useEffect(() => {
+  //   if (stops.length === 0 || selectedStopId !== null) {
+  //     return;
+  //   }
+    
+  //   const initializeChat = async () => {
+  //     try {
+  //       const response = await fetch('http://localhost:8000/transit-chat', {
+  //         method: 'GET',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         }
+  //       });
 
-        const data = await response.json();
+  //       if (!response.ok) {
+  //         throw new Error('Network response was not ok');
+  //       }
+
+  //       const data = await response.json();
         
-        // Add initial bot message
-        const botMessage: Message = {
-          text: data.message,
-          isUser: false,
-          timestamp: formatTime()
-        };
-        setMessages([botMessage]);
-      } catch (error) {
-        console.error('Error initializing chat:', error);
-        const errorMessage: Message = {
-          text: 'Sorry, there was an error connecting to the chat service.',
-          isUser: false,
-          timestamp: formatTime()
-        };
-        setMessages([errorMessage]);
-      }
-    };
+  //       // Add initial bot message
+  //       const botMessage: Message = {
+  //         text: data.message,
+  //         isUser: false,
+  //         timestamp: formatTime()
+  //       };
+  //       setMessages([botMessage]);
+  //     } catch (error) {
+  //       console.error('Error initializing chat:', error);
+  //       const errorMessage: Message = {
+  //         text: 'Sorry, there was an error connecting to the chat service.',
+  //         isUser: false,
+  //         timestamp: formatTime()
+  //       };
+  //       setMessages([errorMessage]);
+  //     }
+  //   };
 
-    initializeChat();
-  }, [stops]);
+  //   initializeChat();
+  // }, [stops]);
 
   return (
     <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
@@ -229,6 +335,10 @@ function App() {
               onSendMessage={handleSendMessage} 
               isDarkMode={isDarkMode}
               onToggleDarkMode={toggleDarkMode}
+              isInitialized={isInitialized}
+              onInitialize={handleInitializeChat}
+              isBlurred={isBlurred}
+              onReset={handleReset}
             />
           </div>
         </div>
