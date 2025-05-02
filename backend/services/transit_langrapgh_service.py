@@ -91,7 +91,7 @@ def get_data_from_database(state: State) -> State:
 
 def greet(state: State) -> State:
     'Call this tool when the driver wants to end the conversation and shut down the agent.'
-    query = f"Hello! Support agent here. Can you tell me where you are headed and your estimated time of arrival?"
+    query = f"Hello! Support agent here. Can you tell me where you are right now and your estimated time of arrival?"
     return {
         **state,
         'messages': [

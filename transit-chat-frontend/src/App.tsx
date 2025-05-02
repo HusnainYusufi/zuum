@@ -184,6 +184,24 @@ function App() {
     }
   }, [isCallMode, isInitialized, conversationState]);
 
+  // Effect to ensure audio tracks are properly managed when conversation state changes
+  useEffect(() => {
+    if (!audioStream) return;
+    
+    // Enable/disable microphone based on conversation state
+    const audioTracks = audioStream.getAudioTracks();
+    
+    if (conversationState === 'listening') {
+      console.log('Enabling microphone for listening state');
+      audioTracks.forEach(track => { track.enabled = true; });
+    } else if (conversationState === 'processing' || conversationState === 'agentSpeaking') {
+      console.log('Disabling microphone for', conversationState, 'state');
+      audioTracks.forEach(track => { track.enabled = false; });
+    }
+    
+    // No cleanup needed as we're just toggling existing tracks
+  }, [audioStream, conversationState]);
+
   // Effect to handle audio recording lifecycle
   useEffect(() => {
     // Only record when we're in listening state
@@ -221,14 +239,19 @@ function App() {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         console.log(`Created audio blob: ${audioBlob.size} bytes, shouldProcess: ${shouldProcessRef.value}`);
         
-        // Use our ref instead of a regular variable
-        if (shouldProcessRef.value) {
-          console.log('Processing audio...');
+        // Process any audio that has meaningful content, even if shouldProcessRef.value is false
+        // in cases where we have at least 3 seconds of audio or the flag is explicitly set
+        const shouldProcess = shouldProcessRef.value || (recordingDuration >= 3000 && audioBlob.size > 10000);
+        
+        if (shouldProcess) {
+          console.log(`Processing audio based on criteria: flag=${shouldProcessRef.value}, duration=${recordingDuration}ms, size=${audioBlob.size}`);
           processRecordedAudio(audioBlob);
           // Reset after processing
           shouldProcessRef.value = false;
           // Clear audio chunks after processing
           audioChunks = [];
+        } else {
+          console.log(`Skipping audio processing: duration=${recordingDuration}ms, size=${audioBlob.size} not sufficient`);
         }
       } else {
         console.warn('No audio chunks collected during recording!');
@@ -276,15 +299,21 @@ function App() {
       document.removeEventListener('manualAudioSubmit', handleManualSubmit);
       console.log('Cleaning up recording effect, shouldProcess:', shouldProcessRef.value);
       if (mediaRecorder.state === 'recording') {
-        const wasProcessingTriggered = shouldProcessRef.value;
+        // Set shouldProcessRef.value to true to ensure the audio is processed when stopping
+        shouldProcessRef.value = true;
         
-        // Only reset the flag if we're not supposed to be processing
-        if (!wasProcessingTriggered) {
-          shouldProcessRef.value = false;
-        }
+        // Forcing one last data request before stopping
+        mediaRecorder.requestData();
         
-        console.log('Stopping recorder from cleanup, preserving shouldProcess:', shouldProcessRef.value);
-        mediaRecorder.stop();
+        console.log('Stopping recorder from cleanup, shouldProcess now:', shouldProcessRef.value);
+        
+        // Small delay to ensure the data is collected before stopping
+        setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            console.log('Actually stopping recorder with shouldProcess:', shouldProcessRef.value);
+            mediaRecorder.stop();
+          }
+        }, 300);
       }
     };
   }, [
@@ -344,24 +373,62 @@ function App() {
     try {
       console.log(`Processing audio blob: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
       
+      // Test server connectivity first
+      try {
+        const pingResponse = await fetch('http://localhost:8000/');
+        console.log(`Server ping test: ${pingResponse.status} ${pingResponse.statusText}`);
+      } catch (pingError) {
+        console.error('Server ping failed:', pingError);
+        // Continue anyway to see the specific error with the main request
+      }
+      
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('audio', audioBlob, 'audio.webm');
       
+      // Debug FormData content
+      console.log('FormData created with audio file:');
+      console.log('- Audio blob size:', audioBlob.size);
+      console.log('- Audio blob type:', audioBlob.type);
+      try {
+        // Alternative method that doesn't require downlevelIteration
+        console.log('FormData contents:');
+        const formDataKeys = ['audio']; // Known keys we've added
+        formDataKeys.forEach(key => {
+          const value = formData.get(key);
+          console.log(`- ${key}: ${value instanceof Blob ? `Blob (${(value as Blob).size} bytes)` : value}`);
+        });
+      } catch (e) {
+        console.log('Unable to inspect FormData entries');
+      }
+      
       // Also add the thread_id as regular parameter
       const threadIdParam = threadId?.toString() || '';
+      console.log(`Sending audio to backend with thread_id: ${threadIdParam}`);
       
       // Use the conversation/chat endpoint but with the thread_id as a query parameter
+      console.log(`Initiating fetch to: http://localhost:8000/conversation/chat?thread_id=${threadIdParam}`);
       const response = await fetch(`http://localhost:8000/conversation/chat?thread_id=${threadIdParam}`, {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          // Don't set Content-Type when sending FormData - browser will set it with boundary
+        },
+        credentials: 'include', // Include cookies if needed
         body: formData
       });
 
+      console.log(`Fetch response status: ${response.status} ${response.statusText}`);
+      
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorText = await response.text();
+        console.error(`Server error response: ${errorText}`);
+        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Response data received:', data);
+      
       const humanMessage: Message = {
         text: data.user || 'No response',
         isUser: true,
@@ -398,6 +465,30 @@ function App() {
       }
     } catch (error) {
       console.error('Error processing audio:', error);
+      
+      // Add more detailed error logging
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      
+      // Show error message to user
+      setMessages(prev => {
+        const errorMessage: Message = {
+          text: 'Sorry, there was an error processing your audio message. Please try again.',
+          isUser: false,
+          timestamp: formatTime()
+        };
+        const newMessages = [...prev, errorMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
+      
       // On error, go back to listening state
       startListening();
     }

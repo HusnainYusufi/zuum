@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/StakeholderDashboard.css';
+import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass } from 'react-icons/fa';
+import { MdWarning, MdLocationOn, MdTimeline } from 'react-icons/md';
 
 interface Stop {
   id: number;
@@ -32,32 +34,67 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  // Fetch all stops data
-  useEffect(() => {
-    const fetchStops = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:8000/stops/details');
-        if (!response.ok) {
-          throw new Error('Failed to fetch stops');
-        }
-        const data = await response.json();
-        setStops(data);
-        if (data.length > 0) {
-          setSelectedStop(data[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching stops:', error);
-      } finally {
-        setLoading(false);
+  // Format ETA to human readable form with 12-hour clock
+  const formatETA = (etaString: string): string => {
+    try {
+      const date = new Date(etaString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return etaString;
       }
-    };
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      // If any error occurs, return the original string
+      return etaString;
+    }
+  };
 
+  // Fetch stops function - not wrapped in useCallback to avoid dependency cycles
+  const fetchStops = async () => {
+    try {
+      if (!loading) setIsRefreshing(true);
+      const response = await fetch('http://localhost:8000/stops/details');
+      if (!response.ok) {
+        throw new Error('Failed to fetch stops');
+      }
+      const data = await response.json();
+      setStops(data);
+      
+      // Update selected stop if needed
+      if (data.length > 0) {
+        if (!selectedStop) {
+          setSelectedStop(data[0]);
+        } else {
+          // If we already have a selected stop, find and update it with fresh data
+          const updatedStop = data.find((stop: Stop) => stop.id === selectedStop.id);
+          if (updatedStop) {
+            setSelectedStop(updatedStop);
+          } else {
+            // If the previously selected stop no longer exists, select the first one
+            setSelectedStop(data[0]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stops:', error);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Fetch all stops data only on initial load
+  useEffect(() => {
     fetchStops();
-    const interval = setInterval(fetchStops, 10000); // Poll every 10 seconds
-    
-    return () => clearInterval(interval);
+    // Empty dependency array means this effect runs only once on mount
   }, []);
 
   // Check for changes and create notifications
@@ -108,7 +145,10 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   if (loading) {
     return (
       <div className={`dashboard-container ${isDarkMode ? 'dark-mode' : ''}`}>
-        <div className="loading-spinner">Loading data...</div>
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading data...</p>
+        </div>
       </div>
     );
   }
@@ -116,22 +156,31 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   return (
     <div className={`dashboard-container ${isDarkMode ? 'dark-mode' : ''}`}>
       <div className="dashboard-header">
-        <h1>Transit Stakeholder Dashboard</h1>
-        <div className="notification-icon" onClick={() => setShowNotifications(!showNotifications)}>
-          <span className="material-icons">notifications</span>
-          {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+        <h1><FaRoute className="header-icon" /> Transit Stakeholder Dashboard</h1>
+        <div className="header-actions">
+          <button 
+            className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`} 
+            onClick={fetchStops} 
+            disabled={isRefreshing}
+          >
+            <FaSync className="refresh-icon" /> Refresh
+          </button>
+          <div className="notification-icon" onClick={() => setShowNotifications(!showNotifications)}>
+            <FaBell />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </div>
         </div>
       </div>
 
       {showNotifications && (
         <div className="notifications-panel">
           <div className="notifications-header">
-            <h2>Notifications</h2>
+            <h2><FaBell className="panel-icon" /> Notifications</h2>
             <button onClick={markAllAsRead}>Mark all as read</button>
           </div>
           <div className="notifications-list">
             {notifications.length === 0 ? (
-              <p>No notifications</p>
+              <p className="no-notifications">No notifications</p>
             ) : (
               notifications.map(notification => (
                 <div 
@@ -159,65 +208,64 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
             onClick={() => setSelectedStop(stop)}
           >
             {stop.name}
-            {stop.is_delayed && <span className="delay-indicator">⚠️</span>}
+            {stop.is_delayed && <MdWarning className="delay-indicator" />}
           </button>
         ))}
       </div>
 
       {selectedStop && (
         <div className="stop-details">
-          <h2>{selectedStop.name}</h2>
+          <h2><FaMapMarkerAlt className="detail-title-icon" /> {selectedStop.name}</h2>
           
           <div className="detail-cards">
             <div className="detail-card">
-              <h3>Location</h3>
+              <h3><MdLocationOn className="card-icon" /> Location Status</h3>
               <div className="detail-item">
-                <span className="detail-label">Expected:</span>
+                <span className="detail-label">Expected Location</span>
                 <span className="detail-value">{selectedStop.expected_location}</span>
               </div>
               <div className="detail-item">
-                <span className="detail-label">Reported:</span>
+                <span className="detail-label">Driver Location</span>
                 <span className="detail-value">{selectedStop.reported_location}</span>
               </div>
               <div className="detail-status">
                 {selectedStop.expected_location === selectedStop.reported_location ? (
-                  <span className="status-ok">On Track</span>
+                  <span className="status-ok"><FaCheck /> On Track</span>
                 ) : (
-                  <span className="status-warning">Off Route</span>
+                  <span className="status-warning"><FaExclamationTriangle /> Off Route</span>
                 )}
               </div>
             </div>
 
             <div className="detail-card">
-              <h3>Schedule</h3>
+              <h3><FaClock className="card-icon" /> Schedule Info</h3>
               <div className="detail-item">
-                <span className="detail-label">ETA:</span>
-                <span className="detail-value">{selectedStop.eta}</span>
-              </div>
-              <div className="detail-status">
-                {selectedStop.is_delayed ? (
-                  <span className="status-warning">Delayed</span>
-                ) : (
-                  <span className="status-ok">On Time</span>
-                )}
+                <span className="detail-label">Estimated Arrival</span>
+                <span className="detail-value">{formatETA(selectedStop.eta)}</span>
               </div>
               {selectedStop.is_delayed && (
                 <div className="detail-item">
-                  <span className="detail-label">Reason:</span>
-                  <span className="detail-value">{selectedStop.delay_reason || 'Not provided'}</span>
+                  <span className="detail-label">Delay Reason</span>
+                  <span className="detail-value">{selectedStop.delay_reason || 'Not specified'}</span>
                 </div>
               )}
+              <div className="detail-status">
+                {selectedStop.is_delayed ? (
+                  <span className="status-warning"><FaExclamationTriangle /> Delayed</span>
+                ) : (
+                  <span className="status-ok"><FaCheck /> On Time</span>
+                )}
+              </div>
             </div>
 
             <div className="detail-card">
-              <h3>Navigation</h3>
+              <h3><FaRoad className="card-icon" /> Navigation Details</h3>
               <div className="detail-item">
-                <span className="detail-label">Cross Street:</span>
-                <span className="detail-value">{selectedStop.cross_street || 'Not provided'}</span>
+                <span className="detail-label">Nearest Highway</span>
+                <span className="detail-value">{selectedStop.nearest_highway || 'Not Available'}</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">Nearest Highway:</span>
-                <span className="detail-value">{selectedStop.nearest_highway || 'Not provided'}</span>
+              <div className="detail-status">
+                <span className="status-info"><FaCompass /> Transit Route</span>
               </div>
             </div>
           </div>
