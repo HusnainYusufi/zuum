@@ -31,6 +31,8 @@ function App() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isBlurred, setIsBlurred] = useState(false);
+  const [isCallMode, setIsCallMode] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
   const formatTime = () => {
     const now = new Date();
@@ -123,6 +125,25 @@ function App() {
     }
   };
 
+  const handleToggleCallMode = async () => {
+    if (!isCallMode) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
+        setIsCallMode(true);
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        alert('Unable to access microphone. Please check permissions.');
+      }
+    } else {
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
+      }
+      setIsCallMode(false);
+    }
+  };
+
   const handleInitializeChat = async () => {
     if (!selectedStopId) {
       console.error('No stop selected');
@@ -131,7 +152,7 @@ function App() {
 
     setIsBlurred(true);
     try {
-      const response = await fetch(`http://localhost:8000/transit-chat/initialize?stop_id=${selectedStopId}`);
+      const response = await fetch(`http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isCallMode}`);
       
       if (!response.ok) {
         throw new Error('Failed to initialize chat');
@@ -140,7 +161,7 @@ function App() {
       const data = await response.json();
       
       const initialMessage: Message = {
-        text: data.response,
+        text: isCallMode ? data.AI : data.response,
         isUser: false,
         timestamp: formatTime()
       };
@@ -148,13 +169,20 @@ function App() {
       setMessages([initialMessage]);
       setThreadId(data.thread_id.toString());
       
-      // Store chat data
       localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
         messages: [initialMessage],
         threadId: data.thread_id.toString()
       }));
       
       setIsInitialized(true);
+
+      if (isCallMode && data.response) {
+        // Handle audio response
+        const audioBlob = new Blob([data.response], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        await audio.play();
+      }
     } catch (error) {
       console.error('Error initializing chat:', error);
       const errorMessage: Message = {
@@ -163,10 +191,6 @@ function App() {
         timestamp: formatTime()
       };
       setMessages([errorMessage]);
-      localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
-        messages: [errorMessage],
-        threadId: selectedStopId.toString()
-      }));
     } finally {
       setIsBlurred(false);
     }
@@ -184,7 +208,6 @@ function App() {
       timestamp: formatTime()
     };
     
-    // Add user message and save to localStorage
     setMessages(prev => {
       const newMessages = [...prev, userMessage];
       if (selectedStopId) {
@@ -197,33 +220,40 @@ function App() {
     });
 
     try {
-      console.log('Sending request with:', { message, thread_id: threadId });
-      const response = await fetch(`http://localhost:8000/transit-chat/chat`, {
+      let requestBody: any = {
+        message: message,
+        thread_id: threadId.toString()
+      };
+
+      if (isCallMode && audioStream) {
+        // Convert audio stream to base64
+        const audioData = await recordAudio(audioStream);
+        requestBody = {
+          audio_file: audioData,
+          thread_id: threadId.toString()
+        };
+      }
+
+      const response = await fetch(`http://localhost:8000/conversation/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          message: message,
-          thread_id: threadId.toString()
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Response error:', response.status, errorData);
         throw new Error('Network response was not ok');
       }
 
       const data = await response.json();
-      console.log(data);
+      
       const botMessage: Message = {
-        text: data,
+        text: isCallMode ? data.AI : data.response,
         isUser: false,
         timestamp: formatTime()
       };
       
-      // Add bot message and save to localStorage
       setMessages(prev => {
         const newMessages = [...prev, botMessage];
         if (selectedStopId) {
@@ -234,6 +264,14 @@ function App() {
         }
         return newMessages;
       });
+
+      if (isCallMode && data.response) {
+        // Handle audio response
+        const audioBlob = new Blob([data.response], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        await audio.play();
+      }
     } catch (error) {
       console.error('Error:', error);
       const errorMessage: Message = {
@@ -242,7 +280,6 @@ function App() {
         timestamp: formatTime()
       };
       
-      // Add error message and save to localStorage
       setMessages(prev => {
         const newMessages = [...prev, errorMessage];
         if (selectedStopId) {
@@ -255,6 +292,34 @@ function App() {
       });
     }
   };
+
+  // Helper function to record audio
+  const recordAudio = async (stream: MediaStream): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const mediaRecorder = new MediaRecorder(stream);
+      const audioChunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string;
+          resolve(base64Audio.split(',')[1]); // Remove data URL prefix
+        };
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, 3000); // Record for 3 seconds
+    });
+  };
+
 
   const handleReset = () => {
     if (!selectedStopId) {
@@ -339,7 +404,12 @@ function App() {
               onInitialize={handleInitializeChat}
               isBlurred={isBlurred}
               onReset={handleReset}
+              isCallMode={isCallMode}
+              audioStream={audioStream}
+              onToggleCallMode={handleToggleCallMode}
             />
+         
+         
           </div>
         </div>
       )}

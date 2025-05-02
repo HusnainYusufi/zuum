@@ -1,5 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { BiReset, BiMessageRounded, BiMicrophone, BiPhoneOff, BiPhone } from 'react-icons/bi';
 import '../styles/Phone.css';
+import AudioVisualizer from './AudioVisualizer';
 
 interface Message {
   text: string;
@@ -16,6 +18,9 @@ interface PhoneProps {
   onInitialize: () => void;
   isBlurred: boolean;
   onReset: () => void;
+  isCallMode?: boolean;
+  onToggleCallMode?: () => void;
+  audioStream?: MediaStream | null;
 }
 
 const Phone: React.FC<PhoneProps> = ({ 
@@ -26,10 +31,25 @@ const Phone: React.FC<PhoneProps> = ({
   isInitialized,
   onInitialize,
   isBlurred,
-  onReset
+  onReset,
+  isCallMode = false,
+  onToggleCallMode = () => {},
+  audioStream = null
 }) => {
   const [inputMessage, setInputMessage] = React.useState('');
+  const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleRecordingToggle = () => {
+    console.log(isRecording);
+    setIsRecording(!isRecording);
+    // Mute/unmute the microphone if audio stream exists
+    if (audioStream) {
+      audioStream.getAudioTracks().forEach(track => {
+        track.enabled = !isRecording;
+      });
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,17 +82,25 @@ const Phone: React.FC<PhoneProps> = ({
         </div>
         
         <div className="chat-header">
-          <h2>Transit Chat</h2>
-          <div className="header-buttons">
-            <button 
+        <button 
               onClick={onReset}
               className="reset-button"
               aria-label="Reset Chat"
             >
-              🔄
+              <BiReset />
             </button>
+        
+          <h2>Transit Chat</h2>
+          
+          <button
+              onClick={onToggleCallMode}
+              className={`mode-toggle-button ${isCallMode ? 'active' : ''}`}
+              aria-label={isCallMode ? "Switch to Text Mode" : "Switch to Call Mode"}
+            >
+              <BiPhone size={24} />
+            </button>
+           
       
-          </div>
         </div>
         
         {!isInitialized && (
@@ -103,6 +131,7 @@ const Phone: React.FC<PhoneProps> = ({
         </div>
         
         <form onSubmit={handleSubmit} className="input-container">
+       
           <input
             type="text"
             value={inputMessage}
@@ -119,7 +148,18 @@ const Phone: React.FC<PhoneProps> = ({
             Send
           </button>
         </form>
+        <AudioVisualizer 
+          onEndCall={onToggleCallMode}
+          isActive={isCallMode} 
+          audioStream={audioStream}
+          onToggle={handleRecordingToggle}
+          isRecording={isRecording}
+          isDarkMode={isDarkMode}
+          isCallMode={isCallMode}
+          onToggleCallMode={onToggleCallMode}
+        />
       </div>
+      
     </div>
   );
 };

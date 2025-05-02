@@ -1,0 +1,44 @@
+/* Light mode variables */
+:root {
+  --visualizer-bg: rgba(255, 255, 255, 0.9);
+  --visualizer-stroke: rgba(75, 0, 130, 0.8);
+}
+
+/* Dark mode variables */
+.dark-mode {
+  --visualizer-bg: rgba(0, 0, 0, 0.9);
+  --visualizer-stroke: rgba(255, 255, 255, 0.8);
+}
+
+.audio-visualizer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  background-color: var(--visualizer-bg);
+}
+
+.audio-visualizer.active {
+  opacity: 1;
+}
+
+.audio-visualizer canvas {
+  width: 200px;
+  height: 200px;
+  max-width: 90%;
+  max-height: 90%;
+} 
+
+.end-call-button:hover {
+    background-color: var(--error-color-hover, #ff6666) !important;
+    transform: scale(1.05);
+  } 
