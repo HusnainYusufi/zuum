@@ -36,9 +36,7 @@ function App() {
   const [isBlurred, setIsBlurred] = useState(false);
   const [isCallMode, setIsCallMode] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [silenceDetector, setSilenceDetector] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [silenceDetected, setSilenceDetected] = useState(false);
   const [conversationState, setConversationState] = useState<ConversationState>('idle');
 
   const formatTime = () => {
@@ -132,76 +130,50 @@ function App() {
     }
   };
 
-  // Add silence detection setup
-  const setupSilenceDetection = (stream: MediaStream) => {
-    // TODO: Replace ScriptProcessorNode with AudioWorkletNode in a future update
-    // This implementation uses the deprecated ScriptProcessorNode for compatibility
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    
-    // Configure analyser for voice detection
-    analyser.smoothingTimeConstant = 0.8;
-    analyser.fftSize = 256;
-    
-    source.connect(analyser);
-    
-    let silenceStart: number | null = null;
-    const SILENCE_THRESHOLD = -50; // dB
-    const SILENCE_DURATION = 2000; // ms
-
-    // Create a monitoring function that doesn't require ScriptProcessor
-    const silenceDetectionInterval = setInterval(() => {
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteFrequencyData(dataArray);
-      
-      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-      const dB = 20 * Math.log10(average / 255);
-
-      if (dB < SILENCE_THRESHOLD) {
-        if (!silenceStart) {
-          silenceStart = Date.now();
-        } else if (Date.now() - silenceStart > SILENCE_DURATION) {
-          silenceStart = null;
-          setSilenceDetected(true);
-        }
-      } else {
-        silenceStart = null;
-      }
-    }, 100);
-
-    return {
-      cleanup: () => {
-        clearInterval(silenceDetectionInterval);
-        audioContext.close();
-        source.disconnect();
-        analyser.disconnect();
-      }
-    };
-  };
-
-  // Start listening after initialization or agent response
+  // Function to start the listening state
   const startListening = () => {
-    if (isCallMode && audioStream) {
-      console.log('Transitioning to listening state');
-      setConversationState('listening');
-      setSilenceDetected(false);
-      // Ensure microphone is enabled
+    console.log('startListening called with isCallMode:', isCallMode, 'audioStream:', !!audioStream);
+    
+    // Always set the conversation state to listening regardless of conditions
+    setConversationState('listening');
+    
+    // Only attempt to enable microphone if we have an audio stream
+    if (audioStream) {
+      console.log('Enabling microphone tracks');
       audioStream.getAudioTracks().forEach(track => {
         track.enabled = true;
       });
+    } else {
+      console.warn('No audioStream available for microphone');
+    }
+    
+    // Only set recording to true if we're in call mode
+    if (isCallMode) {
       setIsRecording(true);
+    } else {
+      console.warn('Not in call mode, recording not started');
     }
   };
 
   // Handle recording toggle
   const handleRecordingToggle = () => {
-    setIsRecording(!isRecording);
-    // Mute/unmute the microphone if audio stream exists
-    if (audioStream) {
-      audioStream.getAudioTracks().forEach(track => {
-        track.enabled = !isRecording;
-      });
+    if (isRecording) {
+      // If we're currently recording, stop and process the audio
+      setIsRecording(false);
+      setConversationState('processing');
+      
+      // Trigger manual audio submission via a custom event
+      const manualSubmitEvent = new CustomEvent('manualAudioSubmit');
+      document.dispatchEvent(manualSubmitEvent);
+    } else {
+      // Start recording
+      setIsRecording(true);
+      // If audio stream exists, ensure microphone is enabled
+      if (audioStream) {
+        audioStream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+        });
+      }
     }
   };
 
@@ -212,12 +184,169 @@ function App() {
     }
   }, [isCallMode, isInitialized, conversationState]);
 
-  // Function to process recorded audio and send it to the server
+  // Effect to handle audio recording lifecycle
+  useEffect(() => {
+    // Only record when we're in listening state
+    if (!isCallMode || !audioStream || conversationState !== 'listening') {
+      return;
+    }
+    
+    console.log('Starting recording in listening state');
+    
+    let audioChunks: Blob[] = [];
+    // Set proper MIME type and higher bitrate for better audio quality
+    const mediaRecorder = new MediaRecorder(audioStream, {
+      mimeType: 'audio/webm;codecs=opus',
+      audioBitsPerSecond: 128000
+    });
+    
+    // Create a ref for shouldProcessAudio to ensure it survives across render cycles
+    const shouldProcessRef = { value: false };
+    let recordingStartTime = Date.now();
+    
+    // Set up event handlers
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        console.log(`Received audio chunk: ${event.data.size} bytes`);
+        audioChunks.push(event.data);
+      }
+    };
+    
+    const handleStopRecording = () => {
+      const recordingDuration = Date.now() - recordingStartTime;
+      console.log(`Recording stopped after ${recordingDuration}ms, chunks: ${audioChunks.length}, shouldProcess: ${shouldProcessRef.value}`);
+      
+      if (audioChunks.length > 0) {
+        // Use webm for better compatibility
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        console.log(`Created audio blob: ${audioBlob.size} bytes, shouldProcess: ${shouldProcessRef.value}`);
+        
+        // Use our ref instead of a regular variable
+        if (shouldProcessRef.value) {
+          console.log('Processing audio...');
+          processRecordedAudio(audioBlob);
+          // Reset after processing
+          shouldProcessRef.value = false;
+          // Clear audio chunks after processing
+          audioChunks = [];
+        }
+      } else {
+        console.warn('No audio chunks collected during recording!');
+      }
+    };
+    
+    mediaRecorder.onstop = handleStopRecording;
+    
+    // Start recording
+    mediaRecorder.start(100); // Collect chunks every 100ms for smoother recording
+    recordingStartTime = Date.now();
+    console.log('Media recorder started');
+    
+    // Handle manual audio submission via custom event
+    const handleManualSubmit = () => {
+      console.log('Manual audio submission triggered');
+      if (mediaRecorder.state === 'recording') {
+        shouldProcessRef.value = true;
+        mediaRecorder.requestData();
+        setTimeout(() => {
+          if (mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+        }, 200);
+      }
+    };
+    
+    // Add event listener for manual submission
+    document.addEventListener('manualAudioSubmit', handleManualSubmit);
+    
+    // Backup timer to ensure we always get some recording in case user doesn't manually stop
+    const MAX_RECORDING_TIME = 30000; // 30 seconds max
+    const maxRecordingTimer = setTimeout(() => {
+      if (mediaRecorder.state === 'recording' && conversationState === 'listening') {
+        console.log(`Max recording time (${MAX_RECORDING_TIME}ms) reached, stopping.`);
+        shouldProcessRef.value = true;
+        setConversationState('processing');
+        mediaRecorder.stop();
+      }
+    }, MAX_RECORDING_TIME);
+    
+    // Clean up
+    return () => {
+      clearTimeout(maxRecordingTimer);
+      document.removeEventListener('manualAudioSubmit', handleManualSubmit);
+      console.log('Cleaning up recording effect, shouldProcess:', shouldProcessRef.value);
+      if (mediaRecorder.state === 'recording') {
+        const wasProcessingTriggered = shouldProcessRef.value;
+        
+        // Only reset the flag if we're not supposed to be processing
+        if (!wasProcessingTriggered) {
+          shouldProcessRef.value = false;
+        }
+        
+        console.log('Stopping recorder from cleanup, preserving shouldProcess:', shouldProcessRef.value);
+        mediaRecorder.stop();
+      }
+    };
+  }, [
+    isCallMode,
+    audioStream,
+    conversationState
+  ]);
+
+  // Modify this function in both processRecordedAudio and handleSendMessage functions
+  const playAgentAudio = async (responseText: string) => {
+    try {
+      // Play audio for the response using the audio endpoint
+      const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(responseText)}`);
+      if (audioResponse.ok) {
+        const audioBlob = await audioResponse.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // Dispatch custom event with audio element for visualizer
+        const customEvent = new CustomEvent('ai-audio-playing', {
+          detail: { audioElement: audio }
+        });
+        document.dispatchEvent(customEvent);
+        
+        // When audio finishes, start listening again
+        audio.onended = () => {
+          console.log('Audio finished playing, now starting listening');
+          URL.revokeObjectURL(audioUrl); // Clean up the URL object
+          // Slight delay to ensure state updates have propagated
+          setTimeout(() => {
+            // Always call startListening without checking isCallMode
+            startListening();
+          }, 300);
+        };
+        
+        try {
+          await audio.play();
+          console.log('Audio playback started successfully');
+        } catch (error) {
+          console.error('Error playing audio:', error);
+          // If audio play fails, still start listening
+          startListening();
+        }
+      } else {
+        console.error('Failed to fetch audio from endpoint:', audioResponse.status);
+        // If audio fails, still start listening again
+        startListening();
+      }
+    } catch (error) {
+      console.error('Error fetching or playing audio:', error);
+      startListening();
+    }
+  };
+
+  // Now update the processRecordedAudio function to use this helper
   const processRecordedAudio = async (audioBlob: Blob) => {
     try {
+      console.log(`Processing audio blob: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+      
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'audio.wav');
+      formData.append('audio', audioBlob, 'audio.webm');
       
       // Also add the thread_id as regular parameter
       const threadIdParam = threadId?.toString() || '';
@@ -257,129 +386,28 @@ function App() {
 
       // Set to agent speaking while playing response
       setConversationState('agentSpeaking');
+      setIsRecording(false);
 
       // Play audio for the response using the new audio endpoint
       if (data.AI || data.response) {
         const responseText = data.AI || data.response;
-        const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(responseText)}`);
-        if (audioResponse.ok) {
-          const audioBlob = await audioResponse.blob();
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          
-          // Listen for when audio finishes playing to start listening again
-          audio.onended = () => {
-            setConversationState('listening');
-          };
-          
-          await audio.play();
-        } else {
-          // If audio fails, still start listening again
-          setConversationState('listening');
-        }
+        await playAgentAudio(responseText);
       } else {
         // No response to play, start listening again
-        setConversationState('listening');
+        startListening();
       }
     } catch (error) {
       console.error('Error processing audio:', error);
       // On error, go back to listening state
-      setConversationState('listening');
+      startListening();
     }
   };
-
-  // Effect to handle silence detection and audio recording lifecycle
-  useEffect(() => {
-    // Only record when we're in listening state
-    if (!isCallMode || !audioStream || conversationState !== 'listening') {
-      return;
-    }
-    
-    console.log('Starting recording in listening state');
-    
-    let audioChunks: Blob[] = [];
-    const mediaRecorder = new MediaRecorder(audioStream);
-    let shouldProcessAudio = false; // Flag to track if we should process audio
-    
-    // Set up event handlers
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
-    
-    const handleStopRecording = () => {
-      if (audioChunks.length > 0) {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        console.log('Recording stopped, shouldProcessAudio:', shouldProcessAudio);
-        
-        // Use our flag instead of checking the React state
-        if (shouldProcessAudio) {
-          console.log('Processing audio...');
-          processRecordedAudio(audioBlob);
-        }
-      }
-    };
-    
-    mediaRecorder.onstop = handleStopRecording;
-    
-    // Start recording
-    mediaRecorder.start();
-    
-    // Request data regularly to collect audio chunks
-    const requestInterval = setInterval(() => {
-      if (mediaRecorder.state === 'recording') {
-        mediaRecorder.requestData();
-      }
-    }, 500);
-    
-    // When silence is detected, transition to processing and stop recording
-    const handleSilenceDetection = () => {
-      if (silenceDetected && conversationState === 'listening') {
-        console.log('Stopping recording due to silence detection');
-        
-        // Set our flag BEFORE stopping the recorder
-        shouldProcessAudio = true;
-        
-        // Update the React state
-        setConversationState('processing');
-        
-        // Stop the recorder - this will trigger the onstop event immediately
-        if (mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-        
-        setSilenceDetected(false);
-      }
-    };
-    
-    // Watch for silence detection
-    const silenceCheckInterval = setInterval(handleSilenceDetection, 100);
-    
-    // Clean up
-    return () => {
-      clearInterval(requestInterval);
-      clearInterval(silenceCheckInterval);
-      if (mediaRecorder.state === 'recording') {
-        // Don't process audio on unmount
-        shouldProcessAudio = false;
-        mediaRecorder.stop();
-      }
-    };
-  }, [
-    isCallMode,
-    audioStream,
-    conversationState,
-    silenceDetected
-  ]);
 
   const handleToggleCallMode = async () => {
     if (!isCallMode) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setAudioStream(stream);
-        const detector = setupSilenceDetection(stream);
-        setSilenceDetector(detector);
         setIsCallMode(true);
         // Start in idle state until initialized
         setConversationState('idle');
@@ -390,10 +418,6 @@ function App() {
     } else {
       if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
-        if (silenceDetector) {
-          silenceDetector.cleanup();
-          setSilenceDetector(null);
-        }
         setAudioStream(null);
       }
       setIsCallMode(false);
@@ -401,88 +425,7 @@ function App() {
     }
   };
 
-  const handleInitializeChat = async () => {
-    if (!selectedStopId) {
-      console.error('No stop selected');
-      return;
-    }
-
-    setIsBlurred(true);
-    // Ensure recording is off during initialization
-    if (isCallMode) {
-      setIsRecording(false);
-    }
-    
-    try {
-      const response = await fetch(`http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isCallMode}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to initialize chat');
-      }
-
-      const data = await response.json();
-      
-      const initialMessage: Message = {
-        text: data.response,
-        isUser: false,
-        timestamp: formatTime()
-      };
-
-      setMessages([initialMessage]);
-      setThreadId(data.thread_id.toString());
-      
-      localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
-        messages: [initialMessage],
-        threadId: data.thread_id.toString()
-      }));
-      
-      setIsInitialized(true);
-
-      if (isCallMode && data.response) {
-        // Set to agent speaking while playing response
-        setConversationState('agentSpeaking');
-        setIsRecording(false);
-        
-        // Play audio for the response using the new audio endpoint
-        const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(data.response)}`);
-        if (audioResponse.ok) {
-          const audioBlob = await audioResponse.blob();
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          
-          // When audio finishes, start listening
-          audio.onended = () => {
-            startListening();
-          };
-          
-          await audio.play();
-        } else {
-          // If audio fails, still start listening
-          startListening();
-        }
-      } else {
-        // Start listening immediately if not in call mode or no response
-        if (isCallMode) {
-          startListening();
-        }
-      }
-    } catch (error) {
-      console.error('Error initializing chat:', error);
-      const errorMessage: Message = {
-        text: 'Sorry, there was an error initializing the chat.',
-        isUser: false,
-        timestamp: formatTime()
-      };
-      setMessages([errorMessage]);
-      
-      if (isCallMode) {
-        startListening();
-      }
-    } finally {
-      setIsBlurred(false);
-    }
-  };
-
+  // Update handleSendMessage to use the helper function
   const handleSendMessage = async (message: string) => {
     if (!threadId) {
       console.error('Chat not initialized');
@@ -555,23 +498,8 @@ function App() {
         setConversationState('agentSpeaking');
         setIsRecording(false);
         
-        // Play audio for the response using the new audio endpoint
-        const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(responseText)}`);
-        if (audioResponse.ok) {
-          const audioBlob = await audioResponse.blob();
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          
-          // When audio finishes, start listening again
-          audio.onended = () => {
-            startListening();
-          };
-          
-          await audio.play();
-        } else {
-          // If audio fails, still start listening again
-          startListening();
-        }
+        // Use the helper function to play audio
+        await playAgentAudio(responseText);
       } else if (isCallMode) {
         // No audio to play but still in call mode, start listening
         startListening();
@@ -599,6 +527,97 @@ function App() {
       if (isCallMode) {
         startListening();
       }
+    }
+  };
+
+  // Update handleInitializeChat to use the helper function
+  const handleInitializeChat = async (isVoiceCall = false) => {
+    if (!selectedStopId) {
+      console.error('No stop selected');
+      return;
+    }
+
+    // Set call mode based on parameter
+    if (isVoiceCall && !isCallMode) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setAudioStream(stream);
+        setIsCallMode(true);
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        alert('Unable to access microphone. Please check permissions.');
+        return;
+      }
+    } else if (!isVoiceCall && isCallMode) {
+      // Switch to text mode if needed
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
+      }
+      setIsCallMode(false);
+    }
+
+    setIsBlurred(true);
+    // Ensure recording is off during initialization
+    if (isCallMode || isVoiceCall) {
+      setIsRecording(false);
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to initialize chat');
+      }
+
+      const data = await response.json();
+      
+      const initialMessage: Message = {
+        text: data.response,
+        isUser: false,
+        timestamp: formatTime()
+      };
+
+      setMessages([initialMessage]);
+      setThreadId(data.thread_id.toString());
+      
+      localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+        messages: [initialMessage],
+        threadId: data.thread_id.toString()
+      }));
+      
+      setIsInitialized(true);
+
+      // Use isVoiceCall parameter instead of isCallMode state
+      if (isVoiceCall && data.response) {
+        // Set to agent speaking while playing response
+        setConversationState('agentSpeaking');
+        setIsRecording(false);
+        
+        console.log('Playing initial audio response in voice call mode');
+        
+        // Use the helper function to play audio
+        await playAgentAudio(data.response);
+      } else {
+        // Start listening immediately if in voice call mode but no response to play
+        if (isVoiceCall) {
+          startListening();
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+      const errorMessage: Message = {
+        text: 'Sorry, there was an error initializing the chat.',
+        isUser: false,
+        timestamp: formatTime()
+      };
+      setMessages([errorMessage]);
+      
+      if (isVoiceCall) {
+        startListening();
+      }
+    } finally {
+      setIsBlurred(false);
     }
   };
 
@@ -655,8 +674,6 @@ function App() {
               onToggleRecording={handleRecordingToggle}
               conversationState={conversationState}
             />
-         
-         
           </div>
         </div>
       )}

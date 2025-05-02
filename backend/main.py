@@ -202,9 +202,7 @@ async def get_transit_chat(stop_id: Optional[int] = None):
 if __name__ == "__main__":
     import uvicorn
     
-    # Get initial interrupt/question
-    response = process_transit_chat_sequence(transit_state)
-    logger.info(f"Initial question: {response}")
+
 
     uvicorn.run("main:app", host="localhost", port=8000, reload=True)
 

@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import '../styles/AudioVisualizer.css';
-import { BiMicrophone, BiPhoneOff } from 'react-icons/bi';
+import { BiMicrophone, BiPhoneOff, BiStop } from 'react-icons/bi';
 
 // Define the ConversationState type
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
@@ -31,18 +31,60 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const [agentAudioContext, setAgentAudioContext] = useState<AudioContext | null>(null);
 
+  // Add a method to connect to audio element
+  // This would be called from App.tsx when AI audio is playing
   useEffect(() => {
-    if (!canvasRef.current || !isActive || !audioStream) return;
+    // Listen for when AI audio starts playing
+    const handleAIAudioStart = (event: CustomEvent) => {
+      const audio = event.detail.audioElement as HTMLAudioElement;
+      if (audio && conversationState === 'agentSpeaking') {
+        try {
+          // Create new audio context
+          const audioContext = new AudioContext();
+          setAgentAudioContext(audioContext);
+          
+          // Create an analyzer
+          const analyser = audioContext.createAnalyser();
+          analyserRef.current = analyser;
+          
+          // Connect the audio element to the analyzer
+          const source = audioContext.createMediaElementSource(audio);
+          source.connect(analyser);
+          
+          // Also connect to destination so we can hear it
+          analyser.connect(audioContext.destination);
+          
+          // Configure analyzer
+          analyser.fftSize = 512;
+        } catch (error) {
+          console.error('Error connecting to AI audio:', error);
+        }
+      }
+    };
 
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    analyserRef.current = analyser;
+    // Add event listener
+    document.addEventListener('ai-audio-playing', handleAIAudioStart as EventListener);
     
-    const source = audioContext.createMediaStreamSource(audioStream);
-    source.connect(analyser);
-    
-    analyser.fftSize = 512; // Increased for better resolution
+    return () => {
+      // Remove event listener on cleanup
+      document.removeEventListener('ai-audio-playing', handleAIAudioStart as EventListener);
+    };
+  }, [conversationState]);
+
+  // Effect for agent audio visualization
+  useEffect(() => {
+    // Only set up visualization when agent is speaking and we have an analyzer
+    if (!canvasRef.current || conversationState !== 'agentSpeaking' || !analyserRef.current) {
+      // Clean up any existing animation when not in agent speaking mode
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      return;
+    }
+
+    const analyser = analyserRef.current;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     
@@ -86,14 +128,29 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       ctx.fillStyle = isDarkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)';
       ctx.fill();
       
-      // Draw visualization with smooth lines
+      // Create a non-sequential mapping for frequency bands to circle positions
+      const pointCount = 180; // Number of points to draw around the circle
+      
+      // Create chaotic frequency mapping but keep it within bounds
+      const frequencyMapping = Array(pointCount).fill(0).map((_, i) => {
+        // Use a chaotic but controlled pattern that stays within bounds
+        return Math.floor(Math.abs((i * 17 + Math.sin(i) * 30) % bufferLength));
+      });
+      
+      // Draw sequentially around the circle to maintain shape
+      // but use non-sequential frequency data for audio response
       ctx.beginPath();
-      for (let i = 0; i < bufferLength; i++) {
-        const value = dataArray[i];
+      
+      // Start at point 0 and draw clockwise around the circle
+      for (let i = 0; i < pointCount; i++) {
+        // Get frequency data using our chaotic mapping
+        const freqIndex = frequencyMapping[i];
+        const value = dataArray[freqIndex];
         const percent = value / 255;
         
-        const angle = (i / bufferLength) * Math.PI * 2;
-        const length = radius * (0.7 + percent * 0.3);
+        // Calculate point position on circle (sequential around the circle)
+        const angle = (i / pointCount) * Math.PI * 2;
+        const length = radius * (0.9 + percent * 0.1);
         
         const x = centerX + Math.cos(angle) * length;
         const y = centerY + Math.sin(angle) * length;
@@ -105,6 +162,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         }
       }
       
+      // Close the path
       ctx.closePath();
       ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(75, 0, 130, 0.8)';
       ctx.lineWidth = 2;
@@ -124,9 +182,17 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      audioContext.close();
     };
-  }, [isActive, audioStream, isRecording, isDarkMode]);
+  }, [conversationState, isDarkMode, analyserRef.current]);
+
+  // Cleanup all audio contexts on unmount
+  useEffect(() => {
+    return () => {
+      if (agentAudioContext) {
+        agentAudioContext.close();
+      }
+    };
+  }, [agentAudioContext]);
 
   const buttonBaseStyle = {
     padding: '12px',
@@ -146,7 +212,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const getStatusText = () => {
     switch (conversationState) {
       case 'listening':
-        return 'Listening...';
+        return isRecording ? 'Listening...' : 'Paused';
       case 'processing':
         return 'Processing...';
       case 'agentSpeaking':
@@ -172,9 +238,15 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }
   };
 
+  // Check if visualizer should be active (only during agent speaking)
+  const isVisualizerActive = isActive && conversationState === 'agentSpeaking';
+
   return (
     <div className={`audio-visualizer ${isActive ? 'active' : ''} ${isDarkMode ? 'dark-mode' : ''}`}>
-      <canvas ref={canvasRef} />
+      <canvas 
+        ref={canvasRef} 
+        className={isVisualizerActive ? 'visible' : 'hidden'}
+      />
       
       {/* Status indicator */}
       {isActive && (
@@ -203,7 +275,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
               borderRadius: '50%',
               backgroundColor: getStatusColor(),
               display: 'inline-block',
-              animation: conversationState === 'listening' ? 'pulse 1.5s infinite' : 'none'
+              animation: conversationState === 'agentSpeaking' ? 'pulse 1.5s infinite' : 'none'
             }}
           ></span>
           {getStatusText()}
@@ -227,16 +299,17 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
           style={{
             ...buttonBaseStyle,
             backgroundColor: isRecording 
-              ? 'var(--error-color, #ff4444)' 
-              : 'var(--button-bg, #ffffff)',
+              ? 'var(--button-bg, #ffffff)' 
+              : 'var(--error-color, #ff4444)',
             color: isRecording 
-              ? '#ffffff' 
-              : 'var(--button-color, #333333)',
+              ? 'var(--button-color, #333333)' 
+              : '#ffffff',
             transform: `scale(${isRecording ? 1.1 : 1})`,
           }}
-          title={isRecording ? "Stop Recording" : "Start Recording"}
+          title={isRecording ? "Stop Recording & Send" : "Resume Recording"}
+          disabled={conversationState === 'processing' || conversationState === 'agentSpeaking'}
         >
-          <BiMicrophone size={24} />
+          {isRecording ? <BiStop size={24} /> : <BiMicrophone size={24} />}
         </button>
         <button 
           onClick={onToggleCallMode}

@@ -18,7 +18,7 @@ interface PhoneProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isInitialized: boolean;
-  onInitialize: () => void;
+  onInitialize: (isVoiceCall?: boolean) => void;
   isBlurred: boolean;
   onReset: () => void;
   isCallMode?: boolean;
@@ -56,6 +56,14 @@ const Phone: React.FC<PhoneProps> = ({
     scrollToBottom();
   }, [messages]);
 
+  // Effect to update UI when conversation state changes
+  useEffect(() => {
+    if (conversationState === 'processing' || conversationState === 'agentSpeaking') {
+      // Ensure the button is disabled by visually updating
+      // This is now handled via the disabled property on the button
+    }
+  }, [conversationState]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputMessage.trim() && isInitialized) {
@@ -79,35 +87,45 @@ const Phone: React.FC<PhoneProps> = ({
         </div>
         
         <div className="chat-header">
-        <button 
-              onClick={onReset}
-              className="reset-button"
-              aria-label="Reset Chat"
-            >
-              <BiReset />
-            </button>
-        
+          {isInitialized && (
+            <button 
+            onClick={onReset}
+            className="reset-button"
+            aria-label="Reset Chat"
+          >
+            <BiReset />
+          </button>
+          )}
           <h2>Transit Chat</h2>
-          
+          {isInitialized && (
           <button
-              onClick={onToggleCallMode}
-              className={`mode-toggle-button ${isCallMode ? 'active' : ''}`}
-              aria-label={isCallMode ? "Switch to Text Mode" : "Switch to Call Mode"}
-            >
-              <BiPhone size={24} />
-            </button>
-           
-      
+            onClick={onToggleCallMode}
+            className={`mode-toggle-button ${isCallMode ? 'active' : ''}`}
+            aria-label={isCallMode ? "Switch to Text Mode" : "Switch to Call Mode"}
+            disabled={conversationState === 'processing'}
+          >
+            <BiPhone size={24} />
+          </button>
+          )}
         </div>
         
         {!isInitialized && (
           <div className="initialize-container">
             <button 
-              onClick={onInitialize}
+              onClick={() => onInitialize(false)}
               className="initialize-button"
               disabled={isBlurred}
             >
+              <BiMessageRounded size={18} style={{ marginRight: '5px' }} />
               Start Chat
+            </button>
+            <button 
+              onClick={() => onInitialize(true)}
+              className="initialize-button voice-call-button"
+              disabled={isBlurred}
+            >
+              <BiPhone size={18} style={{ marginRight: '5px' }} />
+              Start Voice Call
             </button>
           </div>
         )}
@@ -127,24 +145,25 @@ const Phone: React.FC<PhoneProps> = ({
           <div ref={messagesEndRef} />
         </div>
         
+        {isInitialized && (
         <form onSubmit={handleSubmit} className="input-container">
-       
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder={isInitialized ? "Type your message..." : "Initialize chat to begin..."}
             className="message-input"
-            disabled={!isInitialized}
+            disabled={!isInitialized || (isCallMode && conversationState !== 'idle')}
           />
           <button 
             type="submit" 
             className="send-button"
-            disabled={!isInitialized}
+            disabled={!isInitialized || (isCallMode && conversationState !== 'idle')}
           >
             Send
           </button>
         </form>
+        )}
         <AudioVisualizer 
           onEndCall={onToggleCallMode}
           isActive={isCallMode} 
@@ -157,7 +176,6 @@ const Phone: React.FC<PhoneProps> = ({
           conversationState={conversationState}
         />
       </div>
-      
     </div>
   );
 };
