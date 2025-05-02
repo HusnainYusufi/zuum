@@ -2,6 +2,9 @@ import React, { useRef, useEffect } from 'react';
 import '../styles/AudioVisualizer.css';
 import { BiMicrophone, BiPhoneOff } from 'react-icons/bi';
 
+// Define the ConversationState type
+type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
+
 interface AudioVisualizerProps {
   isActive: boolean;
   isRecording: boolean;
@@ -11,6 +14,7 @@ interface AudioVisualizerProps {
   isDarkMode: boolean;
   isCallMode: boolean;
   onToggleCallMode: () => void;
+  conversationState?: ConversationState;
 }
 
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ 
@@ -21,7 +25,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   isRecording,
   isDarkMode,
   isCallMode,
-  onToggleCallMode
+  onToggleCallMode,
+  conversationState = 'idle'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>(0);
@@ -137,9 +142,74 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
   };
 
+  // Get status text based on conversation state
+  const getStatusText = () => {
+    switch (conversationState) {
+      case 'listening':
+        return 'Listening...';
+      case 'processing':
+        return 'Processing...';
+      case 'agentSpeaking':
+        return 'Agent is speaking...';
+      case 'idle':
+      default:
+        return isActive ? 'Ready' : '';
+    }
+  };
+
+  // Get status color based on conversation state
+  const getStatusColor = () => {
+    switch (conversationState) {
+      case 'listening':
+        return '#4CAF50'; // Green
+      case 'processing':
+        return '#FFC107'; // Amber
+      case 'agentSpeaking':
+        return '#2196F3'; // Blue
+      case 'idle':
+      default:
+        return '#9E9E9E'; // Gray
+    }
+  };
+
   return (
     <div className={`audio-visualizer ${isActive ? 'active' : ''} ${isDarkMode ? 'dark-mode' : ''}`}>
       <canvas ref={canvasRef} />
+      
+      {/* Status indicator */}
+      {isActive && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: '15px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+            color: getStatusColor(),
+            padding: '4px 12px',
+            borderRadius: '16px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <span 
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: getStatusColor(),
+              display: 'inline-block',
+              animation: conversationState === 'listening' ? 'pulse 1.5s infinite' : 'none'
+            }}
+          ></span>
+          {getStatusText()}
+        </div>
+      )}
+      
       <div 
         style={{
           position: 'absolute',

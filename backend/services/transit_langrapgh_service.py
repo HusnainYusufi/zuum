@@ -60,6 +60,7 @@ llm = ChatOpenAI(model="gpt-4o-mini", api_key='sk-proj-6t1RwThNm5EAoZPe9pmwzjEnC
 def get_data_from_database(state: State) -> State:
     db = next(get_db())
     try:
+        print(state)
         stop_data = db.query(Stop).filter(Stop.id == state['stop_id']).first()
         if stop_data:
             # Convert SQLAlchemy model to dictionary

@@ -1,12 +1,13 @@
 import requests
-from flask import Response, stream_with_context
+from fastapi.responses import StreamingResponse
+from fastapi import HTTPException
 
 
 
 
 class OrpheusService:
     def __init__(self):
-        self.url = "https://a487-213-192-2-119.ngrok-free.app/tts"
+        self.url = "https://ef37-213-192-2-119.ngrok-free.app/api/v1/tts"
         self.voice = "zac"
 
     def stream_audio_response(self, text: str):
@@ -28,20 +29,19 @@ class OrpheusService:
                         yield chunk
             
             # Return a streaming response with appropriate headers
-            return Response(
-                stream_with_context(generate()),
-                content_type='audio/wav',
+            return StreamingResponse(
+                generate(),
+                media_type='audio/wav',
                 headers={
-                    'Cache-Control': 'no-cache',
-                    'Transfer-Encoding': 'chunked'
+                    'Cache-Control': 'no-cache'
                 }
             )
 
         except requests.exceptions.RequestException as e:
             print(f"Error making request: {e}")
-            return Response(str(e), status=500)
+            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
             print(f"Error processing audio: {e}")
-            return Response(str(e), status=500)
+            raise HTTPException(status_code=500, detail=str(e))
 
 orpheus_service = OrpheusService()

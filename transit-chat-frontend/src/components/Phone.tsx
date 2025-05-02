@@ -9,6 +9,9 @@ interface Message {
   timestamp: string;
 }
 
+// Define the ConversationState type
+type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
+
 interface PhoneProps {
   messages: Message[];
   onSendMessage: (message: string) => void;
@@ -21,6 +24,9 @@ interface PhoneProps {
   isCallMode?: boolean;
   onToggleCallMode?: () => void;
   audioStream?: MediaStream | null;
+  isRecording?: boolean;
+  onToggleRecording?: () => void;
+  conversationState?: ConversationState;
 }
 
 const Phone: React.FC<PhoneProps> = ({ 
@@ -34,22 +40,13 @@ const Phone: React.FC<PhoneProps> = ({
   onReset,
   isCallMode = false,
   onToggleCallMode = () => {},
-  audioStream = null
+  audioStream = null,
+  isRecording = false,
+  onToggleRecording = () => {},
+  conversationState = 'idle'
 }) => {
   const [inputMessage, setInputMessage] = React.useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const handleRecordingToggle = () => {
-    console.log(isRecording);
-    setIsRecording(!isRecording);
-    // Mute/unmute the microphone if audio stream exists
-    if (audioStream) {
-      audioStream.getAudioTracks().forEach(track => {
-        track.enabled = !isRecording;
-      });
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -152,11 +149,12 @@ const Phone: React.FC<PhoneProps> = ({
           onEndCall={onToggleCallMode}
           isActive={isCallMode} 
           audioStream={audioStream}
-          onToggle={handleRecordingToggle}
+          onToggle={onToggleRecording}
           isRecording={isRecording}
           isDarkMode={isDarkMode}
           isCallMode={isCallMode}
           onToggleCallMode={onToggleCallMode}
+          conversationState={conversationState}
         />
       </div>
       

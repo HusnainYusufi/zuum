@@ -19,6 +19,9 @@ interface Stop {
   thread_id: string;
 }
 
+// Define conversation states for the audio call mode
+type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [stops, setStops] = useState<Stop[]>([]);
@@ -33,6 +36,10 @@ function App() {
   const [isBlurred, setIsBlurred] = useState(false);
   const [isCallMode, setIsCallMode] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [silenceDetector, setSilenceDetector] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [silenceDetected, setSilenceDetected] = useState(false);
+  const [conversationState, setConversationState] = useState<ConversationState>('idle');
 
   const formatTime = () => {
     const now = new Date();
@@ -125,12 +132,257 @@ function App() {
     }
   };
 
+  // Add silence detection setup
+  const setupSilenceDetection = (stream: MediaStream) => {
+    // TODO: Replace ScriptProcessorNode with AudioWorkletNode in a future update
+    // This implementation uses the deprecated ScriptProcessorNode for compatibility
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    
+    // Configure analyser for voice detection
+    analyser.smoothingTimeConstant = 0.8;
+    analyser.fftSize = 256;
+    
+    source.connect(analyser);
+    
+    let silenceStart: number | null = null;
+    const SILENCE_THRESHOLD = -50; // dB
+    const SILENCE_DURATION = 2000; // ms
+
+    // Create a monitoring function that doesn't require ScriptProcessor
+    const silenceDetectionInterval = setInterval(() => {
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+      
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+      const dB = 20 * Math.log10(average / 255);
+
+      if (dB < SILENCE_THRESHOLD) {
+        if (!silenceStart) {
+          silenceStart = Date.now();
+        } else if (Date.now() - silenceStart > SILENCE_DURATION) {
+          silenceStart = null;
+          setSilenceDetected(true);
+        }
+      } else {
+        silenceStart = null;
+      }
+    }, 100);
+
+    return {
+      cleanup: () => {
+        clearInterval(silenceDetectionInterval);
+        audioContext.close();
+        source.disconnect();
+        analyser.disconnect();
+      }
+    };
+  };
+
+  // Start listening after initialization or agent response
+  const startListening = () => {
+    if (isCallMode && audioStream) {
+      console.log('Transitioning to listening state');
+      setConversationState('listening');
+      setSilenceDetected(false);
+      // Ensure microphone is enabled
+      audioStream.getAudioTracks().forEach(track => {
+        track.enabled = true;
+      });
+      setIsRecording(true);
+    }
+  };
+
+  // Handle recording toggle
+  const handleRecordingToggle = () => {
+    setIsRecording(!isRecording);
+    // Mute/unmute the microphone if audio stream exists
+    if (audioStream) {
+      audioStream.getAudioTracks().forEach(track => {
+        track.enabled = !isRecording;
+      });
+    }
+  };
+
+  // Effect to manage conversation state changes
+  useEffect(() => {
+    if (isCallMode && isInitialized && conversationState === 'idle') {
+      startListening();
+    }
+  }, [isCallMode, isInitialized, conversationState]);
+
+  // Function to process recorded audio and send it to the server
+  const processRecordedAudio = async (audioBlob: Blob) => {
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.wav');
+      
+      // Also add the thread_id as regular parameter
+      const threadIdParam = threadId?.toString() || '';
+      
+      // Use the conversation/chat endpoint but with the thread_id as a query parameter
+      const response = await fetch(`http://localhost:8000/conversation/chat?thread_id=${threadIdParam}`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
+      const humanMessage: Message = {
+        text: data.user || 'No response',
+        isUser: true,
+        timestamp: formatTime()
+      };
+      const botMessage: Message = {
+        text: data.AI || data.response || 'No response',
+        isUser: false,
+        timestamp: formatTime()
+      };
+      
+      setMessages(prev => {
+        const newMessages = [...prev, humanMessage, botMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
+
+      // Set to agent speaking while playing response
+      setConversationState('agentSpeaking');
+
+      // Play audio for the response using the new audio endpoint
+      if (data.AI || data.response) {
+        const responseText = data.AI || data.response;
+        const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(responseText)}`);
+        if (audioResponse.ok) {
+          const audioBlob = await audioResponse.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          
+          // Listen for when audio finishes playing to start listening again
+          audio.onended = () => {
+            setConversationState('listening');
+          };
+          
+          await audio.play();
+        } else {
+          // If audio fails, still start listening again
+          setConversationState('listening');
+        }
+      } else {
+        // No response to play, start listening again
+        setConversationState('listening');
+      }
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      // On error, go back to listening state
+      setConversationState('listening');
+    }
+  };
+
+  // Effect to handle silence detection and audio recording lifecycle
+  useEffect(() => {
+    // Only record when we're in listening state
+    if (!isCallMode || !audioStream || conversationState !== 'listening') {
+      return;
+    }
+    
+    console.log('Starting recording in listening state');
+    
+    let audioChunks: Blob[] = [];
+    const mediaRecorder = new MediaRecorder(audioStream);
+    let shouldProcessAudio = false; // Flag to track if we should process audio
+    
+    // Set up event handlers
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+    
+    const handleStopRecording = () => {
+      if (audioChunks.length > 0) {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        console.log('Recording stopped, shouldProcessAudio:', shouldProcessAudio);
+        
+        // Use our flag instead of checking the React state
+        if (shouldProcessAudio) {
+          console.log('Processing audio...');
+          processRecordedAudio(audioBlob);
+        }
+      }
+    };
+    
+    mediaRecorder.onstop = handleStopRecording;
+    
+    // Start recording
+    mediaRecorder.start();
+    
+    // Request data regularly to collect audio chunks
+    const requestInterval = setInterval(() => {
+      if (mediaRecorder.state === 'recording') {
+        mediaRecorder.requestData();
+      }
+    }, 500);
+    
+    // When silence is detected, transition to processing and stop recording
+    const handleSilenceDetection = () => {
+      if (silenceDetected && conversationState === 'listening') {
+        console.log('Stopping recording due to silence detection');
+        
+        // Set our flag BEFORE stopping the recorder
+        shouldProcessAudio = true;
+        
+        // Update the React state
+        setConversationState('processing');
+        
+        // Stop the recorder - this will trigger the onstop event immediately
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+        
+        setSilenceDetected(false);
+      }
+    };
+    
+    // Watch for silence detection
+    const silenceCheckInterval = setInterval(handleSilenceDetection, 100);
+    
+    // Clean up
+    return () => {
+      clearInterval(requestInterval);
+      clearInterval(silenceCheckInterval);
+      if (mediaRecorder.state === 'recording') {
+        // Don't process audio on unmount
+        shouldProcessAudio = false;
+        mediaRecorder.stop();
+      }
+    };
+  }, [
+    isCallMode,
+    audioStream,
+    conversationState,
+    silenceDetected
+  ]);
+
   const handleToggleCallMode = async () => {
     if (!isCallMode) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setAudioStream(stream);
+        const detector = setupSilenceDetection(stream);
+        setSilenceDetector(detector);
         setIsCallMode(true);
+        // Start in idle state until initialized
+        setConversationState('idle');
       } catch (error) {
         console.error('Error accessing microphone:', error);
         alert('Unable to access microphone. Please check permissions.');
@@ -138,9 +390,14 @@ function App() {
     } else {
       if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
+        if (silenceDetector) {
+          silenceDetector.cleanup();
+          setSilenceDetector(null);
+        }
         setAudioStream(null);
       }
       setIsCallMode(false);
+      setConversationState('idle');
     }
   };
 
@@ -151,6 +408,11 @@ function App() {
     }
 
     setIsBlurred(true);
+    // Ensure recording is off during initialization
+    if (isCallMode) {
+      setIsRecording(false);
+    }
+    
     try {
       const response = await fetch(`http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isCallMode}`);
       
@@ -161,7 +423,7 @@ function App() {
       const data = await response.json();
       
       const initialMessage: Message = {
-        text: isCallMode ? data.AI : data.response,
+        text: data.response,
         isUser: false,
         timestamp: formatTime()
       };
@@ -177,11 +439,32 @@ function App() {
       setIsInitialized(true);
 
       if (isCallMode && data.response) {
-        // Handle audio response
-        const audioBlob = new Blob([data.response], { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        await audio.play();
+        // Set to agent speaking while playing response
+        setConversationState('agentSpeaking');
+        setIsRecording(false);
+        
+        // Play audio for the response using the new audio endpoint
+        const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(data.response)}`);
+        if (audioResponse.ok) {
+          const audioBlob = await audioResponse.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          
+          // When audio finishes, start listening
+          audio.onended = () => {
+            startListening();
+          };
+          
+          await audio.play();
+        } else {
+          // If audio fails, still start listening
+          startListening();
+        }
+      } else {
+        // Start listening immediately if not in call mode or no response
+        if (isCallMode) {
+          startListening();
+        }
       }
     } catch (error) {
       console.error('Error initializing chat:', error);
@@ -191,6 +474,10 @@ function App() {
         timestamp: formatTime()
       };
       setMessages([errorMessage]);
+      
+      if (isCallMode) {
+        startListening();
+      }
     } finally {
       setIsBlurred(false);
     }
@@ -202,8 +489,14 @@ function App() {
       return;
     }
 
+    // If in call mode, pause listening while processing
+    if (isCallMode) {
+      setConversationState('processing');
+      setIsRecording(false);
+    }
+
     const userMessage: Message = {
-      text: message,
+      text: message || '🎤 Audio message',
       isUser: true,
       timestamp: formatTime()
     };
@@ -220,26 +513,15 @@ function App() {
     });
 
     try {
-      let requestBody: any = {
-        message: message,
-        thread_id: threadId.toString()
-      };
-
-      if (isCallMode && audioStream) {
-        // Convert audio stream to base64
-        const audioData = await recordAudio(audioStream);
-        requestBody = {
-          audio_file: audioData,
-          thread_id: threadId.toString()
-        };
-      }
-
-      const response = await fetch(`http://localhost:8000/conversation/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+      // Create URLSearchParams to append message to query string
+      const queryParams = new URLSearchParams({
+        thread_id: threadId.toString(),
+        message: message
+      });
+      
+      // Use query parameters for both thread_id and message
+      const response = await fetch(`http://localhost:8000/conversation/chat?${queryParams.toString()}`, {
+        method: 'POST'
       });
 
       if (!response.ok) {
@@ -248,8 +530,11 @@ function App() {
 
       const data = await response.json();
       
+      // Use response or AI field for the bot's message text
+      const responseText = data.response || data.AI || 'No response';
+      
       const botMessage: Message = {
-        text: isCallMode ? data.AI : data.response,
+        text: responseText,
         isUser: false,
         timestamp: formatTime()
       };
@@ -265,12 +550,31 @@ function App() {
         return newMessages;
       });
 
-      if (isCallMode && data.response) {
-        // Handle audio response
-        const audioBlob = new Blob([data.response], { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        await audio.play();
+      if (isCallMode && responseText) {
+        // Set to agent speaking while playing response
+        setConversationState('agentSpeaking');
+        setIsRecording(false);
+        
+        // Play audio for the response using the new audio endpoint
+        const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(responseText)}`);
+        if (audioResponse.ok) {
+          const audioBlob = await audioResponse.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          
+          // When audio finishes, start listening again
+          audio.onended = () => {
+            startListening();
+          };
+          
+          await audio.play();
+        } else {
+          // If audio fails, still start listening again
+          startListening();
+        }
+      } else if (isCallMode) {
+        // No audio to play but still in call mode, start listening
+        startListening();
       }
     } catch (error) {
       console.error('Error:', error);
@@ -290,36 +594,13 @@ function App() {
         }
         return newMessages;
       });
+      
+      // On error, go back to listening if in call mode
+      if (isCallMode) {
+        startListening();
+      }
     }
   };
-
-  // Helper function to record audio
-  const recordAudio = async (stream: MediaStream): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const mediaRecorder = new MediaRecorder(stream);
-      const audioChunks: Blob[] = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          const base64Audio = reader.result as string;
-          resolve(base64Audio.split(',')[1]); // Remove data URL prefix
-        };
-      };
-
-      mediaRecorder.start();
-      setTimeout(() => {
-        mediaRecorder.stop();
-      }, 3000); // Record for 3 seconds
-    });
-  };
-
 
   const handleReset = () => {
     if (!selectedStopId) {
@@ -336,51 +617,14 @@ function App() {
     // Reset thread ID to stop ID
     setThreadId(selectedStopId.toString());
     
-    // Set initialized to true so user can start chatting immediately
+    // Set initialized to false
     setIsInitialized(false);
-  };
-
-  // Initialize chat when no stop is selected
-  // useEffect(() => {
-  //   if (stops.length === 0 || selectedStopId !== null) {
-  //     return;
-  //   }
     
-  //   const initializeChat = async () => {
-  //     try {
-  //       const response = await fetch('http://localhost:8000/transit-chat', {
-  //         method: 'GET',
-  //         headers: {
-  //           'Content-Type': 'application/json',
-  //         }
-  //       });
-
-  //       if (!response.ok) {
-  //         throw new Error('Network response was not ok');
-  //       }
-
-  //       const data = await response.json();
-        
-  //       // Add initial bot message
-  //       const botMessage: Message = {
-  //         text: data.message,
-  //         isUser: false,
-  //         timestamp: formatTime()
-  //       };
-  //       setMessages([botMessage]);
-  //     } catch (error) {
-  //       console.error('Error initializing chat:', error);
-  //       const errorMessage: Message = {
-  //         text: 'Sorry, there was an error connecting to the chat service.',
-  //         isUser: false,
-  //         timestamp: formatTime()
-  //       };
-  //       setMessages([errorMessage]);
-  //     }
-  //   };
-
-  //   initializeChat();
-  // }, [stops]);
+    // Reset conversation state if in call mode
+    if (isCallMode) {
+      setConversationState('idle');
+    }
+  };
 
   return (
     <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
@@ -407,6 +651,9 @@ function App() {
               isCallMode={isCallMode}
               audioStream={audioStream}
               onToggleCallMode={handleToggleCallMode}
+              isRecording={isRecording}
+              onToggleRecording={handleRecordingToggle}
+              conversationState={conversationState}
             />
          
          

@@ -1,9 +1,11 @@
 import requests
+import base64
+import io
 
 
 class WhisperService:
     def __init__(self):
-        self.url = "https://a487-213-192-2-119.ngrok-free.app/tts"
+        self.url = "https://ef37-213-192-2-119.ngrok-free.app/api/v1/transcribe"
 
     def transcribe_audio(self, audio_file: str):
         """
@@ -17,17 +19,27 @@ class WhisperService:
         """
         
         try:
-            # Prepare the request payload
-            payload = {
-                "audio": audio_file
+            # Decode base64 string to binary data
+            audio_bytes = base64.b64decode(audio_file)
+            
+            # Create a file-like object from the bytes
+            audio_file_obj = io.BytesIO(audio_bytes)
+            
+            # Send as multipart form upload - matching the new API expectation
+            files = {
+                'audio': ('audio.mp3', audio_file_obj, 'audio/mpeg')
             }
             
-            # Make POST request to the whisper API
-            response = requests.post(self.url, json=payload)
-            response.raise_for_status()  # Raise exception for non-200 status codes
+            # Make the request
+            response = requests.post(self.url, files=files)
+            response.raise_for_status()
             
-            # Return the transcribed text
-            return response.json()
+            # Process the response
+            try:
+                result = response.json()
+                return result.get('text', result)
+            except:
+                return response.text
             
         except requests.exceptions.RequestException as e:
             # Handle any request-related errors
@@ -35,3 +47,4 @@ class WhisperService:
         
 
 whisper_service = WhisperService()
+
