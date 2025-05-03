@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
-from routes import  transit_chat_router
 from routes.conversation import router as conversation_router
 
 # Initialize the database
@@ -25,7 +24,6 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(transit_chat_router)
 app.include_router(conversation_router)
 
 # Initialize the chat states
