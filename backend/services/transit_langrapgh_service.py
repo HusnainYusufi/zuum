@@ -35,8 +35,6 @@ if str(backend_dir) not in sys.path:
 from db_models import Stop, ChatHistory, get_db
 
 load_dotenv()
-
-
 class State(TypedDict):
    messages: Annotated[list, add_messages] = None
    stop_id: Optional[str] = None
@@ -51,14 +49,16 @@ class State(TypedDict):
 graphbuilder = StateGraph(State)
 json_parser = JsonOutputParser()
 fmt = json_parser.get_format_instructions()
-
+db = next(get_db())
 
 
 
 llm = ChatOpenAI(model="gpt-4o-mini", api_key='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')
 
+
+
+
 def get_data_from_database(state: State) -> State:
-    db = next(get_db())
     try:
         print(state)
         stop_data = db.query(Stop).filter(Stop.id == state['stop_id']).first()
@@ -150,18 +150,22 @@ def get_location_and_eta(state: State) -> State:
     if location is None or eta is None:
         msg = llm.invoke([SystemMessage(content=f'Respond to the truck driver message. Also, The location provided by the driver is {location} and the eta provided by the driver is {eta}. if one or both are None, please generate a question to ask the driver for it and make it short and direct. whithout saying hello or anything else'),*state['messages']])
         query = msg.content        
-    elif eta is not None:
-        eta = datetime.strptime(eta.split('.')[0], "%Y-%m-%dT%H:%M:%S")
-        print(eta , state.get('stop_data')['eta'])
-        if eta > state.get('stop_data')['eta']:
-            delay = eta - state.get('stop_data')['eta']
-            delay_minutes = int(delay.total_seconds() / 60)
-            if delay_minutes >= 60:
-                delay_hours = delay_minutes / 60
-                query = f'Your journey has been delayed by {delay_hours:.0f} hours, can you tell the reason why?'
-            else:
-                query = f'Your journey has been delayed by {delay_minutes} minutes, can you tell the reason why?'
-            state['delayed'] = True
+    else:
+        db.query(Stop).filter(Stop.id == state['stop_id']).update({'reported_location': location, 'eta': eta})   
+        db.commit()     
+        if eta is not None:
+            eta = datetime.strptime(eta.split('.')[0], "%Y-%m-%dT%H:%M:%S")
+            print(eta , state.get('stop_data')['eta'])
+            if eta > state.get('stop_data')['eta']:
+                delay = eta - state.get('stop_data')['eta']
+                delay_minutes = int(delay.total_seconds() / 60)
+                if delay_minutes >= 60:
+                    delay_hours = delay_minutes / 60
+                    query = f'Your journey has been delayed by {delay_hours:.0f} hours, can you tell the reason why?'
+                else:
+                    query = f'Your journey has been delayed by {delay_minutes} minutes, can you tell the reason why?'
+                state['delayed'] = True
+
     return {
         **state,
         'messages': [*state['messages'],
@@ -180,6 +184,8 @@ def get_delay_reason(state:State):
     ), state['messages'][-1]])
     
     if 'yes' in msg.content.lower():
+        db.query(Stop).filter(Stop.id == state['stop_id']).update({'delay_reason':state['messages'][-1].content, 'is_delayed':True})
+        db.commit()
         return{**state,'messages':[*state['messages'], AIMessage(content='', name='transit_chat')], 'delay_reason':state['messages'][-1].content}
     else:
         return{**state, 'messages':[*state['messages'], msg], 'current_query':msg.content}
@@ -206,7 +212,7 @@ def get_nearest_highway(state: State) -> State:
     if state.get('messages')[-1].name == 'transit_chat':
         query = 'What is the nearest highway exit?'
     else:
-        msg = llm.invoke([SystemMessage(content='Respond to the truck driver message and ask for the nearest highway exit.'),*state['messages']])
+        msg = llm.invoke([SystemMessage(content='Respond to the truck driver message and must ask for the nearest highway exit.'),*state['messages']])
         query = msg.content
     state['messages'].append(AIMessage(content=query, name='highway_exit'))
     state = get_humanResponse(state)
@@ -214,7 +220,7 @@ def get_nearest_highway(state: State) -> State:
         input_variables=[
            "human_response", "format_instructions"
         ],
-        template='''Get the highway name from the response of the driver.
+        template='''Get the highway name, if there is any, else return null from the response of the driver.
 Human response: {human_response}
 {format_instructions}
 outputs:
@@ -226,7 +232,11 @@ outputs:
     json_response = json_parser.parse(msg.content)
     print(json_response)
     highway_name = json_response['highway_name']
-    return {**state, 'nearest_highway':highway_name}
+    if highway_name is not None:
+        db.query(Stop).filter(Stop.id == state['stop_id']).update({'nearest_highway':highway_name})
+        return {**state, 'nearest_highway':highway_name}
+    else:
+        return {**state, 'nearest_highway':None}
 
 def goodbye(state: State) -> State:
     query = 'Thats all for now, Have a safe journey!'
