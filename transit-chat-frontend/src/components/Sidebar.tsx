@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import '../styles/Sidebar.css';
 
 interface Stop {
@@ -7,6 +7,8 @@ interface Stop {
   location: string;
   eta: string;
   is_delayed: boolean;
+  is_origin?: boolean;
+  is_destination?: boolean;
 }
 
 interface SidebarProps {
@@ -29,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({ stops, selectedStopId, onSelectStop, 
           stops.map((stop) => (
             <div
               key={stop.id}
-              className={`stop-item ${selectedStopId === stop.id ? 'selected' : ''}`}
+              className={`stop-item ${selectedStopId === stop.id ? 'selected' : ''} ${stop.is_origin ? 'origin' : ''} ${stop.is_destination ? 'destination' : ''}`}
               onClick={() => onSelectStop(stop.id)}
             >
               <div className="stop-info">
@@ -38,6 +40,12 @@ const Sidebar: React.FC<SidebarProps> = ({ stops, selectedStopId, onSelectStop, 
                 <p className="eta">ETA: {stop.eta}</p>
                 {stop.is_delayed && (
                   <span className="delayed-badge">Delayed</span>
+                )}
+                {stop.is_origin && (
+                  <span className="origin-badge">Origin</span>
+                )}
+                {stop.is_destination && (
+                  <span className="destination-badge">Destination</span>
                 )}
               </div>
             </div>

@@ -46,6 +46,9 @@ class Stop(BaseModel):
     location: str
     eta: str
     is_delayed: bool
+    is_origin: bool
+    is_destination: bool
+
 
 class StopDetail(BaseModel):
     id: int
@@ -58,6 +61,9 @@ class StopDetail(BaseModel):
     delay_reason: Optional[str] = None
     expected_location: Optional[str] = None
     reported_location: Optional[str] = None
+    is_origin: bool
+    is_destination: bool
+
 
 # Get all stops (basic info)
 @app.get("/stops", response_model=List[Stop])

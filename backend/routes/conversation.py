@@ -2,13 +2,17 @@ from fastapi import APIRouter, HTTPException, Body, File, UploadFile, Form, Quer
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 from loguru import logger
-from services.transit_langrapgh_service import transit_langgraph_service
+from services.langrapghs.transit_langrapgh_service import transit_langgraph_service
 from langgraph.types import Command
 import random
 from services.whisper_service import whisper_service
 from services.orpheus_service import orpheus_service
 import base64
 from io import BytesIO
+from db_models import get_db
+from db_models import Stop
+from services.langrapghs.origin_langraph import origin_langgraph_service
+from services.langrapghs.destination_langrapgh_service import destination_langgraph_service
 
 router = APIRouter(
     prefix="/conversation",
@@ -16,17 +20,21 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+db = next(get_db())
+
 class ChatRequest(BaseModel):
     message: str = None
     audio_file: str = None
     thread_id: str
 
 @router.get("/initialize")
-async def initialize_transit_chat(stop_id: Optional[int] = None, is_audio: Optional[bool] = False):
+async def initialize_chat(stop_id: Optional[int] = None, is_audio: Optional[bool] = False):
     try:
         thread_id = random.randint(1, 1000000)
-        query = transit_langgraph_service.run({"messages":[],'running': True, 'stop_id': stop_id}, thread_id)
         
+        langraph_service = check_langraph_service(stop_id)
+        
+        query = langraph_service.run({"messages":[], 'running': True, 'stop_id': stop_id}, str(thread_id))
         if is_audio:
             # Store the query for later audio streaming
             # We'll return just the text response and client can request audio separately
@@ -34,7 +42,7 @@ async def initialize_transit_chat(stop_id: Optional[int] = None, is_audio: Optio
         else:
             return {'response': query, 'thread_id': thread_id}
     except Exception as e:
-        logger.error(f"Error in initialize_transit_chat: {str(e)}")
+        logger.error(f"Error in initialize_chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/audio")
@@ -52,7 +60,8 @@ async def chat(
     audio: UploadFile = File(None),
     thread_id: str = Query(None),
     message: str = Query(None),
-    request: ChatRequest = Body(None)
+    request: ChatRequest = Body(None),
+    stop_id: int = Query(None)
 ):
     try:
         # Log received parameters
@@ -86,8 +95,8 @@ async def chat(
                 text = "I couldn't understand the audio clearly."
             
             logger.debug(f"Transcribed text: {text}")
-            
-            query = transit_langgraph_service.run(Command(resume={'data': text}), thread_id)
+            langraph_service = check_langraph_service(stop_id)
+            query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
             return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query}
             
         # Handle base64 encoded audio from JSON request
@@ -101,18 +110,19 @@ async def chat(
                 text = "I couldn't understand the audio clearly."
             
             logger.debug(f"Transcribed text: {text}")
-            
-            query = transit_langgraph_service.run(Command(resume={'data': text}), thread_id)
+            langraph_service = check_langraph_service(stop_id)
+            query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
             return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query}
             
         # Handle text message
         elif message:
             logger.debug(f"Processing text message: {message}")
             # Run the message directly through langgraph
-            response = transit_langgraph_service.run(Command(resume={'data': message}), thread_id)
-            logger.debug(f"Langgraph response: {response}")
+            langraph_service = check_langraph_service(stop_id)
+            query = langraph_service.run(Command(resume={'data': message}), str(thread_id))
+            logger.debug(f"Langgraph response: {query}")
             # Return a consistent response format
-            return {'response': response, 'thread_id': thread_id, 'user': message, 'AI': response}
+            return {'response': query, 'thread_id': thread_id, 'user': message, 'AI': query}
             
         else:
             raise HTTPException(status_code=400, detail="No audio or message provided")
@@ -120,3 +130,19 @@ async def chat(
     except Exception as e:
         logger.error(f"Error in chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+def check_langraph_service(stop_id: int):
+    stop = db.query(Stop).filter(Stop.id == stop_id).first()
+    if stop is None:
+        # If stop doesn't exist, default to transit service
+        return transit_langgraph_service
+        
+    if stop.is_origin:
+        return origin_langgraph_service
+    elif stop.is_destination:
+        return destination_langgraph_service
+    else:
+        return transit_langgraph_service

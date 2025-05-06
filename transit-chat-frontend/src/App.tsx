@@ -17,6 +17,8 @@ interface Stop {
   eta: string;
   is_delayed: boolean;
   thread_id: string;
+  is_origin?: boolean;
+  is_destination?: boolean;
 }
 
 // Define conversation states for the audio call mode
@@ -64,16 +66,30 @@ function App() {
   useEffect(() => {
     const fetchStops = async () => {
       try {
-        const response = await fetch('http://localhost:8000/stops');
+        const response = await fetch('http://localhost:8000/stops/details');
         if (!response.ok) {
           throw new Error('Failed to fetch stops');
         }
         const data = await response.json();
-        setStops(data);
+        
+        // Map the data to conform to our Stop interface
+        const mappedStops = data.map((stop: any) => ({
+          id: stop.id,
+          name: stop.name,
+          location: stop.location,
+          eta: stop.eta,
+          is_delayed: stop.is_delayed,
+          thread_id: stop.thread_id || stop.id.toString(),
+          is_origin: stop.is_origin || false,
+          is_destination: stop.is_destination || false
+        }));
+        console.log(mappedStops)
+        
+        setStops(mappedStops);
         
         // Select the first stop by default if no stop is selected
-        if (data.length > 0) {
-          setSelectedStopId(prevId => prevId === null ? data[0].id : prevId);
+        if (mappedStops.length > 0) {
+          setSelectedStopId(prevId => prevId === null ? mappedStops[0].id : prevId);
         }
       } catch (error) {
         console.error('Error fetching stops:', error);
@@ -407,8 +423,8 @@ function App() {
       console.log(`Sending audio to backend with thread_id: ${threadIdParam}`);
       
       // Use the conversation/chat endpoint but with the thread_id as a query parameter
-      console.log(`Initiating fetch to: http://localhost:8000/conversation/chat?thread_id=${threadIdParam}`);
-      const response = await fetch(`http://localhost:8000/conversation/chat?thread_id=${threadIdParam}`, {
+      console.log(`Initiating fetch to: http://localhost:8000/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`);
+      const response = await fetch(`http://localhost:8000/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -554,7 +570,7 @@ function App() {
       });
       
       // Use query parameters for both thread_id and message
-      const response = await fetch(`http://localhost:8000/conversation/chat?${queryParams.toString()}`, {
+      const response = await fetch(`http://localhost:8000/conversation/chat?${queryParams.toString()}&stop_id=${selectedStopId}`, {
         method: 'POST'
       });
 
