@@ -4,8 +4,10 @@ from typing import Annotated, TypedDict, Optional
 import sys
 from pathlib import Path
 
-
+from loguru import logger
 from typing import Annotated
+from backend.services.langrapghs.prompts import CARRIER_CONFIRMATION_PROMPT, LOADED_CARGO_PROMPT, DISPATCHED_PROMPT
+
 
 
 from typing_extensions import TypedDict
@@ -50,7 +52,7 @@ db = next(get_db())
 
 
 
-llm = ChatOpenAI(model="gpt-4o-mini", api_key='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')
+llm = ChatOpenAI(model="gpt-4.1-nano", api_key='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')
 
 
 
@@ -88,7 +90,8 @@ def get_data_from_database(state: State) -> State:
 
 def greet(state: State) -> State:
     'Call this tool when the driver wants to end the conversation and shut down the agent.'
-    query = f"Hello! Support agent here. Do you have a carrier confirmation?"
+    msg = llm.invoke([SystemMessage(content=CARRIER_CONFIRMATION_PROMPT)])
+    query = msg.content
     return {
         **state,
         'messages': [
@@ -112,11 +115,21 @@ def format_human_text(text: str) -> str:
 
 def get_carrier_confirmation(state: State) -> State:
     if state['messages'][-1].name != 'greet':
-        msg = llm.invoke([SystemMessage(content="You are a support agent dispatcher for a trucking company. Respond to the trucker messages without getting out of path of conversation and ask them if they have a carrier confirmation for the journey."),*state['messages']])
+        msg = llm.invoke([SystemMessage(content="You are a support agent dispatcher for a trucking company. Respond to the trucker's messages without getting out of path of conversation and ask them if they have signed the carrier confirmation for the journey."),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='carrier_confirmation'))
     state = get_humanResponse(state, 'carrier_confirmation')
-    if 'yes' in format_human_text(state['messages'][-1].content):
-        query = 'Have you loaded the cargo?'
+    
+    # Use LLM to check if response is affirmative or negative
+    check_response = llm.invoke([
+        SystemMessage(content="You are a response classifier. Your task is to determine if the given response is affirmative (agreeing) or negative (disagreeing) or unclear to the question about signing carrier confirmation. Respond with exactly 'affirmative' or 'negative' or 'unclear'."),
+        HumanMessage(content=f"Question: Have you signed the carrier confirmation?\nResponse: {state['messages'][-1].content}")
+    ])
+    
+    response_type = check_response.content.lower().strip()
+    
+    if response_type == 'affirmative':
+        msg = llm.invoke([SystemMessage(content=LOADED_CARGO_PROMPT)])
+        query = msg.content
         return {
             **state,
             'messages': [*state['messages'],
@@ -124,7 +137,7 @@ def get_carrier_confirmation(state: State) -> State:
             ],
             'carrier_confirmation': True
         }
-    elif 'no' in format_human_text(state['messages'][-1].content):
+    elif response_type == 'negative':
         query = f"Please sign the carrier confirmation before you proceed with your journey"
         return {
             **state,
@@ -135,25 +148,43 @@ def get_carrier_confirmation(state: State) -> State:
             'running': False
         }
     else:
-        return state
+        # If LLM response is unclear, ask for clarification
+        query = "I'm not sure if you've signed the carrier confirmation. Could you please clearly confirm if you have signed it or not?"
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='carrier_confirmation')
+            ]
+        }
 
 def get_have_loaded(state: State) -> State:
     if state['messages'][-1].name != 'carrier_confirmation':
         msg = llm.invoke([SystemMessage(content="You are a support agent dispatcher for a trucking company. Respond to the trucker messages without getting out of path of conversation and ask them if they have loaded the cargo."),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='have_loaded'))
     state = get_humanResponse(state, 'have_loaded')
-    if 'yes' in format_human_text(state['messages'][-1].content):
-        query = f"Have you started your journey from {state['stop_data']['name']}?"
+    
+    # Use LLM to check if response is affirmative, negative, or unclear
+    check_response = llm.invoke([
+        SystemMessage(content="You are a response classifier. Your task is to determine if the given response is affirmative (agreeing) or negative (disagreeing) or unclear to the question about loading cargo. Respond with exactly 'affirmative' or 'negative' or 'unclear'."),
+        HumanMessage(content=f"Question: Have you loaded the cargo?\nResponse: {state['messages'][-1].content}")
+    ])
+    
+    response_type = check_response.content.lower().strip()
+    
+    if response_type == 'affirmative':
+        msg = llm.invoke([SystemMessage(content= DISPATCHED_PROMPT + f"location: {state['stop_data']['name']}")])
+        query = msg.content
         return {   
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='Goodbye')
+                AIMessage(content=query, name='dispatched')
             ],
             'have_loaded': True,
+            'dispatched': None,
             'running': False
         }
-    elif 'no' in format_human_text(state['messages'][-1].content):
-        query = 'Please load the cargo and let me know when you are ready to start your journey.'
+    elif response_type == 'negative':
+        query = 'Please load the cargo and let us know once loaded thank you.'
         return {
             **state,
             'messages': [*state['messages'],
@@ -162,18 +193,36 @@ def get_have_loaded(state: State) -> State:
             'have_loaded': False,
             'running': False
         }
-        
-    else:
-        return state    
+    else:  # unclear response
+        query = "I'm not sure if you've loaded the cargo. Could you please clearly confirm if you have loaded it or not?"
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='have_loaded')
+            ]
+        }
 
 def get_dispatched(state: State) -> State:
-    if state['messages'][-1].name != 'have_loaded':
-        msg = llm.invoke([SystemMessage(content="You are a support agent dispatcher for a trucking company. Respond to the trucker messages without getting out of path of conversation and ask them if they have started their journey."),*state['messages']])
+    if state['messages'][-1].name != 'dispatched':
+        msg = llm.invoke([
+            SystemMessage(content="You are a support agent dispatcher for a trucking company. Respond to the trucker messages without getting out of path of conversation and ask them if they have started their journey."),
+            *state['messages']
+        ])
         state['messages'].append(AIMessage(content=msg.content, name='dispatched'))
     state = get_humanResponse(state, 'dispatched')
-    if 'yes' in format_human_text(state['messages'][-1].content):
-        query = f"That's great! Have a safe journey!"
-        return {   
+
+    # Use LLM to check if response is affirmative, negative, or unclear
+    check_response = llm.invoke([
+        SystemMessage(content="You are a response classifier. Your task is to determine if the given response is affirmative (agreeing) or negative (disagreeing) or unclear to the question about starting the journey. Respond with exactly 'affirmative' or 'negative' or 'unclear'."),
+        HumanMessage(content=f"Question: Have you started your journey?\nResponse: {state['messages'][-1].content}")
+    ])
+
+    response_type = check_response.content.strip().lower()
+    logger.info(f"LLM classified response as: {response_type}")
+
+    if "affirmative" in response_type:
+        query = "Goodbye, have a safe journey!"
+        return {
             **state,
             'messages': [*state['messages'],
                 AIMessage(content=query, name='Goodbye')
@@ -181,19 +230,24 @@ def get_dispatched(state: State) -> State:
             'dispatched': True,
             'running': False
         }
-    elif 'no' in format_human_text(state['messages'][-1].content):
-        query = f"Okay, let me know when you start your journey"
+    elif "negative" in response_type:
+        query = "Okay, let us know when you start your journey"
         return {
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='Goodbye')
+                AIMessage(content=query, name='dispatched')
             ],
             'dispatched': False,
             'running': False
         }
-        
-    else:
-        return state
+    else:  # unclear response
+        query = "I'm not sure if you've started your journey. Could you please clearly confirm if you have started or not?"
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='dispatched')
+            ]
+        }
 
 def origin(state: State) -> State:
     return state
