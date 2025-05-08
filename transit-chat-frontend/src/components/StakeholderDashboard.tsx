@@ -21,6 +21,8 @@ interface Notification {
   message: string;
   timestamp: string;
   read: boolean;
+  stop_id?: number;
+  severity?: string;
 }
 
 interface StakeholderDashboardProps {
@@ -35,6 +37,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [lastNotificationTime, setLastNotificationTime] = useState<number>(Date.now());
 
   // Format ETA to human readable form with 12-hour clock
   const formatETA = (etaString: string): string => {
@@ -91,6 +94,64 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     }
   };
 
+  // Fetch notifications from backend
+  const fetchNotifications = async () => {
+    try {
+      // Check server logs for notifications
+      // Since we don't have a direct API endpoint to fetch notifications yet,
+      // we'll simulate by capturing driver inactivity notifications from the logs
+      const currentTime = Date.now();
+      console.log("Checking for new notifications since", new Date(lastNotificationTime).toLocaleTimeString());
+      
+      // Add notifications based on stop conditions
+      stops.forEach(stop => {
+        if (stop.is_delayed && !notifications.some(n => n.message.includes(`${stop.name} is delayed`))) {
+          addNotification(`${stop.name} is delayed. Reason: ${stop.delay_reason || 'Not provided'}`, stop.id, "warning");
+        }
+        
+        if (stop.expected_location !== stop.reported_location && 
+            !notifications.some(n => n.message.includes(`${stop.name} is off route`))) {
+          addNotification(`${stop.name} is off route. Expected: ${stop.expected_location}, Reported: ${stop.reported_location}`, stop.id, "warning");
+        }
+      });
+      
+      // Simulate checking for driver inactivity notifications
+      // In a real app, we'd make an API call here to get notifications from the backend
+      try {
+        // This is a polling mechanism to detect chat notifications
+        const response = await fetch('http://localhost:8000/conversation/active_notifications');
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data && data.notifications && Array.isArray(data.notifications)) {
+            data.notifications.forEach((notif: any) => {
+              // Only add if we don't already have this notification
+              if (!notifications.some(n => n.message === notif.message)) {
+                addNotification(notif.message, notif.stop_id, notif.severity || "warning");
+              }
+            });
+          }
+        }
+      } catch (err) {
+        // If the endpoint doesn't exist yet, we'll check for "not responding" in the server logs
+        // This is a fallback until the API is implemented
+        const chatResponse = await fetch(`http://localhost:8000/conversation/initialize?stop_id=1&is_audio=false&dummy=${Math.random()}`);
+        if (chatResponse.ok) {
+          // Check if the response contains any info about notifications
+          const chatData = await chatResponse.json();
+          if (chatData && chatData.notification) {
+            addNotification(chatData.notification.message, chatData.notification.stop_id, chatData.notification.severity || "warning");
+          }
+        }
+      }
+      
+      // Update the last notification check time
+      setLastNotificationTime(currentTime);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
   // Fetch all stops data only on initial load
   useEffect(() => {
     fetchStops();
@@ -99,37 +160,70 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
 
   // Check for changes and create notifications
   useEffect(() => {
-    const checkForChanges = () => {
-      // This would ideally use WebSockets or Server-Sent Events in production
-      stops.forEach(stop => {
-        if (stop.is_delayed && !notifications.some(n => n.message.includes(`${stop.name} is delayed`))) {
-          addNotification(`${stop.name} is delayed. Reason: ${stop.delay_reason || 'Not provided'}`);
+    fetchNotifications();
+  }, [stops]);
+
+  // Set up notification polling (every 10 seconds to catch driver inactivity notifications)
+  useEffect(() => {
+    const notificationPoller = setInterval(() => {
+      fetchNotifications();
+    }, 10000);
+    
+    return () => clearInterval(notificationPoller);
+  }, []);
+
+  // Manually check for notification the first time
+  useEffect(() => {
+    // Manually add the driver not responding notification for testing
+    const checkForDriverNotifications = async () => {
+      try {
+        // We'll make one special call to check for driver inactivity
+        const response = await fetch('http://localhost:8000/conversation/check_driver_activity');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.inactive_drivers && Array.isArray(data.inactive_drivers)) {
+            data.inactive_drivers.forEach((driver: any) => {
+              if (driver.stop_id && driver.stop_name) {
+                addNotification(
+                  `Driver at ${driver.stop_name} is not responding to text chat after multiple attempts`,
+                  driver.stop_id,
+                  "warning"
+                );
+              }
+            });
+          }
         }
-        
-        if (stop.expected_location !== stop.reported_location && 
-            !notifications.some(n => n.message.includes(`${stop.name} is off route`))) {
-          addNotification(`${stop.name} is off route. Expected: ${stop.expected_location}, Reported: ${stop.reported_location}`);
-        }
-      });
+      } catch (error) {
+        // If this endpoint doesn't exist yet, just log it
+        console.log("No driver activity endpoint yet");
+      }
     };
     
-    checkForChanges();
-  }, [stops]);
+    checkForDriverNotifications();
+  }, []);
 
   // Count unread notifications
   useEffect(() => {
     setUnreadCount(notifications.filter(n => !n.read).length);
   }, [notifications]);
 
-  const addNotification = (message: string) => {
+  const addNotification = (message: string, stop_id?: number, severity: string = "info") => {
     const newNotification: Notification = {
       id: Date.now(),
       message,
       timestamp: new Date().toLocaleString(),
-      read: false
+      read: false,
+      stop_id,
+      severity
     };
     
-    setNotifications(prev => [newNotification, ...prev]);
+    // Avoid duplicate notifications
+    setNotifications(prev => {
+      if (prev.some(n => n.message === message)) {
+        return prev;
+      }
+      return [newNotification, ...prev];
+    });
   };
 
   const markAllAsRead = () => {
@@ -160,7 +254,10 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
         <div className="header-actions">
           <button 
             className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`} 
-            onClick={fetchStops} 
+            onClick={() => {
+              fetchStops();
+              fetchNotifications();
+            }} 
             disabled={isRefreshing}
           >
             <FaSync className="refresh-icon" /> Refresh
@@ -185,7 +282,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
               notifications.map(notification => (
                 <div 
                   key={notification.id} 
-                  className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                  className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.severity === 'warning' ? 'warning' : notification.severity === 'error' ? 'error' : ''}`}
                   onClick={() => markAsRead(notification.id)}
                 >
                   <div className="notification-content">

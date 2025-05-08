@@ -40,6 +40,7 @@ function App() {
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [conversationState, setConversationState] = useState<ConversationState>('idle');
+  const [initAttempt, setInitAttempt] = useState(0);
 
   const formatTime = () => {
     const now = new Date();
@@ -455,7 +456,6 @@ function App() {
         isUser: false,
         timestamp: formatTime()
       };
-      
       setMessages(prev => {
         const newMessages = [...prev, humanMessage, botMessage];
         if (selectedStopId) {
@@ -543,6 +543,9 @@ function App() {
     if (isCallMode) {
       setConversationState('processing');
       setIsRecording(false);
+    } else {
+      // For text chat, reset initialization attempts when user responds
+      setInitAttempt(0);
     }
 
     const userMessage: Message = {
@@ -637,8 +640,37 @@ function App() {
     }
   };
 
+  // Effect to handle text chat auto-reinitialize after timeout
+  useEffect(() => {
+    // Only for text chats that are already initialized
+    if (isInitialized && !isCallMode && initAttempt > 0) {
+      let timeoutId: NodeJS.Timeout;
+      
+      const checkForUserResponse = () => {
+        // If we have more than 1 message, it means user has responded
+        const userHasResponded = messages.some(msg => msg.isUser);
+        
+        if (!userHasResponded) {
+          console.log(`No user response after initialization attempt ${initAttempt}. Will let backend decide if we should reinitialize.`);
+          // Re-initialize chat - backend will handle whether to repeat or notify
+          handleInitializeChat(false, true);
+        } else {
+          // User has responded, reset init attempt counter
+          setInitAttempt(0);
+        }
+      };
+      
+      // Set timeout to check for user response (use 5 seconds to be safe, backend uses 4)
+      timeoutId = setTimeout(checkForUserResponse, 5000);
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [isInitialized, isCallMode, initAttempt, messages.length]);
+
   // Update handleInitializeChat to use the helper function
-  const handleInitializeChat = async (isVoiceCall = false) => {
+  const handleInitializeChat = async (isVoiceCall = false, send_thread_id = false) => {
     if (!selectedStopId) {
       console.error('No stop selected');
       return;
@@ -669,9 +701,15 @@ function App() {
     if (isCallMode || isVoiceCall) {
       setIsRecording(false);
     }
+
+
+    let url = `http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`
+    if (send_thread_id) {
+      url += `&thread_id=${threadId}`
+    }
     
     try {
-      const response = await fetch(`http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`);
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error('Failed to initialize chat');
@@ -685,15 +723,26 @@ function App() {
         timestamp: formatTime()
       };
 
-      setMessages([initialMessage]);
+      setMessages([...messages, initialMessage]);
       setThreadId(data.thread_id.toString());
       
       localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
-        messages: [initialMessage],
+        messages: [...messages, initialMessage],
         threadId: data.thread_id.toString()
       }));
       
       setIsInitialized(true);
+
+      // Check if we should handle auto-reinitialize based on the backend's repeat flag
+      if (!isVoiceCall && data.repeat === true) {
+        // Backend says we should repeat
+        setInitAttempt(prev => prev + 1);
+        console.log(`Setting initAttempt to ${initAttempt + 1}, backend repeat flag is true`);
+      } else {
+        // Backend says no more repeats needed
+        setInitAttempt(0);
+        console.log('Resetting initAttempt to 0, backend repeat flag is false');
+      }
 
       // Use isVoiceCall parameter instead of isCallMode state
       if (isVoiceCall && data.response) {
@@ -745,6 +794,9 @@ function App() {
     
     // Set initialized to false
     setIsInitialized(false);
+    
+    // Reset init attempt counter
+    setInitAttempt(0);
     
     // Reset conversation state if in call mode
     if (isCallMode) {

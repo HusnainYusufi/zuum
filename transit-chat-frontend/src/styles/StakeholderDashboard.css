@@ -312,6 +312,23 @@
   background-color: #2a4365;
 }
 
+/* Add styles for warning and error notifications */
+.notification-item.warning {
+  border-left: 4px solid #f6ad55;
+}
+
+.notification-item.error {
+  border-left: 4px solid #fc8181;
+}
+
+.dashboard-container.dark-mode .notification-item.warning {
+  border-left: 4px solid #ed8936;
+}
+
+.dashboard-container.dark-mode .notification-item.error {
+  border-left: 4px solid #e53e3e;
+}
+
 .notification-content {
   flex: 1;
 }

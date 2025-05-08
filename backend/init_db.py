@@ -72,7 +72,7 @@ def init_db():
         Stop(
             name="Washington Hub",
             location="Washington, DC",
-            eta=convert_time_to_iso("23:00 PM"),
+            eta=convert_time_to_iso("11:00 PM"),
             cross_street="Fannin Street and Holcombe Boulevard",
             nearest_highway="Interstate 610",
             is_delayed=False,
