@@ -22,8 +22,8 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
-from backend.services.langrapghs.prompts.transit_prompt import GREET_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT
-from backend.services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT
+from services.langrapghs.prompts.transit_prompt import GREET_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT
+from services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT
 
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
