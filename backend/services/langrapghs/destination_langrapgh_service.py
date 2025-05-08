@@ -19,8 +19,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from dotenv import load_dotenv
-
-
+from backend.services.langrapghs.prompts.destination_prompts import GREET_PROMPT, POD_SIGNATURE_PROMPT
+from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
 backend_dir = notebook_dir.parent
@@ -87,7 +87,8 @@ def get_data_from_database(state: State) -> State:
 
 def greet(state: State) -> State:
     'Call this tool when the driver wants to end the conversation and shut down the agent.'
-    query = f"Hello! Support agent here. Have you arrived at {state['stop_data']['name']}?"
+    msg = llm.invoke([SystemMessage(content=GREET_PROMPT.format(location=state['stop_data']['name']))])
+    query = msg.content
     return {
         **state,
         'messages': [
@@ -105,17 +106,28 @@ def get_humanResponse(state: State, name: str) -> State:
         ]
     }
     
-def format_human_text(text: str) -> str:
+def format_classifier_text(text: str) -> str:
     return text.lower().strip().replace(',', '').replace('.', '').replace('?', '').replace('!', '').replace('_', ' ').split(' ')
 
 
 def get_arrival_confirmation(state: State) -> State:
-    if state['messages'][-1].name != 'greet':
-        msg = llm.invoke([SystemMessage(content=f"You are a support agent dispatcher for a trucking company. Respond to the trucker messages without getting out of path of conversation and ask them have they arrived at {state['stop_data']['name']}"),*state['messages']])
+    if state['messages'][-1].name == 'fallback_arrival_confirmation':
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question=f"have they arrived at there destination i.e, {state['stop_data']['name']}")),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='arrival_confirmation'))
     state = get_humanResponse(state, 'arrival_confirmation')
-    if 'yes' in format_human_text(state['messages'][-1].content):
-        query = f"Have you signed the Proof of Delivery signature?"
+    
+    check_response = llm.invoke([
+        SystemMessage(content=CLASSIFIER_PROMPT.format(question=f"have they arrived at there destination i.e, {state['stop_data']['name']} which can also be only yes or no")),
+        *state['messages']
+    ])
+    
+    response_type = format_classifier_text(check_response.content)
+    
+    
+    
+    if 'affirmative' in response_type:
+        msg = llm.invoke([SystemMessage(content=POD_SIGNATURE_PROMPT)])
+        query = msg.content
         return {
             **state,
             'messages': [*state['messages'],
@@ -123,47 +135,63 @@ def get_arrival_confirmation(state: State) -> State:
             ],
             'arrived': True
         }
-    elif 'no' in format_human_text(state['messages'][-1].content):
+    elif 'negative' in response_type:
         query = f"All right, please let me know when you arrive at {state['stop_data']['name']}."
         return {
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='Goodbye')
-            ],
-            'arrived': False,
-            'running': False
+                AIMessage(content=query, name='wait')
+            ]
         }
     else:
-        return state
+        query = f"I'm not sure if you've arrived at {state['stop_data']['name']}. Could you please clearly confirm if you have arrived or not?"
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='fallback_arrival_confirmation')
+            ]
+        }
     
 def get_pod_confirmation(state: State) -> State:
-    if state['messages'][-1].name != 'arrival_confirmation':
-        msg = llm.invoke([SystemMessage(content=f"You are a support agent dispatcher for a trucking company. Respond to the trucker messages without getting out of path of conversation and ask them if they have signed the proof of delivery signature"),*state['messages']])
+    if state['messages'][-1].name == 'fallback_pod_confirmation':
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question="signed the proof of delivery signature")),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='pod_confirmation'))
     state = get_humanResponse(state, 'pod_confirmation')
-    if 'yes' in format_human_text(state['messages'][-1].content):
+    
+    check_response = llm.invoke([
+        SystemMessage(content=CLASSIFIER_PROMPT.format(question="signed the proof of delivery signature which can also be only yes or no")),
+        *state['messages']
+    ])
+    
+    response_type = format_classifier_text(check_response.content)
+    
+    if 'affirmative' in response_type:
         query = f"Good to know. will be in touch again soon."
         return {   
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='Goodbye')
+                AIMessage(content=query, name='pod_confirmation')
             ],
             'pod_signature': True,
             'running': False
         }
-    elif 'no' in format_human_text(state['messages'][-1].content):
+    elif 'negative' in response_type:
         query = f"Okay, let me know when you have signed the proof of delivery signature"
         return {
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='Goodbye')
-            ],
-            'pod_signature': False,
-            'running': False
+                AIMessage(content=query, name='wait')
+            ]
         }
         
     else:
-        return state
+        query = f"I'm not sure if you've signed the proof of delivery signature. Could you please clearly confirm if you have signed it or not?"
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='fallback_pod_confirmation')
+            ]
+        }
 
 def origin(state: State) -> State:
     return state

@@ -49,7 +49,7 @@ def init_db():
         Stop(
             name="South Dallas Terminal",
             location="Dallas, Texas",
-            eta=convert_time_to_iso("3:30 PM"),
+            eta=convert_time_to_iso("8:30 PM"),
             cross_street="Main Street and Commerce",
             nearest_highway="Interstate 45",
             is_delayed=False,
@@ -61,7 +61,7 @@ def init_db():
         Stop(
             name="Houston Medical Center",
             location="Houston, Texas",
-            eta=convert_time_to_iso("7:15 PM"),
+            eta=convert_time_to_iso("10:15 PM"),
             cross_street="Fannin Street and Holcombe Boulevard",
             nearest_highway="Interstate 610",
             is_delayed=False,
@@ -72,7 +72,7 @@ def init_db():
         Stop(
             name="Washington Hub",
             location="Washington, DC",
-            eta=convert_time_to_iso("10:00 PM"),
+            eta=convert_time_to_iso("23:00 PM"),
             cross_street="Fannin Street and Holcombe Boulevard",
             nearest_highway="Interstate 610",
             is_delayed=False,

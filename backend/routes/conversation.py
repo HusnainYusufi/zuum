@@ -34,7 +34,12 @@ async def initialize_chat(stop_id: Optional[int] = None, is_audio: Optional[bool
         
         langraph_service = check_langraph_service(stop_id)
         
-        query = langraph_service.run({"messages":[], 'running': True, 'stop_id': stop_id}, str(thread_id))
+        # Initialize state with required parameters
+        state = {"messages": [], 'running': True}
+        if stop_id is not None:
+            state['stop_id'] = stop_id
+            
+        query = langraph_service.run(state, str(thread_id))
         if is_audio:
             # Store the query for later audio streaming
             # We'll return just the text response and client can request audio separately
@@ -61,11 +66,11 @@ async def chat(
     thread_id: str = Query(None),
     message: str = Query(None),
     request: ChatRequest = Body(None),
-    stop_id: int = Query(None)
+    stop_id: Optional[int] = Query(None)
 ):
     try:
         # Log received parameters
-        logger.debug(f"Received chat request - File: {audio is not None}, Query params: thread_id={thread_id}, message={message}")
+        logger.debug(f"Received chat request - File: {audio is not None}, Query params: thread_id={thread_id}, message={message}, stop_id={stop_id}")
         
         # If we have a JSON request body
         if request:
@@ -77,6 +82,8 @@ async def chat(
         # If we're missing thread_id, that's an error
         if not thread_id:
             raise HTTPException(status_code=400, detail="Missing thread_id parameter")
+        
+        langraph_service = check_langraph_service(stop_id)
         
         # Handle audio file upload
         if audio and audio.filename:
@@ -95,7 +102,6 @@ async def chat(
                 text = "I couldn't understand the audio clearly."
             
             logger.debug(f"Transcribed text: {text}")
-            langraph_service = check_langraph_service(stop_id)
             query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
             return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query}
             
@@ -110,7 +116,6 @@ async def chat(
                 text = "I couldn't understand the audio clearly."
             
             logger.debug(f"Transcribed text: {text}")
-            langraph_service = check_langraph_service(stop_id)
             query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
             return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query}
             
@@ -118,7 +123,6 @@ async def chat(
         elif message:
             logger.debug(f"Processing text message: {message}")
             # Run the message directly through langgraph
-            langraph_service = check_langraph_service(stop_id)
             query = langraph_service.run(Command(resume={'data': message}), str(thread_id))
             logger.debug(f"Langgraph response: {query}")
             # Return a consistent response format
@@ -132,17 +136,23 @@ async def chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
-def check_langraph_service(stop_id: int):
-    stop = db.query(Stop).filter(Stop.id == stop_id).first()
-    if stop is None:
-        # If stop doesn't exist, default to transit service
+def check_langraph_service(stop_id: Optional[int] = None):
+    if stop_id is None:
+        # If no stop_id is provided, default to transit service
         return transit_langgraph_service
         
-    if stop.is_origin:
-        return origin_langgraph_service
-    elif stop.is_destination:
-        return destination_langgraph_service
-    else:
+    try:
+        stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        if stop is None:
+            # If stop doesn't exist, default to transit service
+            return transit_langgraph_service
+            
+        if stop.is_origin:
+            return origin_langgraph_service
+        elif stop.is_destination:
+            return destination_langgraph_service
+        else:
+            return transit_langgraph_service
+    except Exception as e:
+        logger.error(f"Error in check_langraph_service: {str(e)}")
         return transit_langgraph_service
