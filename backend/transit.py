@@ -609,7 +609,9 @@ def get_all_stops():
                 "name": stop.name,
                 "location": stop.location,
                 "eta": stop.eta,
-                "is_delayed": stop.is_delayed
+                "is_delayed": stop.is_delayed,
+                'is_origin': stop.is_origin,
+                'is_destination': stop.is_destination
             }
             for stop in stops
         ]
@@ -632,7 +634,9 @@ def get_all_stops_with_details():
                 "is_delayed": stop.is_delayed,
                 "delay_reason": stop.delay_reason,
                 "expected_location": stop.expected_location,
-                "reported_location": stop.reported_location
+                "reported_location": stop.reported_location,
+                'is_origin': stop.is_origin,
+                'is_destination': stop.is_destination
             }
             for stop in stops
         ]

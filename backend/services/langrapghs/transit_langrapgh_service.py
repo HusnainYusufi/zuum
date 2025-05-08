@@ -22,7 +22,8 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
-
+from backend.services.langrapghs.prompts.transit_prompt import GREET_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT
+from backend.services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT
 
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
@@ -53,7 +54,7 @@ db = next(get_db())
 
 
 
-llm = ChatOpenAI(model="gpt-4o-mini", api_key='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')
+llm = ChatOpenAI(model="gpt-4o-mini", api_key='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')
 
 
 
@@ -91,7 +92,8 @@ def get_data_from_database(state: State) -> State:
 
 def greet(state: State) -> State:
     'Call this tool when the driver wants to end the conversation and shut down the agent.'
-    query = f"Hello! Support agent here. Can you tell me where you are right now and your estimated time of arrival?"
+    msg = llm.invoke([SystemMessage(content=GREET_PROMPT)])
+    query = msg.content
     return {
         **state,
         'messages': [
@@ -109,31 +111,13 @@ def get_humanResponse(state: State) -> State:
         ]
     }
     
-template = """
-You are given a human response and you need to extract the location and eta if there are any and give it in json format.
-Human response: {human_response}
-current Time: {current_time}
-{format_instructions}
-    
-outputs:
-1) location: string
-2) eta: timestamp (do not use the current time)
-
-
-Note: 
-- Do not add note or anything else.
-- If the location is not provided in human response, return as null.
-- If the eta is not provided in human response, return as null.
-
-"""
-
 def get_location_and_eta(state: State) -> State:
     state = get_humanResponse(state)
     prompt = PromptTemplate(
         input_variables=[
            "human_response", "format_instructions", "current_time"
         ],
-        template=template,
+        template=EXTRACT_LOCATION_AND_ETA_PROMPT,
     )
     formatted = prompt.format_prompt(human_response=state['messages'][-1].content, format_instructions=fmt, current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     msg = llm.invoke(formatted.to_messages())
@@ -148,7 +132,7 @@ def get_location_and_eta(state: State) -> State:
     
     
     if location is None or eta is None:
-        msg = llm.invoke([SystemMessage(content=f'Respond to the truck driver message. Also, The location provided by the driver is {location} and the eta provided by the driver is {eta}. if one or both are None, please generate a question to ask the driver for it and make it short and direct. whithout saying hello or anything else'),*state['messages']])
+        msg = llm.invoke([SystemMessage(content=GET_LOCATION_OR_ETA_PROMPT.format(location=location, eta=eta, examples=examples )),*state['messages']])
         query = msg.content        
     else:
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'reported_location': location, 'eta': eta})   
@@ -158,12 +142,8 @@ def get_location_and_eta(state: State) -> State:
             print(eta , state.get('stop_data')['eta'])
             if eta > state.get('stop_data')['eta']:
                 delay = eta - state.get('stop_data')['eta']
-                delay_minutes = int(delay.total_seconds() / 60)
-                if delay_minutes >= 60:
-                    delay_hours = delay_minutes / 60
-                    query = f'Your journey has been delayed by {delay_hours:.0f} hours, can you tell the reason why?'
-                else:
-                    query = f'Your journey has been delayed by {delay_minutes} minutes, can you tell the reason why?'
+                msg = llm.invoke([SystemMessage(content=DELAY_REASON_PROMPT.format(delay=delay)),*state['messages']])
+                query = msg.content
                 state['delayed'] = True
 
     return {
@@ -180,15 +160,15 @@ def get_location_and_eta(state: State) -> State:
 def get_delay_reason(state:State):
     state = get_humanResponse(state=state)
     msg = llm.invoke([SystemMessage(
-        """If the person provides the delay reason, respond with yes, otherwise ask them to provide the delay reason."""
-    ), state['messages'][-1]])
+        content=GET_DELAY_REASON_PROMPT
+    ), *state['messages']])
     
     if 'yes' in msg.content.lower():
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'delay_reason':state['messages'][-1].content, 'is_delayed':True})
         db.commit()
         return{**state,'messages':[*state['messages'], AIMessage(content='', name='transit_chat')], 'delay_reason':state['messages'][-1].content}
     else:
-        return{**state, 'messages':[*state['messages'], msg], 'current_query':msg.content}
+        return{**state, 'messages':[*state['messages'], msg]}
 
 def check_router(state: State) -> State:
     return state
@@ -212,7 +192,7 @@ def get_nearest_highway(state: State) -> State:
     if state.get('messages')[-1].name == 'transit_chat':
         query = 'What is the nearest highway exit?'
     else:
-        msg = llm.invoke([SystemMessage(content='Respond to the truck driver message and must ask for the nearest highway exit.'),*state['messages']])
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question="about the nearest highway exit")),*state['messages']])
         query = msg.content
     state['messages'].append(AIMessage(content=query, name='highway_exit'))
     state = get_humanResponse(state)
@@ -220,12 +200,7 @@ def get_nearest_highway(state: State) -> State:
         input_variables=[
            "human_response", "format_instructions"
         ],
-        template='''Get the highway name, if there is any, else return null from the response of the driver.
-Human response: {human_response}
-{format_instructions}
-outputs:
-1) highway_name: string
-        ''',
+        template=EXTRACT_HIGHWAY_NAME_PROMPT,
     )
     formatted = prompt.format_prompt(human_response=state['messages'][-1].content, format_instructions=fmt)
     msg = llm.invoke(formatted.to_messages())
@@ -234,6 +209,7 @@ outputs:
     highway_name = json_response['highway_name']
     if highway_name is not None:
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'nearest_highway':highway_name})
+        db.commit()
         return {**state, 'nearest_highway':highway_name}
     else:
         return {**state, 'nearest_highway':None}

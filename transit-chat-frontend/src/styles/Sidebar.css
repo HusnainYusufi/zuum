@@ -61,6 +61,71 @@
   border-left: 4px solid #90cdf4;
 }
 
+/* Origin stop styling */
+.stop-item.origin {
+  background-color: rgba(76, 175, 80, 0.15); /* Light green background */
+  border-left: 4px solid #4CAF50; /* Green border */
+}
+
+.sidebar.dark-mode .stop-item.origin {
+  background-color: rgba(76, 175, 80, 0.25);
+  border-left: 4px solid #4CAF50;
+}
+
+.stop-item.origin.selected {
+  background-color: rgba(76, 175, 80, 0.25); /* Darker green when selected */
+  border-left: 4px solid #2E7D32; /* Darker green border */
+}
+
+.sidebar.dark-mode .stop-item.origin.selected {
+  background-color: rgba(76, 175, 80, 0.35);
+  border-left: 4px solid #2E7D32;
+}
+
+/* Destination stop styling */
+.stop-item.destination {
+  background-color: rgba(244, 67, 54, 0.15); /* Light red background */
+  border-left: 4px solid #F44336; /* Red border */
+}
+
+.sidebar.dark-mode .stop-item.destination {
+  background-color: rgba(244, 67, 54, 0.25);
+  border-left: 4px solid #F44336;
+}
+
+.stop-item.destination.selected {
+  background-color: rgba(244, 67, 54, 0.25); /* Darker red when selected */
+  border-left: 4px solid #C62828; /* Darker red border */
+}
+
+.sidebar.dark-mode .stop-item.destination.selected {
+  background-color: rgba(244, 67, 54, 0.35);
+  border-left: 4px solid #C62828;
+}
+
+.origin-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  background-color: #4CAF50;
+  color: white;
+  font-weight: 500;
+  margin-top: 5px;
+  margin-right: 5px;
+}
+
+.destination-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  background-color: #F44336;
+  color: white;
+  font-weight: 500;
+  margin-top: 5px;
+}
+
 .stop-info h3 {
   margin: 0 0 5px 0;
   font-size: 16px;

@@ -28,6 +28,8 @@ class Stop(Base):
     delay_reason = Column(String)
     expected_location = Column(String)
     reported_location = Column(String)
+    is_origin = Column(Boolean, default=False)
+    is_destination = Column(Boolean, default=False)
     
 # Define model for chat history
 class ChatHistory(Base):
