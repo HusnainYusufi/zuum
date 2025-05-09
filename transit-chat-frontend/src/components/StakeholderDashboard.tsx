@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/StakeholderDashboard.css';
-import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass } from 'react-icons/fa';
+import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck } from 'react-icons/fa';
 import { MdWarning, MdLocationOn, MdTimeline } from 'react-icons/md';
 
 interface Stop {
@@ -38,6 +38,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(Date.now());
+  const [journeyState, setJourneyState] = useState<number>(0);
 
   // Format ETA to human readable form with 12-hour clock
   const formatETA = (etaString: string): string => {
@@ -57,6 +58,20 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     } catch (error) {
       // If any error occurs, return the original string
       return etaString;
+    }
+  };
+
+  // Fetch journey state from backend
+  const fetchJourneyState = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/ui/journey_state');
+      if (!response.ok) {
+        throw new Error('Failed to fetch journey state');
+      }
+      const data = await response.json();
+      setJourneyState(data);
+    } catch (error) {
+      console.error('Error fetching journey state:', error);
     }
   };
 
@@ -155,6 +170,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   // Fetch all stops data only on initial load
   useEffect(() => {
     fetchStops();
+    fetchJourneyState();
     // Empty dependency array means this effect runs only once on mount
   }, []);
 
@@ -170,6 +186,15 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     }, 10000);
     
     return () => clearInterval(notificationPoller);
+  }, []);
+
+  // Set up journey state polling
+  useEffect(() => {
+    const journeyStatePoller = setInterval(() => {
+      fetchJourneyState();
+    }, 5000);
+    
+    return () => clearInterval(journeyStatePoller);
   }, []);
 
   // Manually check for notification the first time
@@ -236,6 +261,13 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     ));
   };
 
+  // Delivery status steps
+  const deliverySteps = [
+    { title: "Confirmed", isActive: journeyState >= 0 },
+    { title: "In transit", isActive: journeyState >= 1 },
+    { title: "Delivered", isActive: journeyState >= 2 }
+  ];
+
   if (loading) {
     return (
       <div className={`dashboard-container ${isDarkMode ? 'dark-mode' : ''}`}>
@@ -257,6 +289,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
             onClick={() => {
               fetchStops();
               fetchNotifications();
+              fetchJourneyState();
             }} 
             disabled={isRefreshing}
           >
@@ -266,6 +299,24 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
             <FaBell />
             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
           </div>
+        </div>
+      </div>
+
+      {/* Delivery Timeline */}
+      <div className="delivery-timeline">
+        <h2><FaTruck className="detail-title-icon" /> Delivery Status</h2>
+        <div className="timeline-container">
+          {deliverySteps.map((step, index) => (
+            <React.Fragment key={index}>
+              <div className={`timeline-step ${step.isActive ? 'active' : ''}`}>
+                <div className="timeline-node"></div>
+                <div className="timeline-title">{step.title}</div>
+              </div>
+              {index < deliverySteps.length - 1 && (
+                <div className={`timeline-connector ${deliverySteps[index + 1].isActive ? 'active' : ''}`}></div>
+              )}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
@@ -326,7 +377,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
                 <span className="detail-value">{selectedStop.reported_location}</span>
               </div>
               <div className="detail-status">
-                {selectedStop.expected_location === selectedStop.reported_location ? (
+                {selectedStop.expected_location.toLowerCase().split(',')[0].includes(selectedStop.reported_location.toLowerCase().split(',')[0]) ? (
                   <span className="status-ok"><FaCheck /> On Track</span>
                 ) : (
                   <span className="status-warning"><FaExclamationTriangle /> Off Route</span>

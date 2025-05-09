@@ -21,6 +21,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from dotenv import load_dotenv
+import os
 
 
 # Add the backend directory to Python path
@@ -32,7 +33,7 @@ if str(backend_dir) not in sys.path:
 
 
 # Import database models
-from db_models import Stop, get_db
+from db_models import Stop, get_db, Journey, JourneyState
 
 load_dotenv()
 
@@ -52,7 +53,7 @@ db = next(get_db())
 
 
 
-llm = ChatOpenAI(model="gpt-4.1-nano", api_key='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')
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv('OPENAI_API_KEY'))
 
 
 
@@ -217,7 +218,9 @@ def get_dispatched(state: State) -> State:
     logger.debug(f"LLM classified response as: {response_type}")
     print('affirmative' in response_type)
     if "affirmative" in response_type:
-        query = "Goodbye, have a safe journey!"
+        query = "All set, have a safe journey!"
+        db.query(Journey).filter(Journey.id == 1).update({'current_state': JourneyState.TRANSIT.value})
+        db.commit()
         return {
             **state,
             'messages': [*state['messages'],

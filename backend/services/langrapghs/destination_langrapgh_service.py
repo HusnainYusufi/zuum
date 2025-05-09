@@ -27,10 +27,10 @@ backend_dir = notebook_dir.parent
 if str(backend_dir) not in sys.path:
     sys.path.append(str(backend_dir))
 
-
+import os
 
 # Import database models
-from db_models import Stop, get_db
+from db_models import Stop, get_db, Journey, JourneyState
 
 load_dotenv()
 
@@ -50,7 +50,7 @@ fmt = json_parser.get_format_instructions()
 db = next(get_db())
 
 
-llm = ChatOpenAI(model="gpt-4o-mini", api_key='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')
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv('OPENAI_API_KEY'))
 
 
 def get_data_from_database(state: State) -> State:
@@ -166,7 +166,9 @@ def get_pod_confirmation(state: State) -> State:
     response_type = format_classifier_text(check_response.content)
     
     if 'affirmative' in response_type:
-        query = f"Good to know. will be in touch again soon."
+        query = f"Good to know. Take some time to rest and see you in next journey."
+        db.query(Journey).filter(Journey.id == 1).update({'current_state': JourneyState.DESTINATION.value})
+        db.commit()
         return {   
             **state,
             'messages': [*state['messages'],

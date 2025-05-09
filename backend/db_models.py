@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 import os
 from pathlib import Path
+import json
 
 # Get the absolute path to the database file
 current_dir = Path(__file__).parent
@@ -40,8 +41,47 @@ class ChatHistory(Base):
     user_message = Column(Text)
     bot_message = Column(Text)
     timestamp = Column(String)
+
+# Define an Enum for Journey states
+import enum
+class JourneyState(enum.Enum):
+    ORIGIN = 0
+    TRANSIT = 1
+    DESTINATION = 2
+
+class Journey(Base):
+    __tablename__ = "journeys"
     
+    id = Column(Integer, primary_key=True, index=True)
+    # Store stop_ids as a JSON string instead of ARRAY since SQLite doesn't support ARRAY
+    stop_ids_json = Column(Text)
+    current_state = Column(Integer)
     
+    @property
+    def stop_ids(self):
+        """Get the stop IDs as a list"""
+        if self.stop_ids_json:
+            return json.loads(self.stop_ids_json)
+        return []
+    
+    @stop_ids.setter
+    def stop_ids(self, value):
+        """Set the stop IDs as a JSON string"""
+        if value is not None:
+            self.stop_ids_json = json.dumps(value)
+        else:
+            self.stop_ids_json = None
+
+# Model for storing notifications
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    message = Column(Text, nullable=False)
+    timestamp = Column(String, nullable=False)
+    stop_id = Column(Integer, nullable=True)
+    severity = Column(String, default="info")
+    read = Column(Boolean, default=False)
 
 # Create all tables
 def create_tables():
@@ -55,8 +95,6 @@ def get_db():
     finally:
         db.close() 
         
-
-
 def initialize_database():
     # Create all tables
     create_tables()
