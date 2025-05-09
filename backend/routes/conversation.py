@@ -92,7 +92,7 @@ async def initialize_chat(stop_id: Optional[int] = None, is_audio: Optional[bool
             current_time = datetime.now()
             
             # Initialize tracking for this stop if it doesn't exist
-            if stop_id not in chat_init_tracking:
+            if stop_id not in chat_init_tracking and not is_audio:
                 chat_init_tracking[stop_id] = {
                     "attempts": 1,
                     "last_init": current_time,
@@ -212,9 +212,8 @@ async def chat(
         # If we have a JSON request body
         if request:
             logger.debug(f"JSON body: {request}")
-            thread_id = request.thread_id
-            message = request.message
-            audio_data = request.audio_file
+            thread_id = thread_id or request.thread_id
+            message = message or request.message
         
         # If we're missing thread_id, that's an error
         if not thread_id:
@@ -230,28 +229,10 @@ async def chat(
                 "thread_id": thread_id
             }
         
-        # Handle audio file upload
-        if audio and audio.filename:
-            # Read the audio file content
-            audio_content = await audio.read()
-            
-            # Convert to base64 for internal processing if needed
-            audio_b64 = base64.b64encode(audio_content).decode('utf-8')
-            
-            # Get transcribed text from the whisper service
-            text = whisper_service.transcribe_audio(audio_b64)
-            
-            # Check for None or empty text
-            if not text:
-                logger.warning("Received empty transcription from whisper service")
-                text = "I couldn't understand the audio clearly."
-            
-            logger.debug(f"Transcribed text: {text}")
-            query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
-            return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query, 'repeat': False}
-            
         # Handle base64 encoded audio from JSON request
-        elif request and request.audio_file:
+        logger.debug(f"Request: {request}")
+        if request and request.audio_file:
+            logger.debug("Processing base64 audio from JSON request")
             # Get transcribed text from the whisper service
             text = whisper_service.transcribe_audio(request.audio_file)
             
@@ -261,6 +242,27 @@ async def chat(
                 text = "I couldn't understand the audio clearly."
             
             logger.debug(f"Transcribed text: {text}")
+            query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
+            return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query, 'repeat': False}
+        
+        # Handle file upload audio (multipart/form-data)
+        elif audio:
+            logger.debug("Processing audio file from form upload")
+            # Read the audio file content
+            audio_content = await audio.read()
+            
+            # Convert to base64 for whisper service
+            audio_base64 = base64.b64encode(audio_content).decode('utf-8')
+            
+            # Get transcribed text from the whisper service
+            text = whisper_service.transcribe_audio(audio_base64)
+            
+            # Check for None or empty text
+            if not text:
+                logger.warning("Received empty transcription from whisper service")
+                text = "I couldn't understand the audio clearly."
+                
+            logger.debug(f"Transcribed text from uploaded file: {text}")
             query = langraph_service.run(Command(resume={'data': text}), str(thread_id))
             return {'response': query, 'thread_id': thread_id, 'user': text, 'AI': query, 'repeat': False}
             

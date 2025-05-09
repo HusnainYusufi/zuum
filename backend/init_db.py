@@ -1,6 +1,7 @@
 import os
-from db_models import Stop, create_tables, SessionLocal, Base, engine
+from db_models import Stop, create_tables, SessionLocal, Base, engine, Journey, JourneyState
 from datetime import datetime, timedelta
+
 
 def init_db():
     """Initialize the database with 3 hardcoded stops"""
@@ -84,9 +85,19 @@ def init_db():
     ]
     
     try:
-        # Add all stops
+        # Add all stops to the database first to get their IDs
         for stop in stops:
             db.add(stop)
+        db.flush()  # This assigns IDs without committing
+        
+        # Now create the journey with the stop IDs
+        journey = Journey(
+            current_state=JourneyState.ORIGIN.value
+        )
+        # Set the stop_ids using the property which will handle JSON serialization
+        journey.stop_ids = [stop.id for stop in stops]
+        
+        db.add(journey)
         db.commit()
         print(f"Successfully initialized database with {len(stops)} stops.")
     except Exception as e:

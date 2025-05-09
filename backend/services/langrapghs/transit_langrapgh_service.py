@@ -24,6 +24,7 @@ from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 from services.langrapghs.prompts.transit_prompt import GREET_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT
 from services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT
+import os
 
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
@@ -54,7 +55,7 @@ db = next(get_db())
 
 
 
-llm = ChatOpenAI(model="gpt-4o-mini", api_key='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')
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv('OPENAI_API_KEY'))
 
 
 
@@ -130,18 +131,40 @@ def get_location_and_eta(state: State) -> State:
    
     query = ''
     
-    
+    print(eta,location)
     if location is None or eta is None:
         msg = llm.invoke([SystemMessage(content=GET_LOCATION_OR_ETA_PROMPT.format(location=location, eta=eta, examples=examples )),*state['messages']])
         query = msg.content        
     else:
+        # Convert eta to ISO format if it's not already
+        if eta is not None:
+            try:
+                # Try to parse with ISO format first
+                parsed_eta = datetime.strptime(eta.split('.')[0], "%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                try:
+                    # Try alternative format
+                    parsed_eta = datetime.strptime(eta, "%Y-%m-%d %H:%M:%S")
+                    # Convert to ISO format for consistency
+                    eta = parsed_eta.strftime("%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    # If all parsing fails, use a default format
+                    print(f"Could not parse eta: {eta}")
+                    eta = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'reported_location': location, 'eta': eta})   
         db.commit()     
         if eta is not None:
-            eta = datetime.strptime(eta.split('.')[0], "%Y-%m-%dT%H:%M:%S")
-            print(eta , state.get('stop_data')['eta'])
-            if eta > state.get('stop_data')['eta']:
-                delay = eta - state.get('stop_data')['eta']
+            try:
+                # Try to parse with ISO format first
+                eta_dt = datetime.strptime(eta.split('.')[0], "%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                # Try alternative format
+                eta_dt = datetime.strptime(eta, "%Y-%m-%d %H:%M:%S")
+                
+            print(eta_dt, state.get('stop_data')['eta'])
+            if eta_dt > state.get('stop_data')['eta']:
+                delay = eta_dt - state.get('stop_data')['eta']
                 msg = llm.invoke([SystemMessage(content=DELAY_REASON_PROMPT.format(delay=delay)),*state['messages']])
                 query = msg.content
                 state['delayed'] = True
