@@ -3,18 +3,14 @@ from datetime import datetime
 from typing import Annotated, TypedDict, Optional
 import sys
 from pathlib import Path
-
 from loguru import logger
 from typing import Annotated
-from backend.services.langrapghs.prompts.origin_prompts import CARRIER_CONFIRMATION_PROMPT, LOADED_CARGO_PROMPT, DISPATCHED_PROMPT
+from backend.services.langrapghs.prompts.origin_prompts import CARRIER_CONFIRMATION_PROMPT, LOADED_PROMPT, DISPATCHED_PROMPT
 from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT
-
-
+from llm_config import llm
 from typing_extensions import TypedDict
-
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
 from langgraph.types import Command, interrupt
 from typing import Annotated, Optional
 from langgraph.checkpoint.memory import MemorySaver
@@ -50,10 +46,6 @@ graphbuilder = StateGraph(State)
 json_parser = JsonOutputParser()
 fmt = json_parser.get_format_instructions()
 db = next(get_db())
-
-
-
-llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv('OPENAI_API_KEY'))
 
 
 
@@ -129,7 +121,7 @@ def get_carrier_confirmation(state: State) -> State:
     response_type = format_classifier_text(check_response.content)
     print('affirmative' in response_type)
     if 'affirmative' in response_type:
-        msg = llm.invoke([SystemMessage(content=LOADED_CARGO_PROMPT)])
+        msg = llm.invoke([SystemMessage(content=LOADED_PROMPT)])
         query = msg.content
         print(query)
         return {
@@ -159,7 +151,7 @@ def get_carrier_confirmation(state: State) -> State:
 
 def get_have_loaded(state: State) -> State:
     if state['messages'][-1].name == 'fallback_have_loaded':
-        msg = llm.invoke([SystemMessage(content=LOADED_CARGO_PROMPT),*state['messages']])
+        msg = llm.invoke([SystemMessage(content=LOADED_PROMPT),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='have_loaded'))
     state = get_humanResponse(state, 'have_loaded')
     
@@ -183,7 +175,7 @@ def get_have_loaded(state: State) -> State:
             'dispatched': None,
         }
     elif 'negative' in response_type:
-        query = 'Please load the cargo and let us know once loaded thank you.'
+        query = 'Appreciate the update. Keep us posted once loaded. Thanks'
         return {
             **state,
             'messages': [*state['messages'],
@@ -230,7 +222,7 @@ def get_dispatched(state: State) -> State:
             'running': False
         }
     elif "negative" in response_type:
-        query = "Okay, let us know when you start your journey"
+        query = "Okay Brother, let us know when you start your journey please"
         return {
             **state,
             'messages': [*state['messages'],
@@ -238,7 +230,7 @@ def get_dispatched(state: State) -> State:
             ]
         }
     else:  # unclear response
-        query = "I'm not sure if you've started your journey. Could you please clearly confirm if you have started or not?"
+        query = "Sorry, I didn't get it, did you start the journey?"
         return {
             **state,
             'messages': [*state['messages'],

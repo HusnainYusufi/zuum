@@ -5,16 +5,11 @@ from typing import Annotated, TypedDict, Optional
 import re
 import sys
 from pathlib import Path
-
-
 from typing import Annotated
-
-
+from llm_config import llm
 from typing_extensions import TypedDict
-
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
 from langgraph.types import Command, interrupt
 from typing import Annotated, Optional
 from langgraph.checkpoint.memory import MemorySaver
@@ -22,6 +17,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
+from db_models import Stop, ChatHistory, get_db
 from services.langrapghs.prompts.transit_prompt import GREET_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT
 from services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT
 import os
@@ -33,8 +29,6 @@ if str(backend_dir) not in sys.path:
     sys.path.append(str(backend_dir))
 
 
-# Import database models
-from db_models import Stop, ChatHistory, get_db
 
 load_dotenv()
 class State(TypedDict):
@@ -52,11 +46,6 @@ graphbuilder = StateGraph(State)
 json_parser = JsonOutputParser()
 fmt = json_parser.get_format_instructions()
 db = next(get_db())
-
-
-
-llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv('OPENAI_API_KEY'))
-
 
 
 
