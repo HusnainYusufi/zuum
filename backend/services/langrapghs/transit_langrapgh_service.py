@@ -202,7 +202,7 @@ def router(state: State) -> State:
 def get_nearest_highway(state: State) -> State:
     query = ''
     if state.get('messages')[-1].name == 'transit_chat':
-        query = 'What is the nearest highway exit?'
+        query = 'Ok brother, what is the nearest highway exit?'
     else:
         msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question="about the nearest highway exit")),*state['messages']])
         query = msg.content
