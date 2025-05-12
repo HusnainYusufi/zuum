@@ -15,7 +15,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from dotenv import load_dotenv
-from backend.services.langrapghs.prompts.destination_prompts import GREET_PROMPT, POD_SIGNATURE_PROMPT
+from backend.services.langrapghs.prompts.destination_prompts import ARRIVED_PROMPT, POD_SIGNATURE_PROMPT
 from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT, WAIT_PROMPT, GOODBYE_PROMPT
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
@@ -81,7 +81,7 @@ def get_data_from_database(state: State) -> State:
         
 
 def greet(state: State) -> State:
-    msg = llm.invoke([SystemMessage(content=GREET_PROMPT.format(location=state['stop_data']['name']))])
+    msg = llm.invoke([SystemMessage(content=ARRIVED_PROMPT.format(location=state['stop_data']['name']))])
     query = msg.content
     return {
         **state,

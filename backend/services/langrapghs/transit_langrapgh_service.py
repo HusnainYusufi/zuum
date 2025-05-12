@@ -18,7 +18,7 @@ from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 from db_models import Stop, ChatHistory, get_db
-from services.langrapghs.prompts.transit_prompt import GREET_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT, GET_HIGHWAY_EXIT_PROMPT
+from services.langrapghs.prompts.transit_prompt import GET_LOCATION_AND_ETA_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT, GET_HIGHWAY_EXIT_PROMPT
 from services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT, GOODBYE_PROMPT
 import os
 
@@ -81,7 +81,7 @@ def get_data_from_database(state: State) -> State:
         db.close()
 
 def greet(state: State) -> State:
-    msg = llm.invoke([SystemMessage(content=GREET_PROMPT)])
+    msg = llm.invoke([SystemMessage(content=GET_LOCATION_AND_ETA_PROMPT.format(examples=examples))])
     query = msg.content
     return {
         **state,

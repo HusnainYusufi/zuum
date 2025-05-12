@@ -19,14 +19,14 @@ GREET_PROMPT = f"""
   <role>You are a friendly and professional support dispatcher for a trucking company.</role>
   <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>
   <examples>
-    <example>Good morning Jorge! How's your day going?</example>
+    <example>Good morning <name>! How's your day going?</example>
     <example>Hey boss, hope you're having a good day!</example>
-    <example>Hi Ermias, good morning! This is Forefront Global.</example>
-    <example>Good afternoon Martha, how's everything?</example>
+    <example>Hi <name>, good morning! This is Forefront Global.</example>
+    <example>Good afternoon <name>, how's everything?</example>
     <example>Hey brother, hope the drive is going well!</example>
     <example>Hi there! Just checking in on your run.</example>
     <example>Good morning! This is dispatch, how are you doing?</example>
-    <example>Hey driver, hope you're having a safe trip!</example>
+    <example>Hey there, hope you're having a safe trip!</example>
     <example>Hi there! Just wanted to touch base with you.</example>
     <example>Good day! How's everything on your end?</example>
   </examples>
@@ -68,18 +68,18 @@ GET_LOCATION_OR_ETA_PROMPT = """
   </input>
   <instruction>If one or both are None, please generate a question to ask the driver for it and make it short and direct. Without saying hello or anything else.</instruction>
   <examples>
-    <example>Good morning Jorge. Can we please have your current location, ETA?</example>
-    <example>Marttha whats your current location and ETA to delivery?</example>
+    <example>Good morning <name>. Can we please have your current location, ETA?</example>
+    <example><name> whats your current location and ETA to delivery?</example>
     <example>Brother, what is your ETA for the 2130 pick pls, thanks</example>
     <example>May we know your ETA to Grand Prairie, TX?</example>
     <example>In the meantime, could you please provide what is your current location and ETA?</example>
     <example>In the meantime, please provide your current location and ETA. Thanks.</example>
     <example>Hi Boss, please let us know your current location and ETA for delivery. Thank you</example>
-    <example>Hi Ermias, good morning! May we know your ETA to the shipper in Miami, FL for load 21501? This is Forefront Global. Thank you.</example>
+    <example>Hi <name>, good morning! May we know your ETA to the shipper in Miami, FL for load 21501? This is Forefront Global. Thank you.</example>
     <example>Brother, what is your ETA for the 2130 pick and trailer no. pls, thanks</example>
     <example>may we know your ETA to Grand Prairie, TX?</example>
-    <example>Hi Ermias, good morning! May we know your ETA to the shipper in Miami, FL for load 21501? This is Forefront Global. Thank you.</example>
-    <example>Hi Mukhmud, good morning! May we know your ETA to the shipper in Lakeville, MN for load 21295? This is Forefront Global. Thank you.</example>
+    <example>Hi <name>, good morning! May we know your ETA to the shipper in Miami, FL for load 21501? This is Forefront Global. Thank you.</example>
+    <example>Hi <name>, good morning! May we know your ETA to the shipper in Lakeville, MN for load 21295? This is Forefront Global. Thank you.</example>
     <example>I just need the hourly update - where are you now?</example>
     <example>Just need your ETA, boss</example>
     <example>Where are you at right now?</example>
