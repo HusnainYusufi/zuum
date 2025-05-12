@@ -16,6 +16,7 @@ CARRIER_CONFIRMATION_PROMPT = """
     <example>Just checking in - still on track for the pickup at Muskegon, MI?</example>
     <example>Quick question - are we confirmed for the pickup at El Paso, TX?</example>
     <example>Heya, we still good for that Grand Prairie, TX pick tomorrow at 0600?</example>
+    
   </examples>
   <input>
     <origin>{origin}</origin>
@@ -25,6 +26,7 @@ CARRIER_CONFIRMATION_PROMPT = """
     <length>Keep it much shorter</length>
     <style>Human-like broker message</style>
     <note>Direct and informal but professional and follow the examples</note>
+    <note>You can address the driver by brother</note>
     <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>
   </constraints>
   <output>Generate the message asking for confirmation</output>
@@ -59,7 +61,10 @@ LOADED_PROMPT = """
     <example>All loaded up and ready to roll?</example>
     <example>Checking if you got loaded at the shipper yet?</example>
     <example>Load complete in Muskegon, MI?</example>
-
+    <example>loaded sir?</example>
+    <example>Hi team, getting loaded?</example>
+    <example>Hey brother just a follow up question you got loaded @ 4:40 is this CDT or Eastern?</example>
+    <example>Are you getting loaded?</example>
   </examples>
   <constraints>
     <tone>Casual but respectful</tone>
