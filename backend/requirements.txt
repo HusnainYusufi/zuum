@@ -4,3 +4,6 @@ python-dotenv
 loguru
 fastapi[all]
 sqlalchemy
+rouge-score
+sentence-transformers
+scikit-learn

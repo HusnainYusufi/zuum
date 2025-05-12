@@ -17,7 +17,7 @@ class LLMConfig:
     def __init__(self):
         if LLMConfig._llm is None:
             LLMConfig._llm = ChatOpenAI(
-                model="gpt-4o-mini",
+                model="gpt-4.1-nano",
                 api_key=os.getenv('OPENAI_API_KEY')
             )
 
