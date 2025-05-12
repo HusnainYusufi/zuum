@@ -6,7 +6,7 @@ from pathlib import Path
 from loguru import logger
 from typing import Annotated
 from backend.services.langrapghs.prompts.origin_prompts import CARRIER_CONFIRMATION_PROMPT, LOADED_PROMPT, DISPATCHED_PROMPT
-from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT
+from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT, WAIT_PROMPT, UNCLEAR_PROMPT, GOODBYE_PROMPT
 from llm_config import llm
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
@@ -82,7 +82,6 @@ def get_data_from_database(state: State) -> State:
         
 
 def greet(state: State) -> State:
-    'Call this tool when the driver wants to end the conversation and shut down the agent.'
     msg = llm.invoke([SystemMessage(content=CARRIER_CONFIRMATION_PROMPT.format(origin=state['stop_data']['name']))])
     query = msg.content
     return {
@@ -107,7 +106,7 @@ def format_classifier_text(text: str) -> str:
     return text.lower().strip().replace(',', '').replace('.', '').replace('?', '').replace('!', '').replace('_', ' ').split(' ')
 
 def get_carrier_confirmation(state: State) -> State:
-    if state['messages'][-1].name == 'fallback_carrier_confirmation' :
+    if state['messages'][-1].name == 'carrier_confirmation' :
         msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question=f"if they have signed the carrier confirmation for the journey from {state['stop_data']['name']}")), *state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='carrier_confirmation'))
     state = get_humanResponse(state, 'carrier_confirmation')
@@ -121,7 +120,7 @@ def get_carrier_confirmation(state: State) -> State:
     response_type = format_classifier_text(check_response.content)
     print('affirmative' in response_type)
     if 'affirmative' in response_type:
-        msg = llm.invoke([SystemMessage(content=LOADED_PROMPT)])
+        msg = llm.invoke([SystemMessage(content=LOADED_PROMPT),*state['messages']])
         query = msg.content
         print(query)
         return {
@@ -132,26 +131,20 @@ def get_carrier_confirmation(state: State) -> State:
             'carrier_confirmation': True,
         }
     elif 'negative' in response_type:
-        query = f"Please sign the carrier confirmation before you proceed with your journey and let me know once you have signed it."
+        msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="not signed the carrier confirmation")), *state['messages']])
+        query = msg.content
+        print(query)
         return {
             **state,
             'messages': [*state['messages'],
                 AIMessage(content=query, name='wait')
             ]
         }
-    else:
-        # If LLM response is unclear, ask for clarification
-        query = "I'm not sure if you've signed the carrier confirmation. Could you please clearly confirm if you have signed it or not?"
-        return {
-            **state,
-            'messages': [*state['messages'],
-                AIMessage(content=query, name='fallback_carrier_confirmation')
-            ]
-        }
+    return state
 
 def get_have_loaded(state: State) -> State:
-    if state['messages'][-1].name == 'fallback_have_loaded':
-        msg = llm.invoke([SystemMessage(content=LOADED_PROMPT),*state['messages']])
+    if state['messages'][-1].name == 'have_loaded':
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question="loaded the cargo")),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='have_loaded'))
     state = get_humanResponse(state, 'have_loaded')
     
@@ -164,7 +157,7 @@ def get_have_loaded(state: State) -> State:
     response_type = format_classifier_text(check_response.content)
     print('affirmative' in response_type)
     if 'affirmative' in response_type:
-        msg = llm.invoke([SystemMessage(content= DISPATCHED_PROMPT.format(location=state['stop_data']['name']))])
+        msg = llm.invoke([SystemMessage(content= DISPATCHED_PROMPT.format(location=state['stop_data']['name'])),*state['messages']])
         query = msg.content
         return {   
             **state,
@@ -175,26 +168,19 @@ def get_have_loaded(state: State) -> State:
             'dispatched': None,
         }
     elif 'negative' in response_type:
-        query = 'Appreciate the update. Keep us posted once loaded. Thanks'
+        msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="not loaded the cargo")), *state['messages']])
+        query = msg.content
         return {
             **state,
             'messages': [*state['messages'],
                 AIMessage(content=query, name='wait')
             ]
         }
-    else:  # unclear response
-        query = "I'm not sure if you've loaded the cargo. Could you please clearly confirm if you have loaded it or not?"
-        return {
-            **state,
-            'messages': [*state['messages'],
-                AIMessage(content=query, name='fallback_have_loaded')
-            ]
-        }
 
 def get_dispatched(state: State) -> State:
-    if state['messages'][-1].name == 'fallback_dispatched':
+    if state['messages'][-1].name == 'dispatched':
         msg = llm.invoke([
-            SystemMessage(content=DISPATCHED_PROMPT.format(location=state['stop_data']['name'])),
+            SystemMessage(content=FALLBACK_PROMPT.format(question=f"started the journey which can also be also yes or no")),
             *state['messages'],
         ])
         state['messages'].append(AIMessage(content=msg.content, name='dispatched'))
@@ -202,7 +188,7 @@ def get_dispatched(state: State) -> State:
 
     # Use LLM to check if response is affirmative, negative, or unclear
     check_response = llm.invoke([
-        SystemMessage(content=CLASSIFIER_PROMPT.format(question="Have you started the journey which can also be also yes or no")),
+        SystemMessage(content=CLASSIFIER_PROMPT.format(question="started the journey which can also be also yes or no")),
         *state['messages']
     ])
 
@@ -210,7 +196,8 @@ def get_dispatched(state: State) -> State:
     logger.debug(f"LLM classified response as: {response_type}")
     print('affirmative' in response_type)
     if "affirmative" in response_type:
-        query = "All set, have a safe journey!"
+        query = llm.invoke([SystemMessage(content=GOODBYE_PROMPT), *state['messages']])
+        query = query.content
         db.query(Journey).filter(Journey.id == 1).update({'current_state': JourneyState.TRANSIT.value})
         db.commit()
         return {
@@ -222,21 +209,15 @@ def get_dispatched(state: State) -> State:
             'running': False
         }
     elif "negative" in response_type:
-        query = "Okay Brother, let us know when you start your journey please"
+        query = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="not started the journey")), *state['messages']])
+        query = query.content
         return {
             **state,
             'messages': [*state['messages'],
                 AIMessage(content=query, name='wait')
             ]
         }
-    else:  # unclear response
-        query = "Sorry, I didn't get it, did you start the journey?"
-        return {
-            **state,
-            'messages': [*state['messages'],
-                AIMessage(content=query, name='fallback_dispatched')
-            ]
-        }
+
 
 def origin(state: State) -> State:
     return state

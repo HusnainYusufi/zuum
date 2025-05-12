@@ -16,7 +16,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from dotenv import load_dotenv
 from backend.services.langrapghs.prompts.destination_prompts import GREET_PROMPT, POD_SIGNATURE_PROMPT
-from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT
+from backend.services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT, WAIT_PROMPT, GOODBYE_PROMPT
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
 backend_dir = notebook_dir.parent
@@ -81,7 +81,6 @@ def get_data_from_database(state: State) -> State:
         
 
 def greet(state: State) -> State:
-    'Call this tool when the driver wants to end the conversation and shut down the agent.'
     msg = llm.invoke([SystemMessage(content=GREET_PROMPT.format(location=state['stop_data']['name']))])
     query = msg.content
     return {
@@ -106,7 +105,7 @@ def format_classifier_text(text: str) -> str:
 
 
 def get_arrival_confirmation(state: State) -> State:
-    if state['messages'][-1].name == 'fallback_arrival_confirmation':
+    if state['messages'][-1].name == 'arrival_confirmation':
         msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question=f"have they arrived at there destination i.e, {state['stop_data']['name']}")),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='arrival_confirmation'))
     state = get_humanResponse(state, 'arrival_confirmation')
@@ -121,7 +120,7 @@ def get_arrival_confirmation(state: State) -> State:
     
     
     if 'affirmative' in response_type:
-        msg = llm.invoke([SystemMessage(content=POD_SIGNATURE_PROMPT)])
+        msg = llm.invoke([SystemMessage(content=POD_SIGNATURE_PROMPT),*state['messages']])
         query = msg.content
         return {
             **state,
@@ -131,24 +130,18 @@ def get_arrival_confirmation(state: State) -> State:
             'arrived': True
         }
     elif 'negative' in response_type:
-        query = f"All right, please let me know when you arrive at {state['stop_data']['name']}."
+        msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason=f"not arrived at there destination i.e, {state['stop_data']['name']}")),*state['messages']])
+        query = msg.content
         return {
             **state,
             'messages': [*state['messages'],
                 AIMessage(content=query, name='wait')
             ]
         }
-    else:
-        query = f"I'm not sure if you've arrived at {state['stop_data']['name']}. Could you please clearly confirm if you have arrived or not?"
-        return {
-            **state,
-            'messages': [*state['messages'],
-                AIMessage(content=query, name='fallback_arrival_confirmation')
-            ]
-        }
+
     
 def get_pod_confirmation(state: State) -> State:
-    if state['messages'][-1].name == 'fallback_pod_confirmation':
+    if state['messages'][-1].name == 'pod_confirmation':
         msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question="signed the proof of delivery signature")),*state['messages']])
         state['messages'].append(AIMessage(content=msg.content, name='pod_confirmation'))
     state = get_humanResponse(state, 'pod_confirmation')
@@ -161,7 +154,8 @@ def get_pod_confirmation(state: State) -> State:
     response_type = format_classifier_text(check_response.content)
     
     if 'affirmative' in response_type:
-        query = f"Good to know. Take some time to rest and see you in next journey."
+        msg = llm.invoke([SystemMessage(content=GOODBYE_PROMPT),*state['messages']])
+        query = msg.content
         db.query(Journey).filter(Journey.id == 1).update({'current_state': JourneyState.DESTINATION.value})
         db.commit()
         return {   
@@ -173,7 +167,8 @@ def get_pod_confirmation(state: State) -> State:
             'running': False
         }
     elif 'negative' in response_type:
-        query = f"Okay, let me know when you have signed the proof of delivery signature"
+        msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="not signed the proof of delivery signature")),*state['messages']])
+        query = msg.content
         return {
             **state,
             'messages': [*state['messages'],
@@ -181,14 +176,6 @@ def get_pod_confirmation(state: State) -> State:
             ]
         }
         
-    else:
-        query = f"I'm not sure if you've signed the proof of delivery signature. Could you please clearly confirm if you have signed it or not?"
-        return {
-            **state,
-            'messages': [*state['messages'],
-                AIMessage(content=query, name='fallback_pod_confirmation')
-            ]
-        }
 
 def origin(state: State) -> State:
     return state

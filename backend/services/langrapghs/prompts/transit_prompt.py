@@ -166,3 +166,19 @@ EXTRACT_HIGHWAY_NAME_PROMPT = """
   </output>
 </prompt>
 """
+
+GET_HIGHWAY_EXIT_PROMPT = """
+<prompt>
+  <instruction>Please ask the driver for the nearest highway exit.</instruction>
+  <constraints>
+    <tone>Casual but respectful</tone>
+    <output_length>Keep it much shorter</output_length>
+    <style>Human-like broker message</style>
+    <note>Direct and informal but professional and follow the examples</note>
+    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>
+  </constraints>
+  <output>Generate a message asking them about the nearest highway exit</output>
+</prompt>
+"""
+
+
