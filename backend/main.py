@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
+from routes import conversation_router, ui_router
 
 # Initialize the database
 init_db()
@@ -22,6 +23,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Include routers
+app.include_router(conversation_router)
+app.include_router(ui_router)
 # Initialize the chat states
 state = initialize_chat()
 transit_state = initialize_transit_chat(1)
@@ -42,6 +46,9 @@ class Stop(BaseModel):
     location: str
     eta: str
     is_delayed: bool
+    is_origin: bool
+    is_destination: bool
+
 
 class StopDetail(BaseModel):
     id: int
@@ -54,6 +61,9 @@ class StopDetail(BaseModel):
     delay_reason: Optional[str] = None
     expected_location: Optional[str] = None
     reported_location: Optional[str] = None
+    is_origin: bool
+    is_destination: bool
+
 
 # Get all stops (basic info)
 @app.get("/stops", response_model=List[Stop])
@@ -191,11 +201,14 @@ async def get_transit_chat(stop_id: Optional[int] = None):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
 if __name__ == "__main__":
     import uvicorn
     
-    # Get initial interrupt/question
-    response = process_transit_chat_sequence(transit_state)
-    logger.info(f"Initial question: {response}")
+
 
     uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+
+
+
