@@ -1,8 +1,6 @@
 # %%
-import os
 from datetime import datetime
 from typing import Annotated, TypedDict, Optional
-import re
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -17,8 +15,8 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
-from db_models import Stop, ChatHistory, get_db
-from services.langrapghs.prompts.transit_prompt import GET_LOCATION_AND_ETA_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, GET_LOCATION_OR_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT, GET_HIGHWAY_EXIT_PROMPT
+from db_models import Stop, get_db
+from services.langrapghs.prompts.transit_prompt import GET_LOCATION_OR_ETA_PROMPT,GET_LOCATION_AND_ETA_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT, GET_HIGHWAY_EXIT_PROMPT
 from services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT, GOODBYE_PROMPT
 import os
 

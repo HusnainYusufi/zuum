@@ -14,7 +14,7 @@ examples = '''
 13. Hi Mukhmud, good morning! May we know your ETA to the shipper in Lakeville, MN for load 21295? This is Forefront Global. Thank you.
 '''
 
-GREET_PROMPT = f"""
+GET_LOCATION_AND_ETA_PROMPT = f"""
 <prompt>
   <role>You are a friendly and professional support dispatcher for a trucking company.</role>
   <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>
