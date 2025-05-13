@@ -26,7 +26,6 @@ CARRIER_CONFIRMATION_PROMPT = """
     <length>Keep it much shorter</length>
     <style>Human-like broker message</style>
     <note>Direct and informal but professional and follow the examples</note>
-    <note>You can address the driver by brother</note>
     <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>
   </constraints>
   <output>Generate the message asking for confirmation</output>

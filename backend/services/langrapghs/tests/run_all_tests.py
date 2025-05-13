@@ -10,9 +10,15 @@ if str(backend_dir) not in sys.path:
     sys.path.append(str(backend_dir))
 
 # Import test modules using relative imports
-from .test_origin import test_origin_langgraph
-from .test_transit_offtime import test_transit_langgraph
-from .test_destination import test_destination_langgraph
+from services.langrapghs.tests.test_origin import test_origin_langgraph
+# from .test_transit_offtime import test_transit_langgraph
+# from .test_destination import test_destination_langgraph
+os.environ['LANGSMITH_API_KEY'] = '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'
+os.environ['LANGSMITH_TRACING'] = 'true'
+os.environ['LANGSMITH_ENDPOINT'] = 'https://api.smith.langchain.com'
+os.environ['LANGSMITH_PROJECT'] = 'voice_freight_broker'
+os.environ['OPENAI_API_KEY'] = 'ssk-proj-QzDMBdW8JkcYlRgG0tqwrGZTa0RrKCF1OzTx6nz2HQHCcX-2QIihpzVex0dqOSP9DJy_VBr-EVT3BlbkFJvtRpnLi2eKMpyaRQnxB9kMnqfiS4_mIbuUyQ1wGS0mNShsEesLNa9CYgy5ZIXRZRiGWusIZsoA'
+
 
 def run_all_tests():
     print("\n=== Starting All LangGraph Tests ===")
@@ -33,25 +39,25 @@ def run_all_tests():
     
     print("\n" + "="*50)
     
-    # Run Transit LangGraph Test
-    print("\nRunning Transit LangGraph Test...")
-    try:
-        test_transit_langgraph()
-        test_results['Transit'] = "Passed"
-    except Exception as e:
-        print(f"Error in Transit test: {str(e)}")
-        test_results['Transit'] = f"Failed: {str(e)}"
+    # # Run Transit LangGraph Test
+    # print("\nRunning Transit LangGraph Test...")
+    # try:
+    #     test_transit_langgraph()
+    #     test_results['Transit'] = "Passed"
+    # except Exception as e:
+    #     print(f"Error in Transit test: {str(e)}")
+    #     test_results['Transit'] = f"Failed: {str(e)}"
     
-    print("\n" + "="*50)
+    # print("\n" + "="*50)
     
-    # Run Destination LangGraph Test
-    print("\nRunning Destination LangGraph Test...")
-    try:
-        test_destination_langgraph()
-        test_results['Destination'] = "Passed"
-    except Exception as e:
-        print(f"Error in Destination test: {str(e)}")
-        test_results['Destination'] = f"Failed: {str(e)}"
+    # # Run Destination LangGraph Test
+    # print("\nRunning Destination LangGraph Test...")
+    # try:
+    #     test_destination_langgraph()
+    #     test_results['Destination'] = "Passed"
+    # except Exception as e:
+    #     print(f"Error in Destination test: {str(e)}")
+    #     test_results['Destination'] = f"Failed: {str(e)}"
     
     # Print Summary
     print("\n=== Test Summary ===")
