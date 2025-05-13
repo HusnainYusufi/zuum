@@ -92,7 +92,7 @@ def test_origin_langgraph():
     # print(f"Same meaning: {'Yes' if is_same else 'No'}")
     # if is_same:
     #     correct_responses += 1
-    
+
     # # Simulate load ready response
     # carrier_response = "Yes, the load is ready for pickup"
     # response = service.run(Command(resume={'data': carrier_response}), thread_id)
@@ -103,7 +103,6 @@ def test_origin_langgraph():
     # print(f"Same meaning: {'Yes' if is_same else 'No'}")
     # if is_same:
     #     correct_responses += 1
-    
     # # Simulate journey started response
     # carrier_response = "Yes, I'm on my way to the pickup location"
     # response = service.run(Command(resume={'data': carrier_response}), thread_id)

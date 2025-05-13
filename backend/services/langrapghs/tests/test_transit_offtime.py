@@ -69,7 +69,7 @@ def test_transit_langgraph():
         correct_responses += 1
     
     # Simulate driver response with location
-    driver_response = "I'm currently in Houston, TX and will arrive in 30 minutes"
+    driver_response = "I'm currently in Houston, TX and will arrive on time"
     response = service.run(Command(resume={'data': driver_response}), thread_id)
     print("\nDriver:", driver_response)
     print("Bot:", response)
