@@ -80,7 +80,7 @@ def test_origin_langgraph():
         correct_responses += 1
     
     # Simulate load ready response
-    carrier_response = "Yes, the load is ready for pickup"
+    carrier_response = "Yes, I have the load"
     response = service.run(Command(resume={'data': carrier_response}), thread_id)
     print("\nCarrier:", carrier_response)
     print("Bot:", response)
