@@ -19,6 +19,40 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers.json import JsonOutputParser
 from dotenv import load_dotenv
 import os
+from langgraph.types import Command
+
+from langsmith import evaluate, Client
+
+
+
+# 1. Create and/or select your dataset
+client = Client()
+
+
+
+def compare_messages(outputs: dict, reference_outputs: dict) -> bool:
+    prompt = f"""You are a message comparison expert. Your task is to determine if two messages are conveying the same core meaning or intent, even if they use different words.
+
+Focus on the main purpose of the message, not minor details. For example:
+- If both messages are asking for carrier confirmation, they're the same
+- If both messages are asking if the load is ready, they're the same
+- If both messages are asking if the journey has started, they're the same
+- If both messages are farewell/goodbye messages, they're the same
+
+Expected message: "{reference_outputs['output']}"
+Actual message: "{outputs['output']}"
+
+Are these messages conveying the same core meaning/intent? Give a score between 0 and 100 only."""
+
+    response = llm.invoke([SystemMessage(content=prompt)])
+    return response.content.strip().lower()
+
+# expected_responses = {
+#         'carrier_confirmation': "Hey, just checking—are we confirmed for the pickup at Las Vegas, NV",
+#         'load_picked': "Great! Did you pickup the load?",
+#         'journey_started': "Perfect! Have you started your journey yet?",
+#         'goodbye': "Thanks for confirming everything. Have a safe journey!"
+#     }
 
 
 # Add the backend directory to Python path
@@ -52,7 +86,6 @@ db = next(get_db())
 
 def get_data_from_database(state: State) -> State:
     try:
-        print(state)
         stop_data = db.query(Stop).filter(Stop.id == state['stop_id']).first()
         if stop_data:
             # Convert SQLAlchemy model to dictionary
@@ -119,22 +152,20 @@ def get_carrier_confirmation(state: State) -> State:
     ])
     
     response_type = format_classifier_text(check_response.content)
-    print('affirmative' in response_type)
     if 'affirmative' in response_type:
         msg = llm.invoke([SystemMessage(content=LOADED_PROMPT),*state['messages']])
         query = msg.content
-        print(query)
+        print('loadedoutput query::',query)
         return {
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='have_loaded')
+                AIMessage(content=query, name='ask_have_loaded')
             ],
             'carrier_confirmation': True,
         }
     elif 'negative' in response_type:
         msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="not signed the carrier confirmation")), *state['messages']])
         query = msg.content
-        print(query)
         return {
             **state,
             'messages': [*state['messages'],
@@ -156,14 +187,14 @@ def get_have_loaded(state: State) -> State:
     ])
     
     response_type = format_classifier_text(check_response.content)
-    print('affirmative' in response_type)
     if 'affirmative' in response_type:
-        msg = llm.invoke([SystemMessage(content= DISPATCHED_PROMPT.format(location=state['stop_data']['name'])),*state['messages']])
+        msg = llm.invoke([SystemMessage(content= DISPATCHED_PROMPT.format(location=state['stop_data']['name']))])
         query = msg.content
+        print('have_loaded output query::',query)
         return {   
             **state,
             'messages': [*state['messages'],
-                AIMessage(content=query, name='dispatched')
+                AIMessage(content=query, name='ask_have_dispatched')
             ],
             'have_loaded': True,
             'dispatched': None,
@@ -195,7 +226,6 @@ def get_dispatched(state: State) -> State:
 
     response_type = format_classifier_text(check_response.content)
     logger.debug(f"LLM classified response as: {response_type}")
-    print('affirmative' in response_type)
     if "affirmative" in response_type:
         query = llm.invoke([SystemMessage(content=GOODBYE_PROMPT), *state['messages']])
         query = query.content
@@ -277,7 +307,34 @@ class OriginLangraph:
             elif eventType == "values" and len(event.get('messages')) > 0:
                 query = event['messages'][-1].content
         return query
-
+    
+    
+    def evaluate(self, dataset_name):
+        # Define a stateful target function that handles the conversation
+        def target_fn(inputs):
+            print('inputs',inputs)
+            query = ''
+            if "input" in inputs:
+                # Continue conversation with carrier response
+                query = self.run(Command(resume={'data': inputs["input"]}), f"eval_{dataset_name}")
+                print('output query::',query)
+                return {"output": query}
+            else:
+                # First message - start the conversation
+                state = {"messages": [], "stop_id": inputs.get("stop_id", 1), "running": True}
+                query = self.run(state, f"eval_{dataset_name}")
+                print('output query::',query)
+                return {"output": query}
+        
+        # Run evaluation
+        results = evaluate(
+            target_fn,
+            data=dataset_name,
+            evaluators=[compare_messages],  # Your existing comparison function
+            experiment_prefix="origin-langraph-eval",
+        )
+        
+        return results
 origin_langgraph_service = OriginLangraph()
 
         
