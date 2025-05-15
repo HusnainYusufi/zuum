@@ -316,24 +316,18 @@ function App() {
 
   const processRecordedAudio = async (audioBlob: Blob) => {
     try {
-      const threadIdParam = threadId?.toString() || '';
+      // Remove the audio playback code
+      console.log('Processing recorded audio:', audioBlob);
       
-      const audioArrayBuffer = await audioBlob.arrayBuffer();
-      const audioBase64 = btoa(
-        new Uint8Array(audioArrayBuffer)
-          .reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      const threadIdParam = threadId?.toString() || '';
+      const formData = new FormData();
+      
+      // Make sure we're sending the audio file with the correct filename and type
+      formData.append('audio', audioBlob, 'recording.webm');
       
       const response = await fetch(`http://localhost:8000/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          audio_file: audioBase64,
-          thread_id: threadIdParam
-        })
+        body: formData
       });
 
       if (!response.ok) {
@@ -541,6 +535,7 @@ function App() {
     setIsBlurred(true);
     if (isCallMode || isVoiceCall) {
       setIsRecording(false);
+      
     }
 
     let url = `http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`

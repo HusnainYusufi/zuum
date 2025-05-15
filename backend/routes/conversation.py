@@ -233,7 +233,7 @@ async def chat(
         logger.debug(f"Request: {request}")
         if request and request.audio_file:
             logger.debug("Processing base64 audio from JSON request")
-            # Get transcribed text from the whisper service
+            # Pass the base64 string directly to whisper service
             text = whisper_service.transcribe_audio(request.audio_file)
             
             # Check for None or empty text
@@ -251,11 +251,8 @@ async def chat(
             # Read the audio file content
             audio_content = await audio.read()
             
-            # Convert to base64 for whisper service
-            audio_base64 = base64.b64encode(audio_content).decode('utf-8')
-            
-            # Get transcribed text from the whisper service
-            text = whisper_service.transcribe_audio(audio_base64)
+            # Send the binary data directly to whisper service
+            text = whisper_service.transcribe_audio(audio_content)
             
             # Check for None or empty text
             if not text:
