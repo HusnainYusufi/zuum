@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 class OrpheusService:
     def __init__(self):
-        self.url = "https://929f-216-81-245-137.ngrok-free.app/api/v1/tts"
+        self.url = "https://ff20-216-81-245-137.ngrok-free.app/api/v1/tts"
         self.voice = "zac"
 
     def stream_audio_response(self, text: str):
@@ -22,15 +22,9 @@ class OrpheusService:
             response = requests.post(self.url, json=data, stream=True)
             response.raise_for_status()
             
-            # Create a generator function to stream the chunks
-            def generate():
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        yield chunk
-            
-            # Return a streaming response with appropriate headers
+            # Return a streaming response directly with the content from the external API
             return StreamingResponse(
-                generate(),
+                response.iter_content(chunk_size=1024),
                 media_type='audio/wav',
                 headers={
                     'Cache-Control': 'no-cache'

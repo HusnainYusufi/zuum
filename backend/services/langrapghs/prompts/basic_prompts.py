@@ -44,6 +44,7 @@ WAIT_PROMPT = """
   <examples>
      <example>Got it. Thank you for the update. Please let me know once you're empty.</example>
      <example>10-4, please let me know when on site. Thank you</example>
+     <example>Please sign the Carrier Confirmation for load # 295653 to begin your haul</example>
     <example>Hi Isaias let me know once loaded and reloaded?</example>
     <example>Please let me know once offloaded</example>
     <example>Please let me know once signed</example>
