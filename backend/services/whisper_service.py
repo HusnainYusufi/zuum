@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class WhisperService:
     def __init__(self):
-        self.api_link = 'https://ff20-216-81-245-137.ngrok-free.app/api/v1/sst'
+        self.api_link = 'https://legal-bluebird-bright.ngrok-free.app/api/v1/sst'
         
     def transcribe_audio(self, audio_data):
         """

@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 class OrpheusService:
     def __init__(self):
-        self.url = "https://ff20-216-81-245-137.ngrok-free.app/api/v1/tts"
+        self.url = "https://legal-bluebird-bright.ngrok-free.app/api/v1/tts"
         self.voice = "zac"
 
     def stream_audio_response(self, text: str):
