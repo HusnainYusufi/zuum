@@ -1,5 +1,6 @@
 import traceback
 from typing import List, Dict, Optional
+import os
 from loguru import logger
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends
@@ -205,10 +206,25 @@ async def get_transit_chat(stop_id: Optional[int] = None):
 
 if __name__ == "__main__":
     import uvicorn
+    from pyngrok import ngrok
     
-
-
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    # Start ngrok tunnel
+    port = 8000
+    
+    # Set ngrok auth token from environment variable
+    ngrok_auth_token = os.environ.get("NGROK_AUTH_TOKEN")
+    if ngrok_auth_token:
+        ngrok.set_auth_token(ngrok_auth_token)
+        logger.info("Ngrok authtoken configured")
+    else:
+        logger.warning("NGROK_AUTH_TOKEN not found in environment variables. Limited functionality may be available.")
+    
+    # Start ngrok tunnel
+    public_url = ngrok.connect(port).public_url
+    logger.info(f"ngrok tunnel established at {public_url}")
+    
+    # Start FastAPI application
+    uvicorn.run("main:app", host="localhost", port=port, reload=True)
 
 
 
