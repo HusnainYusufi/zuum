@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { RetellWebClient } from 'retell-client-js-sdk';
 import Phone from './components/Phone';
 import Sidebar from './components/Sidebar';
 import StakeholderDashboard from './components/StakeholderDashboard';
@@ -24,6 +25,9 @@ interface Stop {
 // Define conversation states for the audio call mode
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 
+// Define agent types
+type AgentType = 'custom' | 'retell';
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [stops, setStops] = useState<Stop[]>([]);
@@ -41,6 +45,12 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [conversationState, setConversationState] = useState<ConversationState>('idle');
   const [initAttempt, setInitAttempt] = useState(0);
+  
+  // New state for agent type
+  const [agentType, setAgentType] = useState<AgentType>('custom');
+  const [isRetellCallActive, setIsRetellCallActive] = useState(false);
+  const retellClientRef = useRef<RetellWebClient | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const formatTime = () => {
     const now = new Date();
@@ -61,6 +71,44 @@ function App() {
 
   const toggleDashboard = () => {
     setShowDashboard(prev => !prev);
+  };
+
+  // Toggle between agent types with clearer feedback
+  const toggleAgentType = (newType: AgentType) => {
+    if (newType === agentType) {
+      console.log(`📊 Already using ${newType} agent`);
+      return; // No change needed
+    }
+    
+    console.log(`🔄 Switching agent type from ${agentType} to ${newType}`);
+    
+    // If there's an active call, stop it first
+    if (isCallMode) {
+      if (agentType === 'retell' && retellClientRef.current && isRetellCallActive) {
+        console.log("⏹️ Stopping active Retell call before switching agent type");
+        retellClientRef.current.stopCall();
+        setIsRetellCallActive(false);
+      } else if (agentType === 'custom' && audioStream) {
+        console.log("⏹️ Stopping custom agent audio before switching agent type");
+        audioStream.getTracks().forEach(track => track.stop());
+        setAudioStream(null);
+      }
+      setIsCallMode(false);
+      setConversationState('idle');
+    }
+    
+    // Reset messages when switching agent types
+    setMessages([]);
+    if (selectedStopId) {
+      localStorage.removeItem(`chat-data-${selectedStopId}`);
+    }
+    
+    // Reset state
+    setIsInitialized(false);
+    setThreadId(selectedStopId?.toString() || null);
+    
+    // Change the agent type
+    setAgentType(newType);
   };
 
   // Fetch all stops and set default selection
@@ -167,6 +215,15 @@ function App() {
 
   // Handle recording toggle
   const handleRecordingToggle = () => {
+    if (isCallMode && agentType === 'retell' && retellClientRef.current) {
+      if (isRetellCallActive) {
+        retellClientRef.current.stopCall();
+      } else {
+        initializeRetellCall();
+      }
+      return;
+    }
+
     if (isRecording) {
       setIsRecording(false);
       setConversationState('processing');
@@ -184,14 +241,14 @@ function App() {
 
   // Effect to manage conversation state changes
   useEffect(() => {
-    if (isCallMode && isInitialized && conversationState === 'idle') {
+    if (isCallMode && isInitialized && conversationState === 'idle' && agentType === 'custom') {
       startListening();
     }
-  }, [isCallMode, isInitialized, conversationState]);
+  }, [isCallMode, isInitialized, conversationState, agentType]);
 
   // Effect to ensure audio tracks are properly managed
   useEffect(() => {
-    if (!audioStream) return;
+    if (!audioStream || agentType !== 'custom') return;
     
     const audioTracks = audioStream.getAudioTracks();
     
@@ -200,11 +257,11 @@ function App() {
     } else if (conversationState === 'processing' || conversationState === 'agentSpeaking') {
       audioTracks.forEach(track => { track.enabled = false; });
     }
-  }, [audioStream, conversationState]);
+  }, [audioStream, conversationState, agentType]);
 
-  // Effect to handle audio recording lifecycle
+  // Effect to handle audio recording lifecycle for custom agent
   useEffect(() => {
-    if (!isCallMode || !audioStream || conversationState !== 'listening') {
+    if (!isCallMode || !audioStream || conversationState !== 'listening' || agentType !== 'custom') {
       return;
     }
     
@@ -277,7 +334,7 @@ function App() {
         }, 300);
       }
     };
-  }, [isCallMode, audioStream, conversationState]);
+  }, [isCallMode, audioStream, conversationState, agentType]);
 
   const playAgentAudio = async (responseText: string) => {
     try {
@@ -390,23 +447,372 @@ function App() {
     }
   };
 
+  // Initialize Retell client
+  useEffect(() => {
+    console.log("Initializing Retell client");
+    
+    if (!retellClientRef.current) {
+      try {
+        retellClientRef.current = new RetellWebClient();
+        console.log("Retell client created successfully");
+        
+        // Set up event listeners
+        retellClientRef.current.on("call_started", () => {
+          console.log("Retell call started event received");
+          setIsRetellCallActive(true);
+          // Set recording to true by default when call starts (mic is active)
+          setIsRecording(true);
+          
+          // Add UI message that the call started
+          const systemMessage: Message = {
+            text: "Call connected. You can speak with the Retell agent now.",
+            isUser: false,
+            timestamp: formatTime()
+          };
+          
+          setMessages(prev => {
+            const newMessages = [...prev, systemMessage];
+            if (selectedStopId) {
+              localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+                messages: newMessages,
+                threadId: threadId
+              }));
+            }
+            return newMessages;
+          });
+        });
+
+        retellClientRef.current.on("call_ended", () => {
+          console.log("Retell call ended event received");
+          setIsRetellCallActive(false);
+          setIsRecording(false); // Ensure microphone state is reset
+          
+          // Add UI message that the call ended
+          const systemMessage: Message = {
+            text: "Call ended.",
+            isUser: false,
+            timestamp: formatTime()
+          };
+          
+          setMessages(prev => {
+            const newMessages = [...prev, systemMessage];
+            if (selectedStopId) {
+              localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+                messages: newMessages,
+                threadId: threadId
+              }));
+            }
+            return newMessages;
+          });
+        });
+
+        retellClientRef.current.on("agent_start_talking", () => {
+          console.log("Agent started talking event received");
+          setConversationState('agentSpeaking');
+        });
+
+        retellClientRef.current.on("agent_stop_talking", () => {
+          console.log("Agent stopped talking event received");
+          setConversationState('listening');
+        });
+
+        retellClientRef.current.on("update", (update) => {
+          console.log("Update received:", update);
+          if (update.transcript) {
+            // Add the transcript to the messages
+            const userMessage: Message = {
+              text: update.transcript.user || "...",
+              isUser: true,
+              timestamp: formatTime()
+            };
+            
+            const agentMessage: Message = {
+              text: update.transcript.agent || "...",
+              isUser: false,
+              timestamp: formatTime()
+            };
+            
+            setMessages(prev => {
+              // Filter out any "..." messages that were placeholders
+              const filteredMessages = prev.filter(msg => 
+                !(msg.text === "..." || msg.text === "")
+              );
+              
+              // Only add non-empty messages
+              const newUserMessage = userMessage.text !== "..." ? [userMessage] : [];
+              const newAgentMessage = agentMessage.text !== "..." ? [agentMessage] : [];
+              
+              const newMessages = [...filteredMessages, ...newUserMessage, ...newAgentMessage];
+              
+              if (selectedStopId) {
+                localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+                  messages: newMessages,
+                  threadId: threadId
+                }));
+              }
+              
+              return newMessages;
+            });
+          }
+        });
+
+        retellClientRef.current.on("error", (error) => {
+          console.error("Retell error:", error);
+          setIsRetellCallActive(false);
+          
+          // Add error message to the UI
+          const errorMessage: Message = {
+            text: `Call error: ${error.message || "Unknown error"}`,
+            isUser: false,
+            timestamp: formatTime()
+          };
+          
+          setMessages(prev => {
+            const newMessages = [...prev, errorMessage];
+            if (selectedStopId) {
+              localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+                messages: newMessages,
+                threadId: threadId
+              }));
+            }
+            return newMessages;
+          });
+        });
+      } catch (error) {
+        console.error("Error initializing Retell client:", error);
+      }
+    }
+    
+    return () => {
+      // Clean up on component unmount
+      if (retellClientRef.current && isRetellCallActive) {
+        console.log("Cleaning up Retell call on unmount");
+        retellClientRef.current.stopCall();
+      }
+    };
+  }, []);
+
+  // Function to get an access token from your backend
+  const getRetellAccessToken = async () => {
+    try {
+      console.log("🔑 Making fetch request to /conversation/retell-token");
+      
+      // Call the backend endpoint to get a Retell access token
+      const response = await fetch('http://localhost:8000/conversation/retell-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        // Add empty body to ensure POST works correctly
+        body: JSON.stringify({})
+      });
+      
+      console.log("📡 Response received:", response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Error response body:", errorText);
+        throw new Error(`Failed to get Retell access token: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      // Try to parse JSON response
+      let data;
+      try {
+        data = await response.json();
+        console.log("📦 Token response data:", data);
+      } catch (jsonError: any) {
+        console.error("❌ Failed to parse JSON response:", jsonError);
+        throw new Error(`Invalid JSON response from server: ${jsonError.message}`);
+      }
+      
+      // Check if we received a real token or a mock token
+      if (data.message && data.message.includes("mock token")) {
+        console.warn("⚠️ Using mock Retell token. For production, configure RETELL_API_KEY in backend.");
+      }
+      
+      // Log call information for debugging
+      if (data.call_id) {
+        console.log(`📞 Retell call created with ID: ${data.call_id}, status: ${data.call_status || 'unknown'}`);
+      }
+      
+      if (!data.access_token) {
+        console.error("❌ No access_token in response:", data);
+        throw new Error("No access_token provided in server response");
+      }
+      
+      setAccessToken(data.access_token);
+      return data.access_token;
+    } catch (error) {
+      console.error("❌ Error getting Retell access token:", error);
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error("🔌 Network error - Is your backend server running at http://localhost:8000?");
+      }
+      
+      throw error;
+    }
+  };
+
+  // Update the initializeRetellCall function
+  const initializeRetellCall = async () => {
+    console.log("📞 Starting Retell call initialization");
+    
+    if (!retellClientRef.current) {
+      console.error("⚠️ Retell client not initialized");
+      
+      // Try to initialize it again
+      try {
+        retellClientRef.current = new RetellWebClient();
+        console.log("✅ Retell client created on-demand");
+      } catch (error) {
+        console.error("❌ Failed to create Retell client:", error);
+        return;
+      }
+    }
+    
+    try {
+      // Request microphone permissions before starting the call
+      try {
+        console.log("🎤 Requesting microphone permissions");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // We don't need to store this stream as Retell will handle it
+        stream.getTracks().forEach(track => track.stop());
+        console.log("✅ Microphone permissions granted");
+      } catch (micError) {
+        console.error("❌ Failed to get microphone permissions:", micError);
+        throw new Error("Microphone access is required for the call. Please grant permission.");
+      }
+      
+      // Show a connecting message in the UI
+      const connectingMessage: Message = {
+        text: "Connecting to agent call...",
+        isUser: false,
+        timestamp: formatTime()
+      };
+      
+      setMessages(prev => {
+        const newMessages = [...prev, connectingMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
+      
+      // Set initial mic state to active
+      setIsRecording(true);
+      
+      // Get access token from your backend - this is where the issue might be
+      console.log("🔑 Requesting Retell token from backend...");
+      try {
+        const token = await getRetellAccessToken();
+        console.log("✅ Successfully received token:", token ? "Token received" : "No token received");
+        
+        if (!token) {
+          throw new Error("Failed to get valid access token");
+        }
+        
+        console.log("🚀 Starting call with Retell SDK");
+        
+        // Start the call
+        await retellClientRef.current.startCall({
+          accessToken: token,
+          sampleRate: 24000, // 24kHz sample rate for better quality
+          // Optional configuration below if needed
+          // captureDeviceId: "default", // Use default microphone
+          // playbackDeviceId: "default", // Use default speaker
+          emitRawAudioSamples: false // Set to true if you need raw audio data
+        });
+        
+        console.log("✅ Call started successfully");
+        setIsRetellCallActive(true);
+        setConversationState('listening');
+      } catch (tokenError) {
+        console.error("❌ Error getting or using token:", tokenError);
+        throw new Error(`Token error: ${tokenError instanceof Error ? tokenError.message : "Unknown token error"}`);
+      }
+    } catch (error) {
+      console.error("❌ Failed to initialize Retell call:", error);
+      
+      // Reset the recording state
+      setIsRecording(false);
+      
+      // Add error message to the UI
+      const errorMessage: Message = {
+        text: `Failed to start call: ${error instanceof Error ? error.message : "Unknown error"}`,
+        isUser: false,
+        timestamp: formatTime()
+      };
+      
+      setMessages(prev => {
+        const newMessages = [...prev, errorMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
+    }
+  };
+
   const handleToggleCallMode = async () => {
     if (!isCallMode) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setAudioStream(stream);
-        setIsCallMode(true);
-        setConversationState('idle');
+        if (agentType === 'custom') {
+          // For custom agent, we need to access the microphone
+          console.log('🎤 Starting custom agent call mode');
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setAudioStream(stream);
+          setIsCallMode(true);
+          setConversationState('idle');
+        } else if (agentType === 'retell') {
+          // For Retell, we'll initialize a voice call
+          console.log('🎤 Starting Retell call mode');
+          setIsCallMode(true);
+          setConversationState('idle');
+          handleInitializeChat(true);
+        }
       } catch (error) {
-        console.error('Error accessing microphone:', error);
+        console.error('❌ Error accessing microphone:', error);
         alert('Unable to access microphone. Please check permissions.');
       }
     } else {
-      if (audioStream) {
+      // Stop the call
+      console.log('📴 Ending call');
+      if (agentType === 'custom' && audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         setAudioStream(null);
+      } else if (agentType === 'retell' && retellClientRef.current) {
+        console.log('📴 Ending Retell call');
+        retellClientRef.current.stopCall();
+        setIsRetellCallActive(false);
+        
+        // Add a message that call was ended by user
+        const endMessage: Message = {
+          text: "Call ended by user.",
+          isUser: false,
+          timestamp: formatTime()
+        };
+        
+        setMessages(prev => {
+          const newMessages = [...prev, endMessage];
+          if (selectedStopId) {
+            localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+              messages: newMessages,
+              threadId: threadId
+            }));
+          }
+          return newMessages;
+        });
       }
+      
       setIsCallMode(false);
+      setIsRecording(false);
       setConversationState('idle');
     }
   };
@@ -417,7 +823,31 @@ function App() {
       return;
     }
 
-    if (isCallMode) {
+    if (agentType === 'retell' && isCallMode) {
+      // For Retell agent in call mode, messages are handled differently
+      // Just add the user message to the UI
+      const userMessage: Message = {
+        text: message,
+        isUser: true,
+        timestamp: formatTime()
+      };
+      
+      setMessages(prev => {
+        const newMessages = [...prev, userMessage];
+        if (selectedStopId) {
+          localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+            messages: newMessages,
+            threadId: threadId
+          }));
+        }
+        return newMessages;
+      });
+      
+      // The response will come through the Retell event listeners
+      return;
+    }
+
+    if (isCallMode && agentType === 'custom') {
       setConversationState('processing');
       setIsRecording(false);
     } else {
@@ -475,11 +905,11 @@ function App() {
         return newMessages;
       });
 
-      if (isCallMode && responseText) {
+      if (isCallMode && responseText && agentType === 'custom') {
         setConversationState('agentSpeaking');
         setIsRecording(false);
         await playAgentAudio(responseText);
-      } else if (isCallMode) {
+      } else if (isCallMode && agentType === 'custom') {
         startListening();
       }
     } catch (error) {
@@ -501,7 +931,7 @@ function App() {
         return newMessages;
       });
       
-      if (isCallMode) {
+      if (isCallMode && agentType === 'custom') {
         startListening();
       }
     }
@@ -510,32 +940,72 @@ function App() {
   // Update handleInitializeChat
   const handleInitializeChat = async (isVoiceCall = false, send_thread_id = false) => {
     if (!selectedStopId) {
-      console.error('No stop selected');
+      console.error('❌ No stop selected');
       return;
     }
 
-    if (isVoiceCall && !isCallMode) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setAudioStream(stream);
+    console.log(`🚀 Initializing chat - Voice call: ${isVoiceCall}, Agent: ${agentType}, Selected stop: ${selectedStopId}`);
+
+    if (isVoiceCall) {
+      if (agentType === 'custom' && !isCallMode) {
+        try {
+          console.log('📱 Initializing custom agent voice call');
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setAudioStream(stream);
+          setIsCallMode(true);
+        } catch (error) {
+          console.error('❌ Error accessing microphone:', error);
+          alert('Unable to access microphone. Please check permissions.');
+          return;
+        }
+      } else if (agentType === 'retell' && !isCallMode) {
+        console.log('📱 Initializing Retell agent call immediately');
         setIsCallMode(true);
-      } catch (error) {
-        console.error('Error accessing microphone:', error);
-        alert('Unable to access microphone. Please check permissions.');
-        return;
+        setIsInitialized(true); // Mark as initialized for Retell
+        
+        // Add a "connecting" message
+        const connectingMessage: Message = {
+          text: "Connecting to Retell voice call...",
+          isUser: false,
+          timestamp: formatTime()
+        };
+        
+        setMessages([connectingMessage]);
+        
+        // Save the thread ID
+        const threadIdToUse = selectedStopId.toString();
+        setThreadId(threadIdToUse);
+        
+        // Immediately start the Retell call
+        try {
+          await initializeRetellCall();
+        } catch (error) {
+          console.error("❌ Failed to start Retell call:", error);
+          // Add error message already handled in initializeRetellCall
+        }
+        
+        return; // Return early as we've already initiated the call
       }
     } else if (!isVoiceCall && isCallMode) {
-      if (audioStream) {
+      if (agentType === 'custom' && audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         setAudioStream(null);
+      } else if (agentType === 'retell' && retellClientRef.current && isRetellCallActive) {
+        retellClientRef.current.stopCall();
+        setIsRetellCallActive(false);
       }
       setIsCallMode(false);
     }
 
     setIsBlurred(true);
-    if (isCallMode || isVoiceCall) {
+    if (isCallMode) {
       setIsRecording(false);
-      
+    }
+
+    // For Retell agent in call mode, we've already handled initialization above
+    if (agentType === 'retell' && isVoiceCall) {
+      setIsBlurred(false);
+      return; // Already handled above
     }
 
     let url = `http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`
@@ -544,6 +1014,7 @@ function App() {
     }
     
     try {
+      console.log(`📡 Fetching from ${url}`);
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -551,6 +1022,7 @@ function App() {
       }
 
       const data = await response.json();
+      console.log('📦 Initialization response:', data);
       
       const initialMessage: Message = {
         text: data.response,
@@ -558,11 +1030,11 @@ function App() {
         timestamp: formatTime()
       };
 
-      setMessages([...messages, initialMessage]);
+      setMessages([initialMessage]);
       setThreadId(data.thread_id.toString());
       
       localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
-        messages: [...messages, initialMessage],
+        messages: [initialMessage],
         threadId: data.thread_id.toString()
       }));
       
@@ -574,15 +1046,15 @@ function App() {
         setInitAttempt(0);
       }
 
-      if (isVoiceCall && data.response) {
+      if (isVoiceCall && data.response && agentType === 'custom') {
         setConversationState('agentSpeaking');
         setIsRecording(false);
         await playAgentAudio(data.response);
-      } else if (isVoiceCall) {
+      } else if (isVoiceCall && agentType === 'custom') {
         startListening();
       }
     } catch (error) {
-      console.error('Error initializing chat:', error);
+      console.error('❌ Error initializing chat:', error);
       const errorMessage: Message = {
         text: 'Sorry, there was an error initializing the chat.',
         isUser: false,
@@ -590,11 +1062,55 @@ function App() {
       };
       setMessages([errorMessage]);
       
-      if (isVoiceCall) {
+      if (isVoiceCall && agentType === 'custom') {
         startListening();
       }
     } finally {
       setIsBlurred(false);
+    }
+  };
+
+  // Handle microphone toggle for Retell separately to avoid ending call
+  const handleToggleMicrophone = () => {
+    if (agentType === 'retell') {
+      if (!isRetellCallActive) {
+        // If call is not active, do nothing - call is already started by handleInitializeChat
+        console.log("ℹ️ Retell call not active");
+        return;
+      } else {
+        // If call is active, just toggle mic state (not stopping the call)
+        const newRecordingState = !isRecording;
+        console.log(`🎤 ${newRecordingState ? 'Unmuting' : 'Muting'} microphone for Retell call`);
+        
+        // Toggle recording state for UI feedback
+        setIsRecording(newRecordingState);
+        
+        // In a real implementation with Retell SDK you would use:
+        // retellClientRef.current.toggleMicrophone(); (if available)
+        
+        // Add a message to indicate microphone state
+        const micMessage: Message = {
+          text: newRecordingState 
+            ? "✅ Microphone activated. The agent can hear you." 
+            : "🔇 Microphone muted. The agent can't hear you.",
+          isUser: false,
+          timestamp: formatTime()
+        };
+        
+        setMessages(prev => {
+          const newMessages = [...prev, micMessage];
+          if (selectedStopId) {
+            localStorage.setItem(`chat-data-${selectedStopId}`, JSON.stringify({
+              messages: newMessages,
+              threadId: threadId
+            }));
+          }
+          return newMessages;
+        });
+      }
+    } else {
+      // For custom agent, use the original recording toggle
+      handleRecordingToggle();
     }
   };
 
@@ -605,16 +1121,43 @@ function App() {
       return;
     }
 
+    // Stop any active calls
+    if (agentType === 'custom' && audioStream) {
+      audioStream.getTracks().forEach(track => track.stop());
+      setAudioStream(null);
+    } else if (agentType === 'retell' && retellClientRef.current && isRetellCallActive) {
+      retellClientRef.current.stopCall();
+      setIsRetellCallActive(false);
+    }
+
     setMessages([]);
     localStorage.removeItem(`chat-data-${selectedStopId}`);
     setThreadId(selectedStopId.toString());
     setIsInitialized(false);
     setInitAttempt(0);
-    
-    if (isCallMode) {
-      setConversationState('idle');
-    }
+    setIsCallMode(false);
+    setConversationState('idle');
   };
+
+  // For debugging - expose the client to window
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // @ts-ignore - for debugging only
+      window.retellClient = retellClientRef;
+    }
+  }, []);
+
+  // Add a debug useEffect to monitor Retell states
+  useEffect(() => {
+    console.log(`Retell state update - Agent type: ${agentType}, Call active: ${isRetellCallActive}, Call mode: ${isCallMode}`);
+  }, [agentType, isRetellCallActive, isCallMode]);
+
+  // Add effect to log microphone state changes
+  useEffect(() => {
+    if (agentType === 'retell') {
+      console.log(`🎤 Microphone state changed: ${isRecording ? 'ACTIVE' : 'MUTED'}`);
+    }
+  }, [isRecording, agentType]);
 
   return (
     <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
@@ -627,6 +1170,9 @@ function App() {
             selectedStopId={selectedStopId}
             onSelectStop={handleSelectStop}
             isDarkMode={isDarkMode}
+            agentType={agentType}
+            onToggleAgentType={toggleAgentType}
+            isCallMode={isCallMode}
           />
           <div className="main-content">
             <Phone 
@@ -641,9 +1187,10 @@ function App() {
               isCallMode={isCallMode}
               audioStream={audioStream}
               onToggleCallMode={handleToggleCallMode}
-              isRecording={isRecording}
-              onToggleRecording={handleRecordingToggle}
+              isRecording={agentType === 'retell' ? isRetellCallActive : isRecording}
+              onToggleRecording={handleToggleMicrophone}
               conversationState={conversationState}
+              agentType={agentType}
             />
           </div>
         </div>

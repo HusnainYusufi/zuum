@@ -299,6 +299,113 @@ async def send_notification(
         logger.error(f"Error sending notification via API: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/retell-token")
+async def get_retell_token():
+    """
+    Generate an access token for Retell API by creating a web call.
+    
+    This endpoint calls Retell's create-web-call API to start a new call session
+    and returns the access token to the frontend.
+    """
+    logger.info("Received request for Retell token")
+    
+    try:
+        import os
+        import requests
+        from dotenv import load_dotenv
+        
+        # Load environment variables from .env file
+        load_dotenv()
+        
+        # Get your Retell API key from environment variables
+        RETELL_API_KEY = os.getenv("RETELL_API_KEY")
+        RETELL_AGENT_ID = os.getenv("RETELL_AGENT_ID")
+        
+        logger.debug(f"RETELL_API_KEY available: {RETELL_API_KEY is not None}")
+        logger.debug(f"RETELL_AGENT_ID available: {RETELL_AGENT_ID is not None}")
+        
+        if not RETELL_API_KEY:
+            logger.warning("RETELL_API_KEY not found in environment variables")
+            # Fall back to a testing/demo response for development
+            return {
+                "access_token": "mock_access_token",
+                "message": "Using mock token. Set RETELL_API_KEY in .env file for production."
+            }
+            
+        if not RETELL_AGENT_ID:
+            logger.warning("RETELL_AGENT_ID not found in environment variables")
+            # Fall back to a testing/demo response for development
+            return {
+                "access_token": "mock_access_token",
+                "message": "Using mock token. Set RETELL_AGENT_ID in .env file for production."
+            }
+        
+        # Make the API call to Retell to create a web call
+        logger.info(f"Calling Retell API to create web call with agent ID: {RETELL_AGENT_ID}")
+        response = requests.post(
+            "https://api.retellai.com/v2/create-web-call",
+            headers={"Authorization": f"Bearer {RETELL_API_KEY}"},
+            json={
+                "agent_id": RETELL_AGENT_ID,
+                "metadata": {
+                    "user_id": "freight_broker_user",
+                    "app": "voice_freight_broker"
+                }
+            }
+        )
+        
+        # Check if the request was successful
+        if response.status_code != 201:
+            error_msg = f"Retell API returned non-success status code: {response.status_code}"
+            logger.error(error_msg)
+            logger.error(f"Response content: {response.text}")
+            return {
+                "access_token": "mock_access_token",
+                "message": f"Error from Retell API: {response.status_code} - Using mock token instead",
+                "error": response.text
+            }
+        
+        # Parse the response
+        data = response.json()
+        logger.info(f"Successfully created Retell web call with ID: {data.get('call_id')}")
+        
+        # Return the access token to the frontend
+        return {
+            "access_token": data.get("access_token"),
+            "call_id": data.get("call_id"),
+            "call_status": data.get("call_status")
+        }
+    except requests.RequestException as e:
+        logger.error(f"Error calling Retell API: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text}")
+        # Return a mock token with error information for development
+        return {
+            "access_token": "mock_access_token",
+            "message": f"Error from Retell API: {str(e)} - Using mock token instead",
+            "error": str(e)
+        }
+    except Exception as e:
+        logger.error(f"Error generating Retell token: {str(e)}")
+        # Return a mock token with error information for development
+        return {
+            "access_token": "mock_access_token",
+            "message": f"Error generating token: {str(e)} - Using mock token instead",
+            "error": str(e)
+        }
+
+@router.get("/retell-token-test")
+async def test_retell_token():
+    """
+    Test endpoint for Retell token (GET method).
+    This makes it easier to debug in a browser.
+    """
+    logger.info("Received GET request for testing Retell token")
+    
+    # Just call the same function as the POST endpoint
+    return await get_retell_token()
+
 def check_langraph_service(stop_id: Optional[int] = None):
     if stop_id is None:
         # If no stop_id is provided, default to transit service

@@ -30,6 +30,7 @@
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  flex-direction: column;
 }
 
 .view-toggle {
@@ -152,3 +153,74 @@
   margin: 0;
   padding: 0;
 }
+
+/* Enhanced Agent Type Toggle Styles */
+.agent-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+}
+
+.agent-toggle-button {
+  padding: 10px 20px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+
+
+.agent-toggle-button.active {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.agent-toggle-button.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #2c5aa0;
+}
+
+.dark-mode .agent-toggle-button {
+  background-color: #333;
+  border-color: #555;
+  color: #eee;
+}
+
+.dark-mode .agent-toggle-button.active {
+  background-color: #2a5a9e;
+  border-color: #2a5a9e;
+  color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode .agent-toggle-button.active::after {
+  background-color: #1c3c68;
+}
+
+/* Hover effects */
+.agent-toggle-button:hover:not(.active) {
+  background-color: #e0e0e0;
+  transform: translateY(-1px);
+}
+
+.dark-mode .agent-toggle-button:hover:not(.active) {
+  background-color: #444;
+}
+
+/* Add this to your existing app.css file */

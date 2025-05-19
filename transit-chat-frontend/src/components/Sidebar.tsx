@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import '../styles/Sidebar.css';
 
+// Define agent types
+type AgentType = 'custom' | 'retell';
+
 interface Stop {
   id: number;
   name: string;
@@ -16,14 +19,26 @@ interface SidebarProps {
   selectedStopId: number | null;
   onSelectStop: (stopId: number) => void;
   isDarkMode: boolean;
+  agentType: AgentType;
+  onToggleAgentType: (type: AgentType) => void;
+  isCallMode: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ stops, selectedStopId, onSelectStop, isDarkMode }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  stops, 
+  selectedStopId, 
+  onSelectStop, 
+  isDarkMode,
+  agentType,
+  onToggleAgentType,
+  isCallMode
+}) => {
   return (
     <div className={`sidebar ${isDarkMode ? 'dark-mode' : ''}`}>
       <div className="sidebar-header">
         <h2>Transit Stops</h2>
       </div>
+      
       <div className="stops-list">
         {stops.length === 0 ? (
           <div className="loading">Loading stops...</div>
@@ -51,6 +66,29 @@ const Sidebar: React.FC<SidebarProps> = ({ stops, selectedStopId, onSelectStop, 
             </div>
           ))
         )}
+      </div>
+      
+      {/* Agent Toggle at the bottom */}
+      <div className="agent-toggle-container">
+        <div className="agent-toggle-header">
+          <span>Agent Selection</span>
+        </div>
+        <div className="agent-toggle">
+          <button 
+            className={`agent-toggle-button ${agentType === 'custom' ? 'active' : ''}`}
+            onClick={() => onToggleAgentType('custom')}
+            disabled={isCallMode} // Disable switching while in a call
+          >
+            <span role="img" aria-label="Custom">🎙️</span> Custom Agent
+          </button>
+          <button 
+            className={`agent-toggle-button ${agentType === 'retell' ? 'active' : ''}`}
+            onClick={() => onToggleAgentType('retell')}
+            disabled={isCallMode} // Disable switching while in a call
+          >
+            <span role="img" aria-label="Retell">🤖</span> Retell Agent
+          </button>
+        </div>
       </div>
     </div>
   );

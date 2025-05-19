@@ -5,6 +5,9 @@ import { BiMicrophone, BiPhoneOff, BiStop } from 'react-icons/bi';
 // Define the ConversationState type
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 
+// Define agent types
+type AgentType = 'custom' | 'retell';
+
 interface AudioVisualizerProps {
   isActive: boolean;
   isRecording: boolean;
@@ -15,6 +18,7 @@ interface AudioVisualizerProps {
   isCallMode: boolean;
   onToggleCallMode: () => void;
   conversationState?: ConversationState;
+  agentType?: AgentType;
 }
 
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ 
@@ -26,7 +30,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   isDarkMode,
   isCallMode,
   onToggleCallMode,
-  conversationState = 'idle'
+  conversationState = 'idle',
+  agentType = 'custom'
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>(0);
@@ -210,6 +215,14 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   // Get status text based on conversation state
   const getStatusText = () => {
+    if (agentType === 'retell') {
+      if (isRecording) {
+        return 'Retell Call Active';
+      } else {
+        return isActive ? 'Call Connected (Mic Muted)' : 'Call Ready';
+      }
+    }
+    
     switch (conversationState) {
       case 'listening':
         return isRecording ? 'Listening...' : 'Paused';
@@ -225,6 +238,10 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   // Get status color based on conversation state
   const getStatusColor = () => {
+    if (agentType === 'retell' && isRecording) {
+      return '#E91E63'; // Pink for Retell
+    }
+    
     switch (conversationState) {
       case 'listening':
         return '#4CAF50'; // Green
@@ -240,6 +257,15 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   // Check if visualizer should be active (only during agent speaking)
   const isVisualizerActive = isActive && conversationState === 'agentSpeaking';
+
+  // Get microphone button tooltip based on agent type
+  const getMicButtonTooltip = () => {
+    if (agentType === 'retell') {
+      return isRecording ? "Mute Microphone" : "Unmute Microphone";
+    } else {
+      return isRecording ? "Stop Recording & Send" : "Resume Recording";
+    }
+  };
 
   return (
     <div className={`audio-visualizer ${isActive ? 'active' : ''} ${isDarkMode ? 'dark-mode' : ''}`}>
@@ -296,20 +322,38 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       >
         <button 
           onClick={onToggle}
+          className={`mic-button ${agentType === 'retell' ? `retell-mic-button ${isRecording ? 'active' : 'muted'}` : ''}`}
           style={{
             ...buttonBaseStyle,
-            backgroundColor: isRecording 
-              ? 'var(--button-bg, #ffffff)' 
-              : 'var(--error-color, #ff4444)',
-            color: isRecording 
-              ? 'var(--button-color, #333333)' 
-              : '#ffffff',
+            backgroundColor: agentType === 'retell' 
+              ? (isRecording ? '#4CAF50' : '#ff6b6b') 
+              : isRecording 
+                ? 'var(--button-bg, #ffffff)' 
+                : 'var(--error-color, #ff4444)',
+            color: '#ffffff',
             transform: `scale(${isRecording ? 1.1 : 1})`,
+            position: 'relative'
           }}
-          title={isRecording ? "Stop Recording & Send" : "Resume Recording"}
-          disabled={conversationState === 'processing' || conversationState === 'agentSpeaking'}
+          title={getMicButtonTooltip()}
+          disabled={(agentType !== 'retell') && (conversationState === 'processing' || conversationState === 'agentSpeaking')}
         >
           {isRecording ? <BiStop size={24} /> : <BiMicrophone size={24} />}
+          {agentType === 'retell' && (
+            <span 
+              style={{
+                position: 'absolute',
+                top: '-6px',
+                right: '-6px',
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                backgroundColor: isRecording ? '#4CAF50' : '#f44336',
+                border: '2px solid white',
+                display: 'block',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}
+            />
+          )}
         </button>
         <button 
           onClick={onToggleCallMode}
