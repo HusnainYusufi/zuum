@@ -1,0 +1,771 @@
+{
+  "agent_id": "",
+  "channel": "voice",
+  "last_modification_timestamp": 1747756975614,
+  "agent_name": "Conversation Flow Agent",
+  "response_engine": {
+    "type": "conversation-flow",
+    "version": 0,
+    "conversation_flow_id": "conversation_flow_3fffd90eab5d"
+  },
+  "language": "en-US",
+  "opt_out_sensitive_data_storage": false,
+  "opt_in_signed_url": false,
+  "version": 0,
+  "is_published": false,
+  "post_call_analysis_model": "gpt-4o-mini",
+  "voice_id": "custom_voice_06accbe2c2ad6393550e8efe14",
+  "voice_model": "eleven_flash_v2_5",
+  "voice_temperature": 2,
+  "voice_speed": 1,
+  "volume": 1.58,
+  "enable_backchannel": true,
+  "backchannel_words": [
+    "yeah",
+    "uh-huh"
+  ],
+  "max_call_duration_ms": 3600000,
+  "interruption_sensitivity": 0.8,
+  "ambient_sound": "call-center",
+  "normalize_for_speech": true,
+  "enable_voicemail_detection": false,
+  "voicemail_message": "",
+  "voicemail_detection_timeout_ms": 30000,
+  "allow_user_dtmf": true,
+  "user_dtmf_options": {},
+  "retellLlmData": null,
+  "conversationFlow": {
+    "conversation_flow_id": "conversation_flow_3fffd90eab5d",
+    "version": 0,
+    "global_prompt": "\n<prompt>\n  <role>You are a friendly and professional broker for a trucking company.</role>\n</prompt>\n  <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n<location>{{expected_location}}</location>",
+    "nodes": [
+      {
+        "finetune_conversation_examples": [
+          {
+            "transcript": [
+              {
+                "content": "I did not signed the carrier confirmation",
+                "role": "user"
+              },
+              {
+                "content": "All right, let me know when you signed it",
+                "role": "agent"
+              }
+            ],
+            "id": "fe-1747421363383"
+          }
+        ],
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Ask the driver to confirm if they have signed the carrier confirmation using a casual, respectful tone. Style it like the examples below.</instruction>\n<examples> \n<example>Good morning,<be excited> <name>! 😊 Just checking—have you had a chance to sign the carrier confirmation yet?<be excited></example> <example>Hey <name>! 😅 Quick one—did you get around to signing the carrier confirmation?</example> </examples>\n  <input>\n    <origin>{origin}</origin>\n  </input>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Direct and informal but professional and follow the examples</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate the message asking for confirmation</output>\n  <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n\n</prompt>"
+        },
+        "name": "Greet",
+        "edges": [
+          {
+            "destination_node_id": "node-1747421373391",
+            "id": "edge-1747419891007",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker have signed the carrier confirmation"
+            }
+          },
+          {
+            "destination_node_id": "node-1747697245694",
+            "id": "edge-1747697218446",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker has not yet signed the carrier confirmation"
+            }
+          }
+        ],
+        "start_speaker": "agent",
+        "id": "start-node-1747418871925",
+        "type": "conversation",
+        "display_position": {
+          "x": 1275,
+          "y": 294
+        }
+      },
+      {
+        "finetune_conversation_examples": [
+          {
+            "transcript": [
+              {
+                "content": "The truck is not loaded yet",
+                "role": "user"
+              },
+              {
+                "content": "Okay, let me know when it is loaded.",
+                "role": "agent"
+              }
+            ],
+            "id": "fe-1747421508519"
+          }
+        ],
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver if the truck is loaded. Do not include greetings.</instruction>\n  <examples>\n    <example>Getting loaded?</example>\n    <example>Just asking for an update. Did you get loaded already? Please let us know.</example>\n    <example>Loaded now, boss?</example>\n    <example>Has the shipper finished loading the trailer yet?</example>\n    <example>already loaded?</example>\n    <example>Brother, loaded now?</example>\n    <example>loaded now sir?</example>\n    <example>Hey sir, loaded now in Adrian, MI?</example>\n    <example>Hi team, loaded at Cleveland, OH?</example>\n    <example>Hey, loaded now?</example>\n    <example>You already got loaded coming out of El Paso, TX?</example>\n    <example>But what time did you get loaded though?</example>\n    <example>So you're only delivering the load, but you already have the load it's greater, right?</example>\n    <example>Loaded and good to go from Kansas City, KS?</example>\n    <example>They finish loading you at 159th Street?</example>\n    <example>Got that trailer loaded up now?</example>\n    <example>You all set and loaded at the shipper?</example>\n    <example>All loaded up and ready to roll?</example>\n    <example>Checking if you got loaded at the shipper yet?</example>\n    <example>Load complete in Muskegon, MI?</example>\n    <example>loaded sir?</example>\n    <example>Hi team, getting loaded?</example>\n    <example>Hey brother just a follow up question you got loaded @ 4:40 is this CDT or Eastern?</example>\n    <example>Are you getting loaded?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Do not include greetings or pleasantries</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Ask the trucker if he has the load</output>\n</prompt>"
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "destination_node_id": "node-1747421513991",
+            "id": "edge-1747421373391",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The truck is loaded"
+            }
+          },
+          {
+            "id": "edge-1747697355334",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The truck is not loaded or is being loaded"
+            }
+          }
+        ],
+        "id": "node-1747421373391",
+        "type": "conversation",
+        "display_position": {
+          "x": 1775,
+          "y": 0
+        }
+      },
+      {
+        "finetune_conversation_examples": [
+          {
+            "transcript": [
+              {
+                "content": "The truck have not dispatched yet.",
+                "role": "user"
+              },
+              {
+                "content": "All right, let me know when it is dispatched",
+                "role": "agent"
+              }
+            ],
+            "id": "fe-1747421627815"
+          }
+        ],
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver if they've been dispatched from {{expected_location}}. Do not include greetings.</instruction>\n  <examples>\n    <example>Loaded and rolling?</example>\n    <example>Left El Paso, TX yet?</example>\n    <example>Hello brother, all set and left Kansas City, KS?</example>\n    <example>Like how far are you going back to the yard though?</example>\n    <example>No problem, I'll reach back in an hour then, man, okay?</example>\n    <example>You rolling now from Lakewood, WA?</example>\n    <example>Dispatched from Garden City, GA yet?</example>\n    <example>On the road from Grand Prairie, TX yet?</example>\n    <example>Already left Muskegon, MI?</example>\n    <example>Ready to head out from Miami, FL?</example>\n    <example>You heading out now from Lakeville, MN?</example>\n    <example>So you're rolling from Cleveland, OH now?</example>\n    <example>Did dispatch send you out from Adrian, MI yet?</example>\n    <example>Good to go from El Paso, TX?</example>\n    <example>Moving out from Kansas City, KS now?</example>\n    <example>Just confirming - you've left Grand Prairie, TX?</example>\n    <example>Wheels turning from Lakewood, WA yet?</example>\n\n  </examples>\n  <input>\n    <location>Tyler, TX</location>\n  </input>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Direct and informal but professional</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate a dispatch status message</output>\n</prompt>"
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "destination_node_id": "node-1747689587517",
+            "id": "edge-1747421513991",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker have dispatched"
+            }
+          },
+          {
+            "destination_node_id": "node-1747697245694",
+            "id": "edge-1747697379062",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker has not dispatched yet"
+            }
+          }
+        ],
+        "id": "node-1747421513991",
+        "type": "conversation",
+        "display_position": {
+          "x": 2275,
+          "y": 0
+        }
+      },
+      {
+        "instruction": {
+          "type": "static_text",
+          "text": "Got it, have a nice journey."
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "id": "edge-1747421691351",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Describe the transition condition"
+            }
+          }
+        ],
+        "id": "node-1747421691351",
+        "type": "conversation",
+        "display_position": {
+          "x": 3909.435648553635,
+          "y": 1096.8802793338464
+        },
+        "skip_response_edge": {
+          "destination_node_id": "node-1747421729727",
+          "id": "edge-1747423212199",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Skip response"
+          }
+        }
+      },
+      {
+        "name": "End Call",
+        "id": "node-1747421729727",
+        "type": "end",
+        "display_position": {
+          "x": 4655.499712590931,
+          "y": 584.3347352081415
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Politely end the call"
+        }
+      },
+      {
+        "name": "Conversation",
+        "edges": [
+          {
+            "destination_node_id": "node-1747423008735",
+            "id": "edge-1747423801823",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker provides location and eta and eta is greater then the {{eta}}"
+            }
+          },
+          {
+            "destination_node_id": "node-1747693114887",
+            "id": "edge-1747422022866",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker provides current location and eta."
+            }
+          }
+        ],
+        "id": "node-1747422022866",
+        "type": "conversation",
+        "display_position": {
+          "x": 1328.0316263217883,
+          "y": 2130.867006061409
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>\n  <examples>\n    <example>Good morning <name>! How's your day going?</example>\n    <example>Hey boss, hope you're having a good day!</example>\n    <example>Hi <name>, good morning! This is Forefront Global.</example>\n    <example>Good afternoon <name>, how's everything?</example>\n    <example>Hey brother, hope the drive is going well!</example>\n    <example>Hi there! Just checking in on your run.</example>\n    <example>Good morning! This is dispatch, how are you doing?</example>\n    <example>Hey there, hope you're having a safe trip!</example>\n    <example>Hi there! Just wanted to touch base with you.</example>\n    <example>Good day! How's everything on your end?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<current_time>{{current_time}}</current_time>\n</prompt>\n\"\"\""
+        }
+      },
+      {
+        "finetune_conversation_examples": [
+          {
+            "transcript": [
+              {
+                "content": "Why should I tell you?",
+                "role": "user"
+              },
+              {
+                "content": "Sorry brother, it is necessary. ",
+                "role": "agent"
+              }
+            ],
+            "id": "fe-1747423109415"
+          }
+        ],
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <role>The truck driver has been delayed by {delay} units of time.</role>\n  <instruction>Please ask the driver for the reason why they are delayed.</instruction>\n  <examples>\n    <example>You have been delayed by ten minutes. Can you tell the reason why?</example>\n    <example>What is the reason for the delay?</example>\n    <example>Why are you delayed?</example>\n    <example>Any particular reason you're running 30 minutes behind?</example>\n    <example>How come you're delayed by 2 hours?</example>\n    <example>Can you let me know why there's a 45 minute delay?</example>\n    <example>Brother, what's holding you up? You're 1 hour behind.</example>\n    <example>Do you know why he only went like 31 miles? What's causing the delay?</example>\n    <example>Actually, he went back since he left some tools at the truck stop. Is that what's causing your delay too?</example>\n    <example>Need to know why you're 90 minutes behind schedule.</example>\n    <example>Hey boss, what's the holdup? You're 20 minutes late.</example>\n    <example>Got a reason for the 3 hour delay? Plant needs to know.</example>\n    <example>You're running 15 minutes behind - what happened?</example>\n    <example>We're showing a 40 minute delay on your run - what's going on?</example>\n    <example>Dispatch needs to know why you're 25 minutes behind - what's the issue?</example>\n    <example>Hey boss, what's the holdup? You're 20 minutes late.</example>\n    <example>Got a reason for the 3 hour delay? Plant needs to know.</example>\n    <example>You're running 15 minutes behind - what happened?</example>\n    <example>We're showing a 40 minute delay on your run - what's going on?</example>\n    <example>Dispatch needs to know why you're 25 minutes behind - what's the issue?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n\n</prompt>"
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "destination_node_id": "node-1747692665495",
+            "id": "edge-1747423008735",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker provides a reason for delay"
+            }
+          }
+        ],
+        "id": "node-1747423008735",
+        "type": "conversation",
+        "display_position": {
+          "x": 1275,
+          "y": 1556
+        }
+      },
+      {
+        "name": "Conversation",
+        "edges": [
+          {
+            "destination_node_id": "node-1747421691351",
+            "id": "edge-1747423132423",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker provides the nearest highway"
+            }
+          }
+        ],
+        "id": "node-1747423132423",
+        "type": "conversation",
+        "display_position": {
+          "x": 3165.0981807467224,
+          "y": 1373.89390361726
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <role>Get the highway name, if there is any, else return null from the response of the driver.</role>\n  <input>\n    <human_response>{human_response}</human_response>\n    <format_instructions>{format_instructions}</format_instructions>\n  </input>\n  <output>\n    <field>highway_name: string</field>\n  </output>\n</prompt>"
+        }
+      },
+      {
+        "name": "Logic Split Node",
+        "edges": [
+          {
+            "destination_node_id": "start-node-1747418871925",
+            "id": "edge-1747687651798",
+            "transition_condition": {
+              "type": "equation",
+              "equations": [
+                {
+                  "left": "{{is_origin}}",
+                  "operator": "==",
+                  "right": "True"
+                }
+              ],
+              "operator": "||"
+            }
+          },
+          {
+            "destination_node_id": "node-1747691703206",
+            "id": "edge-1747687939798",
+            "transition_condition": {
+              "type": "equation",
+              "equations": [
+                {
+                  "left": "{{is_destination}}",
+                  "operator": "==",
+                  "right": "True"
+                }
+              ],
+              "operator": "&&"
+            }
+          }
+        ],
+        "id": "node-1747687637790",
+        "else_edge": {
+          "destination_node_id": "node-1747422022866",
+          "id": "edge-1747687637790",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Else"
+          }
+        },
+        "type": "branch",
+        "display_position": {
+          "x": 474.21029520093305,
+          "y": 2015.6178887188637
+        }
+      },
+      {
+        "tool_id": "tool-1747689580485",
+        "name": "Change State To Transit",
+        "edges": [
+          {
+            "destination_node_id": "node-1747421691351",
+            "id": "edge-1747689636717",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "On success"
+            }
+          },
+          {
+            "destination_node_id": "node-1747421729727",
+            "id": "edge-1747697436822",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "On fail"
+            }
+          }
+        ],
+        "id": "node-1747689587517",
+        "type": "function",
+        "tool_type": "local",
+        "speak_during_execution": false,
+        "display_position": {
+          "x": 2775,
+          "y": 131
+        },
+        "wait_for_result": true
+      },
+      {
+        "name": "Greet",
+        "edges": [
+          {
+            "destination_node_id": "node-1747697245694",
+            "id": "edge-1747698957791",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker have not reached the destination"
+            }
+          },
+          {
+            "destination_node_id": "node-1747699157945",
+            "id": "edge-1747691703206",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker has reached the destination"
+            }
+          }
+        ],
+        "id": "node-1747691703206",
+        "type": "conversation",
+        "display_position": {
+          "x": 1238.0769230769233,
+          "y": 939.8461538461537
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Ask the trucker if they have arrived at the specified location by styling it like the examples below.</instruction>\n  <examples>\n    <example>Have you arrived at the receiver in Lakewood, WA?</example>\n    <example>Have you arrived at the receiver in Garden City, GA?</example>\n    <example>Hey, are you at the location in Kansas City, KS? At the 159th Street address?</example>\n    <example>Hey boss, you at the Kansas City, KS location now?</example>\n    <example>Have you arrived at the receiver in Washington, DC?</example>\n    <example>Load #: 305609 - Good morning boss, just checking in for an update on this load, are you now on site at the delivery in Las Vegas, NV? Please let us know. Thank you.</example>\n  </examples>\n  <input>\n    <location>{location}</location>\n  </input>\n  <constraints>\n    <note>You can say brother or boss to the trucker</note>\n    <output_length>Keep it much shorter</output_length>\n    <style>Human-like broker message</style>\n    <tone>Casual but respectful</tone>\n    <location>Any location outputted should be STRICTLY formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX. If the location is Washington D.C, then the location should be written as Washington, DC</location>\n  </constraints>\n  <output>Generate a message asking for arrival confirmation</output>\n</prompt>"
+        }
+      },
+      {
+        "tool_id": "tool-1747692661990",
+        "name": "Add Delay Reason",
+        "edges": [
+          {
+            "destination_node_id": "node-1747693114887",
+            "id": "edge-1747692673542",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "On success\n"
+            }
+          },
+          {
+            "destination_node_id": "node-1747698043622",
+            "id": "edge-1747698027471",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "On fail"
+            }
+          }
+        ],
+        "id": "node-1747692665495",
+        "type": "function",
+        "tool_type": "local",
+        "speak_during_execution": false,
+        "display_position": {
+          "x": 2188.25742205741,
+          "y": 1950.5374676136432
+        },
+        "wait_for_result": true
+      },
+      {
+        "tool_id": "tool-1747693111671",
+        "name": "Add Reported Location",
+        "edges": [
+          {
+            "destination_node_id": "node-1747423132423",
+            "id": "edge-1747693125774",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "on success"
+            }
+          },
+          {
+            "destination_node_id": "node-1747698043622",
+            "id": "edge-1747698062230",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "On fail\n"
+            }
+          }
+        ],
+        "id": "node-1747693114887",
+        "type": "function",
+        "tool_type": "local",
+        "speak_during_execution": false,
+        "display_position": {
+          "x": 2342.1567577399865,
+          "y": 1632.9533549192377
+        },
+        "wait_for_result": true
+      },
+      {
+        "instruction": {
+          "type": "prompt",
+          "text": "<instruction>Let the driver know when the previous task is done </instruction>\n<output>Generate the message </output>"
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "id": "edge-1747697245694",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Describe the transition condition"
+            }
+          }
+        ],
+        "id": "node-1747697245694",
+        "type": "conversation",
+        "display_position": {
+          "x": 2775,
+          "y": 442
+        },
+        "skip_response_edge": {
+          "destination_node_id": "node-1747421729727",
+          "id": "edge-1747697342186",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Skip response"
+          }
+        }
+      },
+      {
+        "name": "End Call",
+        "id": "node-1747698043622",
+        "type": "end",
+        "display_position": {
+          "x": 3158.042247850293,
+          "y": 2086.8092140525255
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Politely end the call"
+        }
+      },
+      {
+        "name": "Ask POD",
+        "edges": [
+          {
+            "destination_node_id": "node-1747421691351",
+            "id": "edge-1747699038814",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker has signed the POD"
+            }
+          },
+          {
+            "destination_node_id": "node-1747697245694",
+            "id": "edge-1747699232495",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker has not signed the POD"
+            }
+          }
+        ],
+        "id": "node-1747699038814",
+        "type": "conversation",
+        "display_position": {
+          "x": 2228.8622539644643,
+          "y": 909.1772117343353
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Ask the trucker if they have signed the proof of delivery signature. Do not include greetings. Style it like the examples below.</instruction>\n  <examples>\n    <example>Have you signed the proof of delivery signature?\"</example>\n    <example>Have you signed the POD?</example>\n    <example>10-2, is POD signed?</example>\n    <example>Got the POD signature yet?</example>\n    <example>POD signed, brother?</example>\n    <example>Did you get the paperwork signed at delivery?</example>\n    <example>Paperwork all signed off?</example>\n    <example>You get that POD signature, boss?</example>\n    <example>Did you sign off on your POD papers yet?</example>\n    <example>Need to confirm - POD signed?</example>\n    <example>Quick question - did you get POD signature?</example>\n    <example>All signed off on delivery?</example>\n  </examples>\n  <constraints>\n    <note>You can address the trucker as brother or boss</note>\n    <output_length>Keep it much shorter</output_length>\n    <style>Human-like broker message</style>\n    <tone>Casual but respectful</tone>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate a direct POD signature confirmation question</output>\n</prompt>"
+        }
+      },
+      {
+        "tool_id": "tool-1747699148056",
+        "name": "Change State To Arrived",
+        "edges": [
+          {
+            "destination_node_id": "node-1747699038814",
+            "id": "edge-1747699177390",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "On success\n"
+            }
+          }
+        ],
+        "id": "node-1747699157945",
+        "type": "function",
+        "tool_type": "local",
+        "speak_during_execution": false,
+        "display_position": {
+          "x": 1835.791292764298,
+          "y": 1376.142857142856
+        },
+        "wait_for_result": true
+      },
+      {
+        "finetune_conversation_examples": [
+          {
+            "transcript": [
+              {
+                "content": "Is it needed?",
+                "role": "user"
+              },
+              {
+                "content": "Yes it is, what is your load number",
+                "role": "agent"
+              }
+            ],
+            "id": "fe-1747779911089"
+          }
+        ],
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>Ask about the load number</instruction>\n  <examples>\n<example>\n    Good morning Jabrah. We don't have you on tracking. Can we please have  trailer number?\n</example>\n<example>\nHi team, We're still missing the driver and trailer information for this load, which picks up today at NIXA, MO 1300 CDT.\nCould you please provide this as soon as possible? Thank you.\n<example>\nGood morning Mike. We don't have you on tracking. Can we please have your trailer number?\n</example>\n  </examples>\n\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n</prompt>"
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "destination_node_id": "node-1747687637790",
+            "id": "edge-1747774634409",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Trucker provides the load number and is equal to {{load_number}}"
+            }
+          },
+          {
+            "destination_node_id": "node-1747779816554",
+            "id": "edge-1747779536674",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "The trucker provides a load number but it  is not equal to {{load_number}}"
+            }
+          }
+        ],
+        "id": "node-1747774634409",
+        "type": "conversation",
+        "display_position": {
+          "x": -240.35026914867876,
+          "y": 1973.1572890505226
+        }
+      },
+      {
+        "name": "End Call",
+        "id": "node-1747779572371",
+        "type": "end",
+        "display_position": {
+          "x": 737.8430624145045,
+          "y": 2908.3545166130507
+        },
+        "instruction": {
+          "type": "prompt",
+          "text": "Politely end the call"
+        }
+      },
+      {
+        "instruction": {
+          "type": "static_text",
+          "text": "The provided load number is incorrect.  Please contact support."
+        },
+        "name": "Conversation",
+        "edges": [
+          {
+            "id": "edge-1747779816554",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "Describe the transition condition"
+            }
+          }
+        ],
+        "id": "node-1747779816554",
+        "type": "conversation",
+        "display_position": {
+          "x": 182.89433271437102,
+          "y": 2592.1402298073003
+        },
+        "skip_response_edge": {
+          "destination_node_id": "node-1747779572371",
+          "id": "edge-1747780027317",
+          "transition_condition": {
+            "type": "prompt",
+            "prompt": "Skip response"
+          }
+        }
+      }
+    ],
+    "start_node_id": "node-1747774634409",
+    "start_speaker": "agent",
+    "tools": [
+      {
+        "tool_id": "tool-1747689580485",
+        "timeout_ms": 3999,
+        "name": "change_state_to_transit",
+        "description": "Changes the state of the driver from confirmed to transit",
+        "type": "custom",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "number",
+              "description": "It will be 1"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        "url": " https://trusting-dolphin-internally.ngrok-free.app/retell/change_transit_state"
+      },
+      {
+        "tool_id": "tool-1747692661990",
+        "timeout_ms": 3000,
+        "name": "add_delay_reason",
+        "description": "This function sends the reason of the delay by the trucker",
+        "type": "custom",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "delay_reason": {
+              "type": "string",
+              "description": "The reason for delay by the trucker"
+            }
+          },
+          "required": [
+            "delay_reason"
+          ]
+        },
+        "url": "https://trusting-dolphin-internally.ngrok-free.app/retell/add_delay_reason"
+      },
+      {
+        "tool_id": "tool-1747693111671",
+        "timeout_ms": 3000,
+        "name": "add_reported_location",
+        "description": "This function sends the reported location of the trucker",
+        "type": "custom",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reported_location": {
+              "type": "string",
+              "description": "The reported location of the trucker"
+            }
+          },
+          "required": [
+            "reported_location"
+          ]
+        },
+        "url": "https://trusting-dolphin-internally.ngrok-free.app/retell/update_reported_location"
+      },
+      {
+        "tool_id": "tool-1747699148056",
+        "timeout_ms": 3000,
+        "name": "change_state_to_arrived",
+        "description": "Changes the state of the driver from transit to arrived.",
+        "type": "custom",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "number",
+              "description": "It will be 2"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        "url": " https://trusting-dolphin-internally.ngrok-free.app/retell/change_transit_state"
+      }
+    ],
+    "model_choice": {
+      "type": "cascading",
+      "model": "gpt-4.1-nano"
+    },
+    "knowledge_base_ids": [],
+    "begin_tag_display_position": {
+      "x": -637.9270218328422,
+      "y": 2076.9354025407974
+    },
+    "is_published": false
+  },
+  "llmURL": null
+}
