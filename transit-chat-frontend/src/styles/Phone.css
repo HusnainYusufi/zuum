@@ -364,3 +364,31 @@
   border-radius: 50%;
   color: var(--text-color);
 }
+
+.retell-single-button {
+  width: 80%;
+  max-width: 300px;
+  margin: 0 auto;
+  font-size: 16px;
+  background-color: #4a90e2;
+  color: white;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: scale(1);
+  transition: all 0.3s ease;
+}
+
+.retell-single-button:hover {
+  background-color: #2a5a9e;
+  transform: scale(1.05);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .retell-single-button {
+  background-color: #2a5a9e;
+}
+
+.dark-mode .retell-single-button:hover {
+  background-color: #1e3c6e;
+}

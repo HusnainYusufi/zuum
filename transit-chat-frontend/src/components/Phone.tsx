@@ -12,13 +12,16 @@ interface Message {
 // Define the ConversationState type
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 
+// Define agent types
+type AgentType = 'custom' | 'retell';
+
 interface PhoneProps {
   messages: Message[];
   onSendMessage: (message: string) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isInitialized: boolean;
-  onInitialize: (isVoiceCall?: boolean) => void;
+  onInitialize: (isVoiceCall?: boolean, send_thread_id?: boolean) => void;
   isBlurred: boolean;
   onReset: () => void;
   isCallMode?: boolean;
@@ -27,6 +30,7 @@ interface PhoneProps {
   isRecording?: boolean;
   onToggleRecording?: () => void;
   conversationState?: ConversationState;
+  agentType?: AgentType;
 }
 
 const Phone: React.FC<PhoneProps> = ({ 
@@ -43,7 +47,8 @@ const Phone: React.FC<PhoneProps> = ({
   audioStream = null,
   isRecording = false,
   onToggleRecording = () => {},
-  conversationState = 'idle'
+  conversationState = 'idle',
+  agentType = 'custom'
 }) => {
   const [inputMessage, setInputMessage] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -72,6 +77,26 @@ const Phone: React.FC<PhoneProps> = ({
     }
   };
 
+  // Determine if the call buttons should be disabled
+  const shouldDisableCallButton = () => {
+    if (agentType === 'retell') {
+      // For Retell, only disable during processing
+      return conversationState === 'processing';
+    } else {
+      // For custom agent, standard rules
+      return conversationState === 'processing';
+    }
+  };
+
+  // Get button text/label based on agent type and state
+  const getCallButtonLabel = () => {
+    if (agentType === 'retell') {
+      return isRecording ? "End Retell Call" : "Start Retell Call";
+    } else {
+      return isCallMode ? "Switch to Text Mode" : "Switch to Call Mode";
+    }
+  };
+
   return (
     <div className={`phone-container ${isDarkMode ? 'dark-mode' : ''} ${isBlurred ? 'blurred' : ''}`}>
       <div className="phone">
@@ -96,13 +121,18 @@ const Phone: React.FC<PhoneProps> = ({
             <BiReset />
           </button>
           )}
-          <h2>Transit Chat</h2>
+          <h2>
+            {agentType === 'retell' 
+              ? 'Retell Voice Chat' 
+              : 'Transit Chat'
+            }
+          </h2>
           {isInitialized && (
           <button
             onClick={onToggleCallMode}
             className={`mode-toggle-button ${isCallMode ? 'active' : ''}`}
-            aria-label={isCallMode ? "Switch to Text Mode" : "Switch to Call Mode"}
-            disabled={conversationState === 'processing'}
+            aria-label={getCallButtonLabel()}
+            disabled={shouldDisableCallButton()}
           >
             <BiPhone size={24} />
           </button>
@@ -111,21 +141,27 @@ const Phone: React.FC<PhoneProps> = ({
         
         {!isInitialized && (
           <div className="initialize-container">
-            <button 
-              onClick={() => onInitialize(false)}
-              className="initialize-button"
-              disabled={isBlurred}
-            >
-              <BiMessageRounded size={18} style={{ marginRight: '5px' }} />
-              Start Chat
-            </button>
+            {/* Only show text chat button for custom agent */}
+            {agentType === 'custom' && (
+              <button 
+                onClick={() => onInitialize(false)}
+                className="initialize-button"
+                disabled={isBlurred}
+              >
+                <BiMessageRounded size={18} style={{ marginRight: '5px' }} />
+                Start Text Chat
+              </button>
+            )}
             <button 
               onClick={() => onInitialize(true)}
-              className="initialize-button voice-call-button"
+              className={`initialize-button voice-call-button ${agentType === 'retell' ? 'retell-single-button' : ''}`}
               disabled={isBlurred}
             >
               <BiPhone size={18} style={{ marginRight: '5px' }} />
-              Start Voice Call
+              {agentType === 'retell' 
+                ? 'Start Retell Voice Call' 
+                : 'Start Voice Call'
+              }
             </button>
           </div>
         )}
@@ -174,6 +210,7 @@ const Phone: React.FC<PhoneProps> = ({
           isCallMode={isCallMode}
           onToggleCallMode={onToggleCallMode}
           conversationState={conversationState}
+          agentType={agentType}
         />
       </div>
     </div>
