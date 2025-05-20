@@ -47,7 +47,7 @@ function App() {
   const [initAttempt, setInitAttempt] = useState(0);
   
   // New state for agent type
-  const [agentType, setAgentType] = useState<AgentType>('custom');
+  const [agentType, setAgentType] = useState<AgentType>('retell');
   const [isRetellCallActive, setIsRetellCallActive] = useState(false);
   const retellClientRef = useRef<RetellWebClient | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);

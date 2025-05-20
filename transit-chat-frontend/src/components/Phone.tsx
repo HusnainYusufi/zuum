@@ -123,8 +123,8 @@ const Phone: React.FC<PhoneProps> = ({
           )}
           <h2>
             {agentType === 'retell' 
-              ? 'Retell Voice Chat' 
-              : 'Transit Chat'
+              ? 'Retell Agent Voice Call' 
+              : 'Custom Agent Chat'
             }
           </h2>
           {isInitialized && (

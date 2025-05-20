@@ -74,6 +74,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           <span>Agent Selection</span>
         </div>
         <div className="agent-toggle">
+        <button 
+            className={`agent-toggle-button ${agentType === 'retell' ? 'active' : ''}`}
+            onClick={() => onToggleAgentType('retell')}
+            disabled={isCallMode} // Disable switching while in a call
+          >
+            <span role="img" aria-label="Retell">🤖</span> Retell Agent
+          </button>
           <button 
             className={`agent-toggle-button ${agentType === 'custom' ? 'active' : ''}`}
             onClick={() => onToggleAgentType('custom')}
@@ -81,13 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             <span role="img" aria-label="Custom">🎙️</span> Custom Agent
           </button>
-          <button 
-            className={`agent-toggle-button ${agentType === 'retell' ? 'active' : ''}`}
-            onClick={() => onToggleAgentType('retell')}
-            disabled={isCallMode} // Disable switching while in a call
-          >
-            <span role="img" aria-label="Retell">🤖</span> Retell Agent
-          </button>
+          
         </div>
       </div>
     </div>
