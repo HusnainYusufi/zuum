@@ -9,6 +9,9 @@ from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
 from routes import conversation_router, ui_router, retell_router
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Initialize the database
 init_db()
@@ -213,15 +216,16 @@ if __name__ == "__main__":
     port = 8000
     
     # Set ngrok auth token from environment variable
-    ngrok_auth_token = '2xK5fTwiFlim7rPRDm775jOr1GY_6a4uDumhrYP2dozYhL5B9'
+    ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
     if ngrok_auth_token:
         ngrok.set_auth_token(ngrok_auth_token)
         logger.info("Ngrok authtoken configured")
     else:
         logger.warning("NGROK_AUTH_TOKEN not found in environment variables. Limited functionality may be available.")
     
-    # Start ngrok tunnel
-    public_url = ngrok.connect(port).public_url
+    # Start ngrok tunnel with static domain
+    ngrok_domain = "trusting-dolphin-internally.ngrok-free.app"
+    public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
     logger.info(f"ngrok tunnel established at {public_url}")
     
     # Start FastAPI application

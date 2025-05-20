@@ -331,6 +331,8 @@ async def get_retell_token(request: RetellRequest = Body(...)):
             stop_data = {column.name: getattr(stop, column.name) for column in stop.__table__.columns} if stop else {}
             # Convert all values to strings for Retell API
             stop_data_for_retell = {k: str(v) if v is not None else "" for k, v in stop_data.items()}
+            stop_data_for_retell['current_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            stop_data_for_retell['load_number'] = 'LB-205'
         else:
             return HTTPException(status_code=400, detail="Stop ID or Journey ID are required") 
         
