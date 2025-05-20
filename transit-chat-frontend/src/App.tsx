@@ -605,7 +605,10 @@ function App() {
           'Accept': 'application/json'
         },
         // Add empty body to ensure POST works correctly
-        body: JSON.stringify({})
+        body: JSON.stringify({
+          stop_id: selectedStopId,
+          journey_id: 1
+        })
       });
       
       console.log("📡 Response received:", response.status, response.statusText);

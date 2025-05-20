@@ -44,6 +44,11 @@ class NotificationRequest(BaseModel):
     stop_id: Optional[int] = None
     severity: str = "info"  # info, warning, error
 
+class RetellRequest(BaseModel):
+    stop_id: Optional[int] = None
+    journey_id: Optional[int] = None
+    langraph_type: Optional[str] = None
+
 # Internal function for sending notifications programmatically
 async def send_notification_internal(message: str, stop_id: Optional[int] = None, severity: str = "info"):
     """
@@ -300,7 +305,7 @@ async def send_notification(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/retell-token")
-async def get_retell_token():
+async def get_retell_token(request: RetellRequest = Body(...)):
     """
     Generate an access token for Retell API by creating a web call.
     
@@ -320,6 +325,14 @@ async def get_retell_token():
         # Get your Retell API key from environment variables
         RETELL_API_KEY = os.getenv("RETELL_API_KEY")
         RETELL_AGENT_ID = os.getenv("RETELL_AGENT_ID")
+        if request.stop_id is not None or request.langraph_type is not None:
+            stop = db.query(Stop).filter(Stop.id == request.stop_id).first()
+            # Convert the SQLAlchemy model object to a dictionary
+            stop_data = {column.name: getattr(stop, column.name) for column in stop.__table__.columns} if stop else {}
+            # Convert all values to strings for Retell API
+            stop_data_for_retell = {k: str(v) if v is not None else "" for k, v in stop_data.items()}
+        else:
+            return HTTPException(status_code=400, detail="Stop ID or Journey ID are required") 
         
         logger.debug(f"RETELL_API_KEY available: {RETELL_API_KEY is not None}")
         logger.debug(f"RETELL_AGENT_ID available: {RETELL_AGENT_ID is not None}")
@@ -348,9 +361,10 @@ async def get_retell_token():
             json={
                 "agent_id": RETELL_AGENT_ID,
                 "metadata": {
-                    "user_id": "freight_broker_user",
-                    "app": "voice_freight_broker"
-                }
+                    "stop_data": stop_data,
+                    "journey_id": request.journey_id
+                },
+                "retell_llm_dynamic_variables": stop_data_for_retell
             }
         )
         
