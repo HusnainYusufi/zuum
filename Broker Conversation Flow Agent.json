@@ -1,24 +1,25 @@
 {
   "agent_id": "",
   "channel": "voice",
-  "last_modification_timestamp": 1747756975614,
-  "agent_name": "Conversation Flow Agent",
+  "last_modification_timestamp": 1747863238742,
+  "agent_name": "Broker Conversation Flow Agent",
   "response_engine": {
     "type": "conversation-flow",
     "version": 0,
-    "conversation_flow_id": "conversation_flow_3fffd90eab5d"
+    "conversation_flow_id": "conversation_flow_77fd2c6db956"
   },
   "language": "en-US",
   "opt_out_sensitive_data_storage": false,
   "opt_in_signed_url": false,
   "version": 0,
   "is_published": false,
+  "version_title": "",
   "post_call_analysis_model": "gpt-4o-mini",
-  "voice_id": "custom_voice_06accbe2c2ad6393550e8efe14",
-  "voice_model": "eleven_flash_v2_5",
-  "voice_temperature": 2,
+  "voice_id": "custom_voice_e0e881916dd58a8eca7ec7fe16",
+  "voice_model": "eleven_multilingual_v2",
+  "voice_temperature": 1.62,
   "voice_speed": 1,
-  "volume": 1.58,
+  "volume": 1.48,
   "enable_backchannel": true,
   "backchannel_words": [
     "yeah",
@@ -35,9 +36,9 @@
   "user_dtmf_options": {},
   "retellLlmData": null,
   "conversationFlow": {
-    "conversation_flow_id": "conversation_flow_3fffd90eab5d",
+    "conversation_flow_id": "conversation_flow_77fd2c6db956",
     "version": 0,
-    "global_prompt": "\n<prompt>\n  <role>You are a friendly and professional broker for a trucking company.</role>\n</prompt>\n  <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n<location>{{expected_location}}</location>",
+    "global_prompt": "\n<prompt>\n  <role>Your name is strike and you are a friendly and professional broker for a company called Zuum.</role>\n  <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n<location>{{expected_location}}</location>\n<constraints>\n<constraint>Respond to previous and continue.</constraint>\n<constraint>Do not use greeting words like hey or hi</constraint>\n<constraint>Continue the conversation naturally</constraint>\n<constraint>Be direct just like human broker will</constraint>\n</constraints>\n</prompt>",
     "nodes": [
       {
         "finetune_conversation_examples": [
@@ -57,7 +58,7 @@
         ],
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Ask the driver to confirm if they have signed the carrier confirmation using a casual, respectful tone. Style it like the examples below.</instruction>\n<examples> \n<example>Good morning,<be excited> <name>! 😊 Just checking—have you had a chance to sign the carrier confirmation yet?<be excited></example> <example>Hey <name>! 😅 Quick one—did you get around to signing the carrier confirmation?</example> </examples>\n  <input>\n    <origin>{origin}</origin>\n  </input>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Direct and informal but professional and follow the examples</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate the message asking for confirmation</output>\n  <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n\n</prompt>"
+          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver to confirm if they have signed the carrier confirmation using a casual, respectful tone. Style it like the examples below.</instruction>\n<examples> \n<example>Good morning,<be excited> <name>! 😊 Just checking—have you had a chance to sign the carrier confirmation yet?<be excited></example> <example>Hey <name>! 😅 Quick one—did you get around to signing the carrier confirmation?</example> </examples>\n  <input>\n    <origin>{origin}</origin>\n  </input>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Direct and informal but professional and follow the examples</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n\n  </constraints>\n  <output>use the previous conversation and give okay, got it \n or something like that and Generate the message asking for confirmation</output>\n  <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n\n</prompt>"
         },
         "name": "Greet",
         "edges": [
@@ -82,8 +83,8 @@
         "id": "start-node-1747418871925",
         "type": "conversation",
         "display_position": {
-          "x": 1275,
-          "y": 294
+          "x": 1197.8940929652006,
+          "y": 289.02542535259346
         }
       },
       {
@@ -104,7 +105,7 @@
         ],
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver if the truck is loaded. Do not include greetings.</instruction>\n  <examples>\n    <example>Getting loaded?</example>\n    <example>Just asking for an update. Did you get loaded already? Please let us know.</example>\n    <example>Loaded now, boss?</example>\n    <example>Has the shipper finished loading the trailer yet?</example>\n    <example>already loaded?</example>\n    <example>Brother, loaded now?</example>\n    <example>loaded now sir?</example>\n    <example>Hey sir, loaded now in Adrian, MI?</example>\n    <example>Hi team, loaded at Cleveland, OH?</example>\n    <example>Hey, loaded now?</example>\n    <example>You already got loaded coming out of El Paso, TX?</example>\n    <example>But what time did you get loaded though?</example>\n    <example>So you're only delivering the load, but you already have the load it's greater, right?</example>\n    <example>Loaded and good to go from Kansas City, KS?</example>\n    <example>They finish loading you at 159th Street?</example>\n    <example>Got that trailer loaded up now?</example>\n    <example>You all set and loaded at the shipper?</example>\n    <example>All loaded up and ready to roll?</example>\n    <example>Checking if you got loaded at the shipper yet?</example>\n    <example>Load complete in Muskegon, MI?</example>\n    <example>loaded sir?</example>\n    <example>Hi team, getting loaded?</example>\n    <example>Hey brother just a follow up question you got loaded @ 4:40 is this CDT or Eastern?</example>\n    <example>Are you getting loaded?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Do not include greetings or pleasantries</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Ask the trucker if he has the load</output>\n</prompt>"
+          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver if the truck is loaded. Do not include greetings.</instruction>\n  <examples>\n    <example>Alright, are you loaded already?</example>\n    <example>Alright, just asking for an update. Did you get loaded already? Please let us know.</example>\n    <example>Alright, loaded now, boss?</example>\n    <example>Alright, Has the shipper finished loading the trailer yet?</example>\n    <example>Alright, already loaded?</example>\n    <example>Alright Brother, loaded now?</example>\n    <example>Alright, umm loaded now sir?</example>\n    <example>Alright, Hey sir, loaded now in Adrian, MI?</example>\n\n    <example>Are you done getting loaded?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Do not include greetings or pleasantries</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Ask the trucker if he has the load</output>\n</prompt>"
         },
         "name": "Conversation",
         "edges": [
@@ -117,6 +118,7 @@
             }
           },
           {
+            "destination_node_id": "node-1747697245694",
             "id": "edge-1747697355334",
             "transition_condition": {
               "type": "prompt",
@@ -127,8 +129,8 @@
         "id": "node-1747421373391",
         "type": "conversation",
         "display_position": {
-          "x": 1775,
-          "y": 0
+          "x": 1686.6385880771513,
+          "y": 49.482390676795376
         }
       },
       {
@@ -149,7 +151,7 @@
         ],
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver if they've been dispatched from {{expected_location}}. Do not include greetings.</instruction>\n  <examples>\n    <example>Loaded and rolling?</example>\n    <example>Left El Paso, TX yet?</example>\n    <example>Hello brother, all set and left Kansas City, KS?</example>\n    <example>Like how far are you going back to the yard though?</example>\n    <example>No problem, I'll reach back in an hour then, man, okay?</example>\n    <example>You rolling now from Lakewood, WA?</example>\n    <example>Dispatched from Garden City, GA yet?</example>\n    <example>On the road from Grand Prairie, TX yet?</example>\n    <example>Already left Muskegon, MI?</example>\n    <example>Ready to head out from Miami, FL?</example>\n    <example>You heading out now from Lakeville, MN?</example>\n    <example>So you're rolling from Cleveland, OH now?</example>\n    <example>Did dispatch send you out from Adrian, MI yet?</example>\n    <example>Good to go from El Paso, TX?</example>\n    <example>Moving out from Kansas City, KS now?</example>\n    <example>Just confirming - you've left Grand Prairie, TX?</example>\n    <example>Wheels turning from Lakewood, WA yet?</example>\n\n  </examples>\n  <input>\n    <location>Tyler, TX</location>\n  </input>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Direct and informal but professional</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate a dispatch status message</output>\n</prompt>"
+          "text": "<prompt>\n  <instruction>Continue the conversation and ask the driver if they've been dispatched from {{expected_location}}. Do not include greetings.</instruction>\n  <examples>\n    <example>Loaded and rolling?</example>\n    <example>Left El Paso, TX yet?</example>\n    <example>Hello brother, all set and left Kansas City, KS?</example>\n    <example>Like how far are you going back to the yard though?</example>\n    <example>No problem, I'll reach back in an hour then, man, okay?</example>\n    <example>You rolling now from Lakewood, WA?</example>\n    <example>Dispatched from Garden City, GA yet?</example>\n    <example>On the road from Grand Prairie, TX yet?</example>\n    <example>Already left Muskegon, MI?</example>\n    <example>Ready to head out from Miami, FL?</example>\n    <example>You heading out now from Lakeville, MN?</example>\n    <example>So you're rolling from Cleveland, OH now?</example>\n    <example>Did dispatch send you out from Adrian, MI yet?</example>\n    <example>Good to go from El Paso, TX?</example>\n    <example>Moving out from Kansas City, KS now?</example>\n    <example>Just confirming - you've left Grand Prairie, TX?</example>\n    <example>Wheels turning from Lakewood, WA yet?</example>\n\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it much shorter</length>\n    <style>Human-like broker message</style>\n    <note>Direct and informal but professional</note>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate a dispatch status message</output>\n</prompt>"
         },
         "name": "Conversation",
         "edges": [
@@ -174,13 +176,13 @@
         "type": "conversation",
         "display_position": {
           "x": 2275,
-          "y": 0
+          "y": -125.18836215621002
         }
       },
       {
         "instruction": {
           "type": "static_text",
-          "text": "Got it, have a nice journey."
+          "text": "Thank you for your time, have a nice journey."
         },
         "name": "Conversation",
         "edges": [
@@ -248,7 +250,7 @@
         },
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>\n  <examples>\n    <example>Good morning <name>! How's your day going?</example>\n    <example>Hey boss, hope you're having a good day!</example>\n    <example>Hi <name>, good morning! This is Forefront Global.</example>\n    <example>Good afternoon <name>, how's everything?</example>\n    <example>Hey brother, hope the drive is going well!</example>\n    <example>Hi there! Just checking in on your run.</example>\n    <example>Good morning! This is dispatch, how are you doing?</example>\n    <example>Hey there, hope you're having a safe trip!</example>\n    <example>Hi there! Just wanted to touch base with you.</example>\n    <example>Good day! How's everything on your end?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<current_time>{{current_time}}</current_time>\n</prompt>\n\"\"\""
+          "text": "<prompt>\n  <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>\n  <examples>\n    <example>Good morning <name>! How's your day going?</example>\n    <example>Hey boss, hope you're having a good day!</example>\n    <example>Hi <name>, good morning! This is Forefront Global.</example>\n    <example>Good afternoon <name>, how's everything?</example>\n    <example>Hey brother, hope the drive is going well!</example>\n    <example>Hi there! Just checking in on your run.</example>\n    <example>Good morning! This is dispatch, how are you doing?</example>\n    <example>Hey there, hope you're having a safe trip!</example>\n    <example>Hi there! Just wanted to touch base with you.</example>\n    <example>Good day! How's everything on your end?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<current_time>{{current_time}}</current_time>\n<addition_instructions>If the user provides a delta like in 20 minutes or 1 hour, then add and subtract from {{current time}} to get the resulting eta</aditional_instructions>\n \n</prompt>\n\"\"\""
         }
       },
       {
@@ -551,12 +553,12 @@
         "id": "node-1747699038814",
         "type": "conversation",
         "display_position": {
-          "x": 2228.8622539644643,
-          "y": 909.1772117343353
+          "x": 2383.7044142506775,
+          "y": 815.5887639871574
         },
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Ask the trucker if they have signed the proof of delivery signature. Do not include greetings. Style it like the examples below.</instruction>\n  <examples>\n    <example>Have you signed the proof of delivery signature?\"</example>\n    <example>Have you signed the POD?</example>\n    <example>10-2, is POD signed?</example>\n    <example>Got the POD signature yet?</example>\n    <example>POD signed, brother?</example>\n    <example>Did you get the paperwork signed at delivery?</example>\n    <example>Paperwork all signed off?</example>\n    <example>You get that POD signature, boss?</example>\n    <example>Did you sign off on your POD papers yet?</example>\n    <example>Need to confirm - POD signed?</example>\n    <example>Quick question - did you get POD signature?</example>\n    <example>All signed off on delivery?</example>\n  </examples>\n  <constraints>\n    <note>You can address the trucker as brother or boss</note>\n    <output_length>Keep it much shorter</output_length>\n    <style>Human-like broker message</style>\n    <tone>Casual but respectful</tone>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate a direct POD signature confirmation question</output>\n</prompt>"
+          "text": "<prompt>\n  <instruction>Ask the trucker if they have signed the proof of delivery signature. Do not include greetings. Style it like the examples below.</instruction>\n  <examples>\n    <example>Have you signed the proof of delivery signature?\"</example>\n    <example>Have you signed the POD?</example>\n    <example>10-2, is  proof of delivery signed?</example>\n    <example>Got the  proof of delivery  yet?</example>\n    <example> proof of delivery signed, brother?</example>\n    <example>Did you get the paperwork signed at delivery?</example>\n    <example>Paperwork all signed off?</example>\n    <example>You get that  proof of delivery, boss?</example>\n    <example>Did you sign off on your  proof of delivery papers yet?</example>\n    <example>Need to confirm -  proof of delivery signed?</example>\n    <example>Quick question - did you get  proof of delivery signature?</example>\n    <example>All signed off on delivery?</example>\n  </examples>\n  <constraints>\n    <note>You can address the trucker as brother or boss</note>\n    <output_length>Keep it much shorter</output_length>\n    <style>Human-like broker message</style>\n    <tone>Casual but respectful</tone>\n    <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>\n  </constraints>\n  <output>Generate a direct POD signature confirmation question</output>\n</prompt>"
         }
       },
       {
@@ -600,7 +602,7 @@
         ],
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Ask about the load number</instruction>\n  <examples>\n<example>\n    Good morning Jabrah. We don't have you on tracking. Can we please have  trailer number?\n</example>\n<example>\nHi team, We're still missing the driver and trailer information for this load, which picks up today at NIXA, MO 1300 CDT.\nCould you please provide this as soon as possible? Thank you.\n<example>\nGood morning Mike. We don't have you on tracking. Can we please have your trailer number?\n</example>\n  </examples>\n\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n</prompt>"
+          "text": "<prompt>\n  <instruction>Ask about the load number</instruction>\n  <examples>\n<example>\nHey there. It's Strike from Zuum. We don't have you on tracking. Can you confirm the load number please?\n</example>\n<example>\nHey there. It's Strike from Zuum.\nWe're still missing the driver and trailer information for this load, which picks up today at NIXA, MO 1300 CDT.\nCould you please provide this as soon as possible? Thank you.\n<example>\nHey there. It's Strike from Zuum.\nGood morning Mike. We don't have you on tracking. Can we please have your trailer number?\n</example>\n  </examples>\n\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<output>Greet and then introduce yourself as a broker and give your name(Strike), along with asking for load number for confirming it.</output>\n</prompt>"
         },
         "name": "Conversation",
         "edges": [
