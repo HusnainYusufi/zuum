@@ -21,7 +21,7 @@ FALLBACK_PROMPT = """
     <note>You can say brother or boss to the trucker</note>
     <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>
   </constraints>
-  <output>Answer the trucker query if any and ask them  {question}</output>
+  <output>Continue the conversation and answer to driver query if the driver greets , greet back else dont greet ,  Avoid any greeting words such as hey,hi etc  and then ask them {question}.and keep it direct and concise, if the driver respond with something out of your context or domain simply say you provide the information for the trucking company and ask them to contact the dispatch team</output>
 </prompt>
 """
 

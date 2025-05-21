@@ -143,7 +143,7 @@ async def initialize_chat(stop_id: Optional[int] = None, is_audio: Optional[bool
         langraph_service = check_langraph_service(stop_id)
         
         # Initialize state with required parameters
-        state = {"messages": [], 'running': True}
+        state = {"messages": [], 'running': True, "load_number": 'LB-201'}
         if stop_id is not None:
             state['stop_id'] = stop_id
             

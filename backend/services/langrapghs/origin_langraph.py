@@ -5,8 +5,7 @@ import sys
 from pathlib import Path
 from loguru import logger
 from typing import Annotated
-from services.langrapghs.prompts.origin_prompts import CARRIER_CONFIRMATION_PROMPT, LOADED_PROMPT, DISPATCHED_PROMPT
-
+from services.langrapghs.prompts.origin_prompts import CARRIER_CONFIRMATION_PROMPT,LOAD_NUMBER_PROMPT, LOADED_PROMPT, DISPATCHED_PROMPT
 from services.langrapghs.prompts.basic_prompts import CLASSIFIER_PROMPT, FALLBACK_PROMPT, WAIT_PROMPT, GOODBYE_PROMPT
 from llm_config import llm
 from typing_extensions import TypedDict
@@ -76,6 +75,8 @@ class State(TypedDict):
    carrier_confirmation: Optional[bool] = None
    dispatched: Optional[bool] = None
    have_loaded: Optional[bool] = None
+   load_number: Optional[str] = None
+   is_load_equal: Optional[bool] = None
 
 graphbuilder = StateGraph(State)
 json_parser = JsonOutputParser()
@@ -116,7 +117,7 @@ def get_data_from_database(state: State) -> State:
         
 
 def greet(state: State) -> State:
-    msg = llm.invoke([SystemMessage(content=CARRIER_CONFIRMATION_PROMPT.format(origin=state['stop_data']['name']))])
+    msg = llm.invoke([SystemMessage(content="Ask the carrier for their load number. Be friendly and professional.")])
     query = msg.content
     return {
         **state,
@@ -124,7 +125,9 @@ def greet(state: State) -> State:
             AIMessage(content=query, name='greet')
         ]
     }
-    
+
+
+
 def get_humanResponse(state: State, name: str) -> State:
     humanResponse = interrupt(state['messages'][-1].content)
     humanResponse = humanResponse['data']
@@ -138,6 +141,56 @@ def get_humanResponse(state: State, name: str) -> State:
     
 def format_classifier_text(text: str) -> str:
     return text.lower().strip().replace(',', '').replace('.', '').replace('?', '').replace('!', '').replace('_', ' ').split(' ')
+
+def get_load_number(state: State) -> State:
+    if state['messages'][-1].name == 'load_number':
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question=f"provide a valid load number  for the journey from {state['stop_data']['name']}")), *state['messages']])
+        state['messages'].append(AIMessage(content=msg.content, name='load_number'))
+    state = get_humanResponse(state, 'load_number')
+    
+    # Use LLM to check if response is affirmative or negative
+    check_response = llm.invoke([
+        SystemMessage(content=CLASSIFIER_PROMPT.format(question="Does the message contain a valid load number? Answer either yes or no.")),
+        *state['messages']
+    ])
+    
+    print('check_response::',check_response.content)
+    response_type = format_classifier_text(check_response.content)
+    if 'affirmative' in response_type:
+        if state['load_number'].lower().strip().replace('-', '') in state['messages'][-1].content.lower().strip().replace('-', ''):
+            # Ask for carrier confirmation
+            confirmation_msg = llm.invoke([
+                SystemMessage(content=CARRIER_CONFIRMATION_PROMPT.format(origin=state['stop_data']['name'])),
+                *state['messages']
+            ])
+            return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content=confirmation_msg.content, name='carrier_confirmation')
+                ],
+                'is_load_equal': True
+            }
+        else:
+            return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content='The load number is not correct, please contact the dispatch team.', name='load_number')
+                ],
+                'running': False
+            }
+    else:
+        # Handle any response that doesn't clearly contain a load number
+        msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="load number was not provided ")), *state['messages']])
+        query = msg.content
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='load_number')
+            ]
+        }
+
+
+
 
 def get_carrier_confirmation(state: State) -> State:
     if state['messages'][-1].name == 'carrier_confirmation' :
@@ -256,6 +309,8 @@ def origin(state: State) -> State:
 def router(state: State) -> State:
     if state['running'] == False:
         return 'end'
+    elif state.get('is_load_equal') is None:
+        return 'get_load_number'
     elif state.get('carrier_confirmation') is None:
         return 'get_carrier_confirmation'
     elif state.get('have_loaded') is None:
@@ -264,11 +319,12 @@ def router(state: State) -> State:
         return 'get_dispatched'
     else:
         return 'end'
-    
+
 
 class OriginLangraph:
     def __init__(self):
         graphbuilder.add_node('greet', greet)
+        graphbuilder.add_node('get_load_number', get_load_number)
         graphbuilder.add_node('get_carrier_confirmation', get_carrier_confirmation)
         graphbuilder.add_node('get_dispatched', get_dispatched)
         graphbuilder.add_node('get_have_loaded', get_have_loaded)
@@ -283,13 +339,14 @@ class OriginLangraph:
             'origin',
             router,
             {
+                'get_load_number': 'get_load_number',
                 'get_carrier_confirmation': 'get_carrier_confirmation',
                 'get_have_loaded': 'get_have_loaded',
                 'get_dispatched': 'get_dispatched', 
                 'end': END
             }
         )
-
+        graphbuilder.add_edge('get_load_number', 'origin')
         graphbuilder.add_edge('get_carrier_confirmation', 'origin')
         graphbuilder.add_edge('get_have_loaded', 'origin')
         graphbuilder.add_edge('get_dispatched', 'origin')
