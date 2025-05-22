@@ -1,7 +1,7 @@
 {
   "agent_id": "",
   "channel": "voice",
-  "last_modification_timestamp": 1747863238742,
+  "last_modification_timestamp": 1747955309125,
   "agent_name": "Broker Conversation Flow Agent",
   "response_engine": {
     "type": "conversation-flow",
@@ -17,14 +17,17 @@
   "post_call_analysis_model": "gpt-4o-mini",
   "voice_id": "custom_voice_e0e881916dd58a8eca7ec7fe16",
   "voice_model": "eleven_multilingual_v2",
-  "voice_temperature": 1.62,
+  "voice_temperature": 1.3,
   "voice_speed": 1,
-  "volume": 1.48,
+  "volume": 0.94,
   "enable_backchannel": true,
+  "backchannel_frequency": 0.5,
   "backchannel_words": [
     "yeah",
     "uh-huh"
   ],
+  "reminder_trigger_ms": 10000,
+  "reminder_max_count": 1,
   "max_call_duration_ms": 3600000,
   "interruption_sensitivity": 0.8,
   "ambient_sound": "call-center",
@@ -223,18 +226,33 @@
         }
       },
       {
-        "name": "Conversation",
+        "finetune_conversation_examples": [
+          {
+            "transcript": [
+              {
+                "content": "I am currently at tyler, TX",
+                "role": "user"
+              },
+              {
+                "content": "Ok, your are in tyler, TX. Can you give me the eta to the destination?",
+                "role": "agent"
+              }
+            ],
+            "id": "fe-1747928582220"
+          }
+        ],
+        "instruction": {
+          "type": "prompt",
+          "text": "<prompt>\n  <instruction>\n    Compose a friendly and professional message to the trucker, requesting their current location and estimated time of arrival (ETA). Ensure the message is concise and human-like, suitable for a broker's communication style. When the driver provides an ETA, interpret and record the date and time accurately, considering the current date and time zone.\n  </instruction>\n\n  <examples>\n    <example>Good morning <name>! How's your day going?</example>\n    <example>Hey boss, hope you're having a good day!</example>\n    <example>Hi <name>, good morning! This is Forefront Global.</example>\n    <example>All right <name>, how's everything?</example>\n    <example>Brother, hope the drive is going well!</example>\n    <example>Just checking in on your run.</example>\n    <example>This is dispatch, how are you doing?</example>\n    <example>Hope you're having a safe trip!</example>\n    <example>Just wanted to touch base with you.</example>\n    <example>How's everything on your end?</example>\n  </examples>\n\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it short and clear</length>\n    <current_time>The time right now is {{current_date_time}}</current_time>\n    <load_number>{{load_number}}</load_number>\n<additional_notes>\nUSE THE DATE IN {{current_date_time}} as starting index, if the driver does not provide date and gives only time. \nlike:\n1) 6PM -> 'current_date'T20:00:00\n2) 8PM tommorrow -> 'current_date+1'T20:00:00 \n</additional_notes>\n<format>\"%Y-%m-%dT%H:%M:%S\"</format>\n  </constraints>\n</prompt>"
+        },
+        "model_choice": {
+          "type": "cascading",
+          "model": "gpt-4.1-mini"
+        },
+        "name": "Get location and eta",
         "edges": [
           {
-            "destination_node_id": "node-1747423008735",
-            "id": "edge-1747423801823",
-            "transition_condition": {
-              "type": "prompt",
-              "prompt": "The trucker provides location and eta and eta is greater then the {{eta}}"
-            }
-          },
-          {
-            "destination_node_id": "node-1747693114887",
+            "destination_node_id": "node-1747932003614",
             "id": "edge-1747422022866",
             "transition_condition": {
               "type": "prompt",
@@ -245,12 +263,8 @@
         "id": "node-1747422022866",
         "type": "conversation",
         "display_position": {
-          "x": 1328.0316263217883,
-          "y": 2130.867006061409
-        },
-        "instruction": {
-          "type": "prompt",
-          "text": "<prompt>\n  <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>\n  <examples>\n    <example>Good morning <name>! How's your day going?</example>\n    <example>Hey boss, hope you're having a good day!</example>\n    <example>Hi <name>, good morning! This is Forefront Global.</example>\n    <example>Good afternoon <name>, how's everything?</example>\n    <example>Hey brother, hope the drive is going well!</example>\n    <example>Hi there! Just checking in on your run.</example>\n    <example>Good morning! This is dispatch, how are you doing?</example>\n    <example>Hey there, hope you're having a safe trip!</example>\n    <example>Hi there! Just wanted to touch base with you.</example>\n    <example>Good day! How's everything on your end?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<current_time>{{current_time}}</current_time>\n<addition_instructions>If the user provides a delta like in 20 minutes or 1 hour, then add and subtract from {{current time}} to get the resulting eta</aditional_instructions>\n \n</prompt>\n\"\"\""
+          "x": 1166.0579127408755,
+          "y": 2301.4342993813316
         }
       },
       {
@@ -271,7 +285,7 @@
         ],
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <role>The truck driver has been delayed by {delay} units of time.</role>\n  <instruction>Please ask the driver for the reason why they are delayed.</instruction>\n  <examples>\n    <example>You have been delayed by ten minutes. Can you tell the reason why?</example>\n    <example>What is the reason for the delay?</example>\n    <example>Why are you delayed?</example>\n    <example>Any particular reason you're running 30 minutes behind?</example>\n    <example>How come you're delayed by 2 hours?</example>\n    <example>Can you let me know why there's a 45 minute delay?</example>\n    <example>Brother, what's holding you up? You're 1 hour behind.</example>\n    <example>Do you know why he only went like 31 miles? What's causing the delay?</example>\n    <example>Actually, he went back since he left some tools at the truck stop. Is that what's causing your delay too?</example>\n    <example>Need to know why you're 90 minutes behind schedule.</example>\n    <example>Hey boss, what's the holdup? You're 20 minutes late.</example>\n    <example>Got a reason for the 3 hour delay? Plant needs to know.</example>\n    <example>You're running 15 minutes behind - what happened?</example>\n    <example>We're showing a 40 minute delay on your run - what's going on?</example>\n    <example>Dispatch needs to know why you're 25 minutes behind - what's the issue?</example>\n    <example>Hey boss, what's the holdup? You're 20 minutes late.</example>\n    <example>Got a reason for the 3 hour delay? Plant needs to know.</example>\n    <example>You're running 15 minutes behind - what happened?</example>\n    <example>We're showing a 40 minute delay on your run - what's going on?</example>\n    <example>Dispatch needs to know why you're 25 minutes behind - what's the issue?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n\n</prompt>"
+          "text": "<prompt>\n  <role>The truck driver has been delayed.</role>\n  <instruction>Please ask the driver for the reason why they are delayed. and get the eason from conversation history or current reply</instruction>\n  <examples>\n    <example>You have been delayed by ten minutes. Can you tell the reason why?</example>\n    <example>What is the reason for the delay?</example>\n    <example>Why are you delayed?</example>\n    <example>Any particular reason you're running 30 minutes behind?</example>\n    <example>How come you're delayed by 2 hours?</example>\n    <example>Can you let me know why there's a 45 minute delay?</example>\n    <example>Brother, what's holding you up? You're 1 hour behind.</example>\n    <example>Do you know why he only went like 31 miles? What's causing the delay?</example>\n    <example>Actually, he went back since he left some tools at the truck stop. Is that what's causing your delay too?</example>\n    <example>Need to know why you're 90 minutes behind schedule.</example>\n    <example>Hey boss, what's the holdup? You're 20 minutes late.</example>\n    <example>Got a reason for the 3 hour delay? Plant needs to know.</example>\n    <example>You're running 15 minutes behind - what happened?</example>\n    <example>We're showing a 40 minute delay on your run - what's going on?</example>\n    <example>Dispatch needs to know why you're 25 minutes behind - what's the issue?</example>\n    <example>Hey boss, what's the holdup? You're 20 minutes late.</example>\n    <example>Got a reason for the 3 hour delay? Plant needs to know.</example>\n    <example>You're running 15 minutes behind - what happened?</example>\n    <example>We're showing a 40 minute delay on your run - what's going on?</example>\n    <example>Dispatch needs to know why you're 25 minutes behind - what's the issue?</example>\n  </examples>\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n\n</prompt>"
         },
         "name": "Conversation",
         "edges": [
@@ -287,8 +301,8 @@
         "id": "node-1747423008735",
         "type": "conversation",
         "display_position": {
-          "x": 1275,
-          "y": 1556
+          "x": 1629.3961307331688,
+          "y": 1541.8583663247987
         }
       },
       {
@@ -417,8 +431,8 @@
         "id": "node-1747691703206",
         "type": "conversation",
         "display_position": {
-          "x": 1238.0769230769233,
-          "y": 939.8461538461537
+          "x": 1241.358918376915,
+          "y": 941.4871514961494
         },
         "instruction": {
           "type": "prompt",
@@ -430,19 +444,11 @@
         "name": "Add Delay Reason",
         "edges": [
           {
-            "destination_node_id": "node-1747693114887",
-            "id": "edge-1747692673542",
+            "destination_node_id": "node-1747423132423",
+            "id": "edge-1747953361525",
             "transition_condition": {
               "type": "prompt",
-              "prompt": "On success\n"
-            }
-          },
-          {
-            "destination_node_id": "node-1747698043622",
-            "id": "edge-1747698027471",
-            "transition_condition": {
-              "type": "prompt",
-              "prompt": "On fail"
+              "prompt": "on success"
             }
           }
         ],
@@ -451,41 +457,10 @@
         "tool_type": "local",
         "speak_during_execution": false,
         "display_position": {
-          "x": 2188.25742205741,
-          "y": 1950.5374676136432
+          "x": 2257.4881912881797,
+          "y": 1725.9220829982587
         },
-        "wait_for_result": true
-      },
-      {
-        "tool_id": "tool-1747693111671",
-        "name": "Add Reported Location",
-        "edges": [
-          {
-            "destination_node_id": "node-1747423132423",
-            "id": "edge-1747693125774",
-            "transition_condition": {
-              "type": "prompt",
-              "prompt": "on success"
-            }
-          },
-          {
-            "destination_node_id": "node-1747698043622",
-            "id": "edge-1747698062230",
-            "transition_condition": {
-              "type": "prompt",
-              "prompt": "On fail\n"
-            }
-          }
-        ],
-        "id": "node-1747693114887",
-        "type": "function",
-        "tool_type": "local",
-        "speak_during_execution": false,
-        "display_position": {
-          "x": 2342.1567577399865,
-          "y": 1632.9533549192377
-        },
-        "wait_for_result": true
+        "wait_for_result": false
       },
       {
         "instruction": {
@@ -515,19 +490,6 @@
             "type": "prompt",
             "prompt": "Skip response"
           }
-        }
-      },
-      {
-        "name": "End Call",
-        "id": "node-1747698043622",
-        "type": "end",
-        "display_position": {
-          "x": 3158.042247850293,
-          "y": 2086.8092140525255
-        },
-        "instruction": {
-          "type": "prompt",
-          "text": "Politely end the call"
         }
       },
       {
@@ -602,7 +564,7 @@
         ],
         "instruction": {
           "type": "prompt",
-          "text": "<prompt>\n  <instruction>Ask about the load number</instruction>\n  <examples>\n<example>\nHey there. It's Strike from Zuum. We don't have you on tracking. Can you confirm the load number please?\n</example>\n<example>\nHey there. It's Strike from Zuum.\nWe're still missing the driver and trailer information for this load, which picks up today at NIXA, MO 1300 CDT.\nCould you please provide this as soon as possible? Thank you.\n<example>\nHey there. It's Strike from Zuum.\nGood morning Mike. We don't have you on tracking. Can we please have your trailer number?\n</example>\n  </examples>\n\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<output>Greet and then introduce yourself as a broker and give your name(Strike), along with asking for load number for confirming it.</output>\n</prompt>"
+          "text": "<prompt>\n  <instruction>Ask about the load number and extract it, it will be  {{load_number}} </instruction>\n  <examples>\n<example>\nHey there. It's Strike from Zuum. We don't have you on tracking. Can you confirm the load number please?\n</example>\n<example>\nHey there. It's Strike from Zuum.\nWe're still missing the driver and trailer information for this load, which picks up today at NIXA, MO 1300 CDT.\nCould you please provide this as soon as possible? Thank you.\n<example>\nHey there. It's Strike from Zuum.\nGood morning Mike. We don't have you on tracking. Can we please have your trailer number?\n</example>\n  </examples>\n\n  <constraints>\n    <tone>Casual but respectful and inquisitive</tone>\n    <length>Keep it short and clear</length>\n  </constraints>\n<output>Greet and then introduce yourself as a broker and give your name(Strike), along with asking for load number for confirming it.</output>\n</prompt>"
         },
         "name": "Conversation",
         "edges": [
@@ -611,7 +573,7 @@
             "id": "edge-1747774634409",
             "transition_condition": {
               "type": "prompt",
-              "prompt": "Trucker provides the load number and is equal to {{load_number}}"
+              "prompt": "Trucker provides the load number and is \nequal to {{load_number}}"
             }
           },
           {
@@ -672,6 +634,41 @@
             "prompt": "Skip response"
           }
         }
+      },
+      {
+        "tool_id": "tool-1747693111671",
+        "instruction": {
+          "type": "prompt",
+          "text": "Repeat the reported eta with date and time and reported location"
+        },
+        "name": "Add Reported Location-eta",
+        "edges": [
+          {
+            "destination_node_id": "node-1747423008735",
+            "id": "edge-1747932069748",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "delay is True"
+            }
+          },
+          {
+            "destination_node_id": "node-1747423132423",
+            "id": "edge-1747932079853",
+            "transition_condition": {
+              "type": "prompt",
+              "prompt": "delay is false"
+            }
+          }
+        ],
+        "id": "node-1747932003614",
+        "type": "function",
+        "tool_type": "local",
+        "speak_during_execution": true,
+        "display_position": {
+          "x": 2039.8810066189076,
+          "y": 2440.4068537995327
+        },
+        "wait_for_result": true
       }
     ],
     "start_node_id": "node-1747774634409",
@@ -720,22 +717,27 @@
       {
         "tool_id": "tool-1747693111671",
         "timeout_ms": 3000,
-        "name": "add_reported_location",
-        "description": "This function sends the reported location of the trucker",
+        "name": "add_reported_location-eta",
+        "description": "This function sends the reported location and eta datetime ISO string of the trucker",
         "type": "custom",
         "parameters": {
           "type": "object",
           "properties": {
             "reported_location": {
               "type": "string",
-              "description": "The reported location of the trucker"
+              "description": "The reported location by the trucker. Make sure it is a known location."
+            },
+            "reported_eta": {
+              "type": "string",
+              "description": "The reported eta by the trucker and current date is {{current_date_time}} which can be added or subtracted based upon how trucker responded the eta like for '6PM' it will be the 'current_date'T20:00:00. It will be datetime ISO string"
             }
           },
           "required": [
-            "reported_location"
+            "reported_location",
+            "reported_eta"
           ]
         },
-        "url": "https://trusting-dolphin-internally.ngrok-free.app/retell/update_reported_location"
+        "url": "https://trusting-dolphin-internally.ngrok-free.app/retell/update_reported_location_eta"
       },
       {
         "tool_id": "tool-1747699148056",
@@ -756,12 +758,40 @@
           ]
         },
         "url": " https://trusting-dolphin-internally.ngrok-free.app/retell/change_transit_state"
+      },
+      {
+        "tool_id": "tool-1747935004925",
+        "timeout_ms": 4000,
+        "name": "get_location-eta",
+        "description": "This function gets and sends the reported location and eta datetime ISO string of the trucker",
+        "type": "custom",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reported_location": {
+              "type": "string",
+              "description": "The reported location by the trucker"
+            },
+            "reported_eta": {
+              "type": "string",
+              "description": "The reported eta by the trucker which will be  datetime ISO string"
+            }
+          },
+          "required": [
+            "reported_location",
+            "reported_eta"
+          ]
+        },
+        "url": "https://trusting-dolphin-internally.ngrok-free.app/retell/update_reported_location_eta"
       }
     ],
     "model_choice": {
       "type": "cascading",
-      "model": "gpt-4.1-nano"
+      "model": "gpt-4o-mini",
+      "high_priority": false
     },
+    "model_temperature": 0,
+    "tool_call_strict_mode": true,
     "knowledge_base_ids": [],
     "begin_tag_display_position": {
       "x": -637.9270218328422,

@@ -110,8 +110,11 @@ def add_delay_reason(request: dict = Body(...)):
                 reason = request['args']['delay_reason']
                 
                 # Try to get stop_id from call.retell_llm_dynamic_variables if it exists
-                if 'call' in request and 'retell_llm_dynamic_variables' in request['call'] and 'stop_id' in request['call']['retell_llm_dynamic_variables']:
-                    stop_id = int(request['call']['retell_llm_dynamic_variables']['stop_id'])
+                if 'call' in request and 'retell_llm_dynamic_variables' in request['call']:
+                    if 'stop_id' in request['call']['retell_llm_dynamic_variables']:
+                        stop_id = int(request['call']['retell_llm_dynamic_variables']['stop_id'])
+                    elif 'id' in request['call']['retell_llm_dynamic_variables']:
+                        stop_id = int(request['call']['retell_llm_dynamic_variables']['id'])
             
             # Standard request format: {"stop_id": 1, "reason": "Traffic"}
             elif 'stop_id' in request and 'reason' in request:
@@ -178,73 +181,106 @@ def add_delay_reason(request: dict = Body(...)):
         logger.error(f"Unexpected error in add_delay_reason: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
 
-@router.post("/update_reported_location")
-def update_reported_location(request: dict = Body(...)):
-    """Update the reported location for a specific stop."""
+@router.post("/update_reported_location_eta")
+def update_reported_location_eta(request: dict = Body(...)):
+    """Update the reported location and ETA for a specific stop."""
     try:
-        # Log the incoming request
-        print(f"Received in update_reported_location: {request}")
-        
-        # Extract values from request - handle both direct format and Retell format
+        # Extract values from request - handle all possible formats
         stop_id = None
         reported_location = None
+        eta = None
         
         if isinstance(request, dict):
-            # Handle the new Retell format with additionalProp1
-            if 'additionalProp1' in request and isinstance(request['additionalProp1'], dict):
-                if 'args' in request['additionalProp1'] and 'reported_location' in request['additionalProp1']['args']:
+            # Try to get stop_id from call.retell_llm_dynamic_variables if it exists
+            if 'call' in request and 'retell_llm_dynamic_variables' in request['call'] and 'id' in request['call']['retell_llm_dynamic_variables']:
+                stop_id = int(request['call']['retell_llm_dynamic_variables']['id'])
+            
+            # Handle direct args at root level (most common format in error logs)
+            if 'args' in request and isinstance(request['args'], dict):
+                args = request['args']
+                if 'reported_location' in args and 'reported_eta' in args:
+                    reported_location = args['reported_location']
+                    eta = args['reported_eta']
+            
+            # Handle name/args format (seen in error logs)
+            elif 'name' in request and 'args' in request and isinstance(request['args'], dict):
+                args = request['args']
+                if 'reported_location' in args and 'reported_eta' in args:
+                    reported_location = args['reported_location']
+                    eta = args['reported_eta']
+            
+            # Handle additionalProp1 format (original format)
+            elif 'additionalProp1' in request and isinstance(request['additionalProp1'], dict):
+                if 'args' in request['additionalProp1'] and 'reported_location' in request['additionalProp1']['args'] and 'reported_eta' in request['additionalProp1']['args']:
                     reported_location = request['additionalProp1']['args']['reported_location']
-                    # Default to first stop if stop_id not provided
-                    stop_id = 1
-                    
-            # Standard request format: {"stop_id": 1, "reported_location": "Location"}
-            elif 'stop_id' in request and 'reported_location' in request:
+                    eta = request['additionalProp1']['args']['reported_eta']
+            
+            # Standard request format
+            elif 'stop_id' in request and 'reported_location' in request and 'reported_eta' in request:
                 stop_id = request['stop_id']
                 reported_location = request['reported_location']
-                
-            # Retell format: {"args": {"stop_id": 1, "reported_location": "Location"}, ...}
-            elif 'args' in request and isinstance(request['args'], dict):
-                args = request['args']
-                if 'stop_id' in args and 'reported_location' in args:
-                    stop_id = args['stop_id']
-                    reported_location = args['reported_location']
-                elif 'reported_location' in args:
-                    # Handle simplified Retell format with just reported_location
-                    reported_location = args['reported_location']
-                    # Default to first stop if stop_id not provided
-                    stop_id = 1
-                    
-            # Alternative Retell format: {"name": "add_reported_location", "args": {...}}
-            elif 'name' in request and (request['name'] == 'add_reported_location' or request['name'] == 'update_reported_location') and 'args' in request:
-                args = request['args']
-                if 'stop_id' in args and 'reported_location' in args:
-                    stop_id = args['stop_id']
-                    reported_location = args['reported_location']
-                elif 'reported_location' in args:
-                    # Handle simplified Retell format with just reported_location
-                    reported_location = args['reported_location']
-                    # Default to first stop if stop_id not provided
-                    stop_id = 1
+                eta = request['reported_eta']
         
-        if reported_location is None:
+        if reported_location is None or eta is None:
             logger.error(f"Invalid request format: {request}")
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
-                               detail="Invalid request format. 'reported_location' field is required.")
+                               detail="Invalid request format. Both 'reported_location' and 'reported_eta' fields are required.")
         
         if stop_id is None:
             # Default to first stop if stop_id not provided
-            stop_id = 1
-        
-        # Update the stop with the reported location
+            stop_id = 2
+        # Remove 'Z' from eta if present
+        if eta and eta.endswith('Z'):
+            eta = eta[:-1]
+        # Get the previous ETA from the database
+        previous_stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        previous_eta = previous_stop.eta if previous_stop else None
+
+        if previous_eta:
+            # Compare new ETA with previous ETA to determine if delayed
+            try:
+                # Try parsing with microseconds
+                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S.%f')
+            except ValueError:
+                # If that fails, try without microseconds
+                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S')
+                
+            try:
+                # Try parsing with microseconds
+                prev_eta = datetime.strptime(previous_eta, '%Y-%m-%dT%H:%M:%S.%f')
+            except ValueError:
+                # If that fails, try without microseconds
+                prev_eta = datetime.strptime(previous_eta, '%Y-%m-%dT%H:%M:%S')
+            
+       
+            delay = new_eta > prev_eta
+        else:
+            # If no previous ETA, default to comparing with current time
+            try:
+                # Try parsing with microseconds
+                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S.%f')
+            except ValueError:
+                # If that fails, try without microseconds
+                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S')
+                
+            delay = new_eta > datetime.now()
+        # Update the stop with the reported location and ETA
+        logger.info(f"Delay: {delay}")
+        logger.info(f"Stop ID: {stop_id}")
+        logger.info(f"Reported Location: {reported_location}")
+        logger.info(f"ETA: {new_eta}")
+        logger.info(f"Previous ETA: {previous_eta}")
         stop = db.query(Stop).filter(Stop.id == stop_id).update({
-            'reported_location': reported_location
+            'reported_location': reported_location,
+            'eta': eta,
+            'is_delayed': delay
         })
 
         if not stop:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stop not found")
 
         db.commit()
-        return {'message': True}
+        return {'delay': delay}
     
     except HTTPException:
         # Re-raise HTTPExceptions
@@ -252,10 +288,9 @@ def update_reported_location(request: dict = Body(...)):
     
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Database error in update_reported_location: {str(e)}")
+        logger.error(f"Database error in update_reported_location_eta: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
     
     except Exception as e:
-        logger.error(f"Unexpected error in update_reported_location: {str(e)}")
+        logger.error(f"Unexpected error in update_reported_location_eta: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
-
