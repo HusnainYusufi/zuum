@@ -1,11 +1,33 @@
+LOAD_NUMBER_PROMPT = """
+<prompt>
+  <instruction>Ask about the load number</instruction>
+  <examples>
+<example>
+    Good morning Jabrah. We don't have you on tracking. Can we please have  trailer number?
+</example>
+<example>
+Hi team, We're still missing the driver and trailer information for this load, which picks up today at NIXA, MO 1300 CDT.
+Could you please provide this as soon as possible? Thank you.
+<example>
+Good morning Mike. We don't have you on tracking. Can we please have your trailer number?
+</example>
+  </examples>
+  <constraints>
+    <tone>Casual but respectful and inquisitive</tone>
+    <length>Keep it short and clear</length>
+  </constraints>
+</prompt>
+"""
+
+
 
 CARRIER_CONFIRMATION_PROMPT = """
 <prompt>
   <role>You are a friendly and professional broker for a trucking company.</role>
-  <instruction>Ask the driver to confirm if they have signed the carrier confirmation using a casual, respectful tone. Style it like the examples below.</instruction>
+  <instruction>Continue the conversation and ask the driver to confirm if they have signed the carrier confirmation using a casual, respectful tone that fits mid-conversation. Style it like the examples below.</instruction>
   <examples>
-    <example>Good morning <name>! Have you signed the carrier confirmation?</example>
-    <example>Hey <name>! Have the carrier confirmation signed?</example>
+    <example>Have you signed the carrier confirmation?</example>
+    <example>Got the carrier confirmation signed?</example>
   </examples>
   <input>
     <origin>{origin}</origin>
@@ -17,10 +39,14 @@ CARRIER_CONFIRMATION_PROMPT = """
     <note>Direct and informal but professional and follow the examples</note>
     <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>
   </constraints>
-  <output>Generate the message asking for confirmation</output>
+  <output>Continue the conversation and generate the message asking for confirmation, keep it direct and avoid greeting words</output>
   <location>Any location outputted should be formatted as CITY, STATE ACRONYM for example: Grand Prairie, TX</location>
 </prompt>
 """
+
+
+
+
 
 
 

@@ -39,6 +39,8 @@ class State(TypedDict):
    arrived: Optional[bool] = None
    pod_signature: Optional[bool] = None
    have_loaded: Optional[bool] = None
+   load_number: Optional[str] = None
+   is_load_equal: Optional[bool] = None
 
 graphbuilder = StateGraph(State)
 json_parser = JsonOutputParser()
@@ -81,7 +83,7 @@ def get_data_from_database(state: State) -> State:
         
 
 def greet(state: State) -> State:
-    msg = llm.invoke([SystemMessage(content=ARRIVED_PROMPT.format(location=state['stop_data']['name']))])
+    msg = llm.invoke([SystemMessage(content="Ask the carrier for their load number. Be friendly and professional.")])
     query = msg.content
     return {
         **state,
@@ -102,6 +104,57 @@ def get_humanResponse(state: State, name: str) -> State:
     
 def format_classifier_text(text: str) -> str:
     return text.lower().strip().replace(',', '').replace('.', '').replace('?', '').replace('!', '').replace('_', ' ').split(' ')
+
+
+def get_load_number(state: State) -> State:
+    if state['messages'][-1].name == 'load_number':
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question=f"provide a valid load number  for the journey from {state['stop_data']['name']}")), *state['messages']])
+        state['messages'].append(AIMessage(content=msg.content, name='load_number'))
+    state = get_humanResponse(state, 'load_number')
+    
+    # Use LLM to check if response is affirmative or negative
+    check_response = llm.invoke([
+        SystemMessage(content=CLASSIFIER_PROMPT.format(question="Does the message contain a valid load number? Answer either yes or no.")),
+        *state['messages']
+    ])
+    print('check_response::',check_response.content)
+    response_type = format_classifier_text(check_response.content)
+    if 'affirmative' in response_type:
+        if state['load_number'].lower().strip().replace('-', '') in state['messages'][-1].content.lower().strip().replace('-', ''):
+        # Ask for carrier confirmation
+            confirmation_msg = llm.invoke([
+                SystemMessage(content=ARRIVED_PROMPT.format(location=state['stop_data']['name'])),
+                *state['messages']
+            ])
+            return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content=confirmation_msg.content, name='load_number')
+                ],
+                'is_load_equal': True
+            }
+        else:
+            return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content='load number is not correct, please contact the dispatch team', name='load_number')
+                ],
+                'running': False
+            }
+    else:
+        # Handle any response that doesn't clearly contain a load number
+        msg = llm.invoke([SystemMessage(content=WAIT_PROMPT.format(reason="load number was not provided")), *state['messages']])
+        query = msg.content
+        return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content=query, name='load_number')
+                ],
+       
+            }
+
+
+
 
 
 def get_arrival_confirmation(state: State) -> State:
@@ -181,8 +234,10 @@ def origin(state: State) -> State:
     return state
 
 def router(state: State) -> State:
-    if state['messages'][-1].name == 'Goodbye':
+    if state['running'] == False:
         return 'end'
+    elif state.get('is_load_equal') is None:
+        return 'get_load_number'
     elif state.get('arrived') is None:
         return 'get_arrival_confirmation'
     elif state.get('pod_signature') is None:
@@ -197,6 +252,7 @@ class DestinationLangraph:
         graphbuilder.add_node('get_data_from_database', get_data_from_database)
         graphbuilder.add_node('get_arrival_confirmation', get_arrival_confirmation)
         graphbuilder.add_node('get_pod_confirmation', get_pod_confirmation)
+        graphbuilder.add_node('get_load_number', get_load_number)
         graphbuilder.add_node('origin', origin)
 
         graphbuilder.add_edge(START, 'get_data_from_database')
@@ -208,12 +264,14 @@ class DestinationLangraph:
             'origin',
             router,
             {
+                'get_load_number': 'get_load_number',
                 'get_arrival_confirmation': 'get_arrival_confirmation',
                 'get_pod_confirmation': 'get_pod_confirmation', 
                 'end': END
             }
         )
 
+        graphbuilder.add_edge('get_load_number', 'origin')
         graphbuilder.add_edge('get_arrival_confirmation', 'origin')
         graphbuilder.add_edge('get_pod_confirmation', 'origin')
 

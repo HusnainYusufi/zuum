@@ -39,6 +39,8 @@ class State(TypedDict):
    delay_reason: Optional[str] = None
    delayed: Optional[bool] = None
    nearest_highway: Optional[str] = None
+   load_number: Optional[str] = None
+   is_load_equal: Optional[bool] = None
 
 graphbuilder = StateGraph(State)
 json_parser = JsonOutputParser()
@@ -79,12 +81,12 @@ def get_data_from_database(state: State) -> State:
         db.close()
 
 def greet(state: State) -> State:
-    msg = llm.invoke([SystemMessage(content=GET_LOCATION_AND_ETA_PROMPT.format(examples=examples))])
+    msg = llm.invoke([SystemMessage(content="Ask the carrier for their load number. Be friendly and professional.")])
     query = msg.content
     return {
         **state,
         'messages': [
-            AIMessage(content=query)
+            AIMessage(content=query, name='greet')
         ]
     }
 
@@ -97,6 +99,55 @@ def get_humanResponse(state: State) -> State:
             HumanMessage(content=humanResponse)
         ]
     }
+
+
+
+
+def get_load_number(state: State) -> State:
+    if len(state['messages']) > 0 and state['messages'][-1].name == 'load_number':
+        msg = llm.invoke([SystemMessage(content=FALLBACK_PROMPT.format(question=f"provide a valid load number for the journey")), *state['messages']])
+        state['messages'].append(AIMessage(content=msg.content, name='load_number'))
+    state = get_humanResponse(state)
+    
+    # Use LLM to check if response is affirmative or negative
+    check_response = llm.invoke([
+        SystemMessage(content="Does the message contain a valid load number? Answer either yes or no."),
+        *state['messages']
+    ])
+    
+    if 'yes' in check_response.content.lower():
+        if state['load_number'].lower().strip().replace('-', '') in state['messages'][-1].content.lower().strip().replace('-', ''):
+            # Continue with location and ETA questions
+            msg = llm.invoke([SystemMessage(content=GET_LOCATION_AND_ETA_PROMPT.format(examples=examples))])
+            query = msg.content
+            return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content=query, name='transit_chat')
+                ],
+                'is_load_equal': True
+            }
+        else:
+            return {
+                **state,
+                'messages': [*state['messages'],
+                    AIMessage(content='The load number is not correct, please contact the dispatch team.', name='transit_chat')
+                ],
+                'running': False
+            }
+    else:
+        # Handle any response that doesn't clearly contain a load number
+        msg = llm.invoke([SystemMessage(content="I need the load number to proceed. Please provide the load number for this journey."), *state['messages']])
+        query = msg.content
+        return {
+            **state,
+            'messages': [*state['messages'],
+                AIMessage(content=query, name='load_number')
+            ]
+        }
+
+
+
     
 def get_location_and_eta(state: State) -> State:
     state = get_humanResponse(state)
@@ -185,6 +236,8 @@ def check_router(state: State) -> State:
 
 def router(state: State) -> State:
     print(state)
+    if state.get('is_load_equal') is None:
+        return 'get_load_number'
     if state.get('reported_location') is None or state.get('estimated_eta') is None:
         return 'get_location_and_eta'
     if state.get('delayed') is True and state.get('delay_reason') is None:
@@ -229,6 +282,7 @@ def goodbye(state: State) -> State:
     query = msg.content
     return {**state, 'messages':[*state['messages'], AIMessage(content=query)]}
 
+
 class TransitLangGraphService:
     def __init__(self):
         graphbuilder.add_node('get_data_from_database', get_data_from_database)
@@ -238,6 +292,8 @@ class TransitLangGraphService:
         graphbuilder.add_node('check_router', check_router)
         graphbuilder.add_node('get_nearest_highway', get_nearest_highway)
         graphbuilder.add_node('goodbye', goodbye)
+        graphbuilder.add_node('get_load_number', get_load_number)
+        
         graphbuilder.add_edge(START, 'get_data_from_database')
         graphbuilder.add_edge('get_data_from_database', 'greet')
         graphbuilder.add_edge('greet', 'check_router')
@@ -245,6 +301,7 @@ class TransitLangGraphService:
             'check_router',
             router,
             {
+                'get_load_number': 'get_load_number',
                 'get_location_and_eta': 'get_location_and_eta',
                 'get_delay_reason': 'get_delay_reason',
                 'get_nearest_highway': 'get_nearest_highway',
@@ -252,6 +309,7 @@ class TransitLangGraphService:
             }
         )
 
+        graphbuilder.add_edge('get_load_number', 'check_router')
         graphbuilder.add_edge('get_location_and_eta', 'check_router')
         graphbuilder.add_edge('get_delay_reason', 'check_router')
         graphbuilder.add_edge('get_nearest_highway', 'check_router')

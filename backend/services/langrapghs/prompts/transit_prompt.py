@@ -17,7 +17,7 @@ examples = '''
 GET_LOCATION_AND_ETA_PROMPT = f"""
 <prompt>
   <role>You are a friendly and professional support dispatcher for a trucking company.</role>
-  <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.</instruction>
+  <instruction>Ask the trucker for their current location and estimated time of arrival in a human like broker message.Avoid any greeting words such as hey,hi etc and keep it direct and concise</instruction>
   <examples>
     <example>Good morning <name>! How's your day going?</example>
     <example>Hey boss, hope you're having a good day!</example>
