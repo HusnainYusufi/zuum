@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: voice-freight-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NGROK_AUTH_TOKEN=${NGROK_AUTH_TOKEN}
+      - RETELL_API_KEY=${RETELL_API_KEY}
+      - DATABASE_URL=sqlite:///./data/transit.db
+    volumes:
+      - ./backend/transit.db:/app/data/transit.db
+      - backend_data:/app/data
+    networks:
+      - voice-freight-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./transit-chat-frontend
+      dockerfile: Dockerfile
+    container_name: voice-freight-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - voice-freight-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  voice-freight-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+    driver: local 

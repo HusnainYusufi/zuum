@@ -1,0 +1,26 @@
+# Development override for docker-compose.yml
+# This file is automatically loaded when running docker-compose up
+version: '3.8'
+
+services:
+  backend:
+    volumes:
+      # Mount source code for hot reloading
+      - ./backend:/app
+      # Preserve database
+      - ./backend/transit.db:/app/data/transit.db
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    # Override command for development with auto-reload
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # Enable debugging
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Debug port
+    
+  frontend:
+    # For frontend, we use the built version even in development
+    # If you want live reloading, run the React dev server outside Docker
+    environment:
+      - NODE_ENV=development 
