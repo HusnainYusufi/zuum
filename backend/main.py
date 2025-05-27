@@ -1,17 +1,63 @@
 import traceback
 from typing import List, Dict, Optional
 import os
+import ssl
+import certifi
+import subprocess
+import sys
 from loguru import logger
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+
+# SSL Certificate setup - must be done before any SSL connections
+def setup_ssl_certificates():
+    """Setup SSL certificates for Windows systems"""
+    try:
+        # Method 1: Install pip-system-certs if not already installed
+        try:
+            import pip_system_certs
+            logger.info("pip-system-certs already installed")
+        except ImportError:
+            logger.info("Installing pip-system-certs...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "pip-system-certs"])
+            logger.info("Successfully installed pip-system-certs")
+
+        # Method 2: Update certifi
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "certifi"])
+            logger.info("Successfully updated certifi")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Failed to update certifi: {e}")
+
+        # Method 3: Set SSL context to use certifi certificates
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        ssl._create_default_https_context = lambda: ssl_context
+        logger.info("SSL context configured with certifi certificates")
+        
+        # Method 4: Set environment variables for SSL
+        os.environ['SSL_CERT_FILE'] = certifi.where()
+        os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+        os.environ['CURL_CA_BUNDLE'] = certifi.where()
+        logger.info("SSL environment variables set")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error setting up SSL certificates: {e}")
+        # Try to continue anyway
+        return False
+
+# Setup SSL certificates before any other operations
+setup_ssl_certificates()
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
 from routes import conversation_router, ui_router, retell_router
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Initialize the database
 init_db()
@@ -210,23 +256,74 @@ async def get_transit_chat(stop_id: Optional[int] = None):
 
 if __name__ == "__main__":
     import uvicorn
-    from pyngrok import ngrok
     
-    # Start ngrok tunnel
-    port = 8000
+    def test_ssl_connection():
+        """Test SSL connection before proceeding with ngrok"""
+        try:
+            import urllib.request
+            import urllib.error
+            
+            # Test a simple HTTPS connection
+            urllib.request.urlopen('https://www.google.com', timeout=10)
+            logger.info("SSL connection test successful")
+            return True
+        except Exception as e:
+            logger.warning(f"SSL connection test failed: {e}")
+            return False
     
-    # Set ngrok auth token from environment variable
-    ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
-    if ngrok_auth_token:
-        ngrok.set_auth_token(ngrok_auth_token)
-        logger.info("Ngrok authtoken configured")
+    def setup_ngrok_with_retry():
+        """Setup ngrok with SSL error handling and retry logic"""
+        try:
+            from pyngrok import ngrok
+            from pyngrok.exception import PyngrokNgrokInstallError
+            
+            # Test SSL connection first
+            if not test_ssl_connection():
+                logger.warning("SSL connection test failed, but continuing with ngrok setup...")
+            
+            port = 8000
+            
+            # Set ngrok auth token from environment variable
+            ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
+            if ngrok_auth_token:
+                try:
+                    ngrok.set_auth_token(ngrok_auth_token)
+                    logger.info("Ngrok authtoken configured")
+                except PyngrokNgrokInstallError as e:
+                    logger.error(f"Failed to install/configure ngrok due to SSL issues: {e}")
+                    logger.info("Attempting to run server without ngrok tunnel...")
+                    return None, port
+                except Exception as e:
+                    logger.error(f"Unexpected error configuring ngrok: {e}")
+                    logger.info("Attempting to run server without ngrok tunnel...")
+                    return None, port
+            else:
+                logger.warning("NGROK_AUTH_TOKEN not found in environment variables. Running without tunnel.")
+                return None, port
+            
+            # Start ngrok tunnel with static domain
+            try:
+                ngrok_domain = "trusting-dolphin-internally.ngrok-free.app"
+                public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
+                logger.info(f"ngrok tunnel established at {public_url}")
+                return public_url, port
+            except Exception as e:
+                logger.error(f"Failed to create ngrok tunnel: {e}")
+                logger.info("Running server without tunnel...")
+                return None, port
+                
+        except ImportError as e:
+            logger.error(f"Failed to import pyngrok: {e}")
+            logger.info("Running server without ngrok...")
+            return None, 8000
+    
+    # Setup ngrok (if possible)
+    public_url, port = setup_ngrok_with_retry()
+    
+    if public_url:
+        logger.info(f"Server will be accessible at: {public_url}")
     else:
-        logger.warning("NGROK_AUTH_TOKEN not found in environment variables. Limited functionality may be available.")
-    
-    # Start ngrok tunnel with static domain
-    ngrok_domain = "trusting-dolphin-internally.ngrok-free.app"
-    public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
-    logger.info(f"ngrok tunnel established at {public_url}")
+        logger.info(f"Server will be accessible at: http://localhost:{port}")
     
     # Start FastAPI application
     uvicorn.run("main:app", host="localhost", port=port, reload=True)
