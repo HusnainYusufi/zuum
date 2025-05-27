@@ -211,6 +211,7 @@ async def get_transit_chat(stop_id: Optional[int] = None):
 if __name__ == "__main__":
     import uvicorn
     from pyngrok import ngrok
+    import time
     
     # Start ngrok tunnel
     port = 8000
@@ -218,18 +219,35 @@ if __name__ == "__main__":
     # Set ngrok auth token from environment variable
     ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
     if ngrok_auth_token:
-        ngrok.set_auth_token(ngrok_auth_token)
-        logger.info("Ngrok authtoken configured")
+        try:
+            ngrok.set_auth_token(ngrok_auth_token)
+            logger.info("Ngrok authtoken configured successfully")
+            
+            # Give ngrok a moment to initialize
+            time.sleep(2)
+            
+            # Start ngrok tunnel with static domain
+            ngrok_domain = "trusting-dolphin-internally.ngrok-free.app"
+            logger.info(f"Attempting to establish ngrok tunnel with domain: {ngrok_domain}")
+            
+            public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
+            logger.info(f"✅ Ngrok tunnel established successfully at {public_url}")
+            
+            # Log ngrok admin interface
+            logger.info(f"🔧 Ngrok admin interface available at: http://localhost:4040")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to establish ngrok tunnel: {str(e)}")
+            logger.error(f"Error details: {type(e).__name__}")
+            logger.info("🚀 Continuing without ngrok tunnel - application will be available locally only")
     else:
-        logger.warning("NGROK_AUTH_TOKEN not found in environment variables. Limited functionality may be available.")
+        logger.warning("⚠️  NGROK_AUTH_TOKEN not found in environment variables")
+        logger.info("🔧 To enable ngrok tunneling, set NGROK_AUTH_TOKEN in your .env file")
+        logger.info("🚀 Continuing without ngrok tunnel - application will be available locally only")
     
-    # Start ngrok tunnel with static domain
-    ngrok_domain = "trusting-dolphin-internally.ngrok-free.app"
-    public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
-    logger.info(f"ngrok tunnel established at {public_url}")
-    
-    # Start FastAPI application
-    uvicorn.run("main:app", host="localhost", port=port, reload=True)
+    # Start FastAPI application - use 0.0.0.0 for Docker compatibility
+    logger.info(f"🚀 Starting FastAPI server on http://0.0.0.0:{port}")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
 
 
 

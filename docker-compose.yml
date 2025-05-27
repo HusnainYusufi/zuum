@@ -8,12 +8,19 @@ services:
     container_name: voice-freight-backend
     ports:
       - "8000:8000"
+      - "4040:4040"
     environment:
       - PYTHONPATH=/app
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NGROK_AUTH_TOKEN=${NGROK_AUTH_TOKEN}
       - RETELL_API_KEY=${RETELL_API_KEY}
       - DATABASE_URL=sqlite:///./data/transit.db
+      - RETELL_AGENT_ID=${RETELL_AGENT_ID}
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING}
+      - LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
+
     volumes:
       - ./backend/transit.db:/app/data/transit.db
       - backend_data:/app/data
@@ -33,14 +40,14 @@ services:
       dockerfile: Dockerfile
     container_name: voice-freight-frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
     networks:
       - voice-freight-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
