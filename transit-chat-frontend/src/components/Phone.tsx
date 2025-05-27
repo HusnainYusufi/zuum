@@ -123,7 +123,7 @@ const Phone: React.FC<PhoneProps> = ({
           )}
           <h2>
             {agentType === 'retell' 
-              ? 'Retell Agent Voice Call' 
+              ? 'API call' 
               : 'Custom Agent Chat'
             }
           </h2>
@@ -159,7 +159,7 @@ const Phone: React.FC<PhoneProps> = ({
             >
               <BiPhone size={18} style={{ marginRight: '5px' }} />
               {agentType === 'retell' 
-                ? 'Start Retell Voice Call' 
+                ? 'Start API call' 
                 : 'Start Voice Call'
               }
             </button>

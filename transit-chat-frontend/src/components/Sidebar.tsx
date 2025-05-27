@@ -79,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onToggleAgentType('retell')}
             disabled={isCallMode} // Disable switching while in a call
           >
-            <span role="img" aria-label="Retell">🤖</span> Retell Agent
+            <span role="img" aria-label="Retell">🤖</span> API call
           </button>
           <button 
             className={`agent-toggle-button ${agentType === 'custom' ? 'active' : ''}`}
