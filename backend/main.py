@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
-from routes import conversation_router, ui_router, retell_router
+from routes import conversation_router, ui_router, retell_router, tests_router
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,6 +31,7 @@ app.add_middleware(
 app.include_router(conversation_router)
 app.include_router(ui_router)
 app.include_router(retell_router)
+app.include_router(tests_router)
 # Initialize the chat states
 state = initialize_chat()
 transit_state = initialize_transit_chat(1)

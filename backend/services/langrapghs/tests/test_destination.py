@@ -49,13 +49,22 @@ def test_destination_langgraph():
     
     # Define expected responses for each turn
     expected_responses = {
-        'arrival_confirmation': "Hello! Have you arrived at the destination?",
+        'load_number': "Hello! What is the load number?",
+        'arrival_confirmation': "Have you arrived at the destination?",
         'pod_signature': "Great! Have you received the POD signature?",
         'goodbye': "Perfect! Thank you for completing the delivery. Have a safe journey!"
     }
     
     correct_responses = 0
     total_responses = len(expected_responses)
+    
+    response = service.run(initial_state, thread_id)
+    print("\nBot:", response)
+    print("Expected:", expected_responses['load_number'])
+    is_same = compare_messages(expected_responses['load_number'], response)
+    print(f"Same meaning: {'Yes' if is_same else 'No'}")
+    if is_same:
+        correct_responses += 1
     
     # First message - should get arrival confirmation request
     response = service.run(initial_state, thread_id)
@@ -94,6 +103,13 @@ def test_destination_langgraph():
     print(f"Correct Responses: {correct_responses}")
     print(f"Accuracy: {(correct_responses/total_responses)*100:.1f}%")
     print("\n=== Test Complete ===")
+    
+    # Return the metrics for API consumption
+    return {
+        "total_responses": total_responses,
+        "correct_responses": correct_responses,
+        "accuracy": f"{(correct_responses/total_responses)*100:.1f}%"
+    }
 
 if __name__ == "__main__":
     test_destination_langgraph() 
