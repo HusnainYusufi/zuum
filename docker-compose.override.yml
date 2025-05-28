@@ -12,12 +12,13 @@ services:
     environment:
       - ENVIRONMENT=development
       - LOG_LEVEL=DEBUG
-    # Override command for development with auto-reload
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # Override command for development with auto-reload and ngrok initialization
+    command: ["python", "main.py"]
     # Enable debugging
     ports:
       - "8000:8000"
       - "5678:5678"  # Debug port
+      - "4040:4040"  # Ngrok admin interface port
     
   frontend:
     # For frontend, we use the built version even in development

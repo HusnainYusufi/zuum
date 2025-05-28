@@ -64,7 +64,11 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   // Fetch journey state from backend
   const fetchJourneyState = async () => {
     try {
-      const response = await fetch('http://localhost:8000/ui/journey_state');
+      const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/ui/journey_state', {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch journey state');
       }
@@ -79,7 +83,11 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const fetchStops = async () => {
     try {
       if (!loading) setIsRefreshing(true);
-      const response = await fetch('http://localhost:8000/stops/details');
+      const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/stops/details', {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch stops');
       }
@@ -134,7 +142,11 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
       // In a real app, we'd make an API call here to get notifications from the backend
       try {
         // This is a polling mechanism to detect chat notifications
-        const response = await fetch('http://localhost:8000/conversation/active_notifications');
+        const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/conversation/active_notifications', {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           
@@ -150,7 +162,11 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
       } catch (err) {
         // If the endpoint doesn't exist yet, we'll check for "not responding" in the server logs
         // This is a fallback until the API is implemented
-        const chatResponse = await fetch(`http://localhost:8000/conversation/initialize?stop_id=1&is_audio=false&dummy=${Math.random()}`);
+        const chatResponse = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/initialize?stop_id=1&is_audio=false&dummy=${Math.random()}`, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
         if (chatResponse.ok) {
           // Check if the response contains any info about notifications
           const chatData = await chatResponse.json();
@@ -203,7 +219,11 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     const checkForDriverNotifications = async () => {
       try {
         // We'll make one special call to check for driver inactivity
-        const response = await fetch('http://localhost:8000/conversation/check_driver_activity');
+        const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/conversation/check_driver_activity', {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           if (data && data.inactive_drivers && Array.isArray(data.inactive_drivers)) {
