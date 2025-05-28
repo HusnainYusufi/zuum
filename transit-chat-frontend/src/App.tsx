@@ -115,7 +115,11 @@ function App() {
   useEffect(() => {
     const fetchStops = async () => {
       try {
-        const response = await fetch('http://localhost:8000/stops/details');
+        const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/stops/details', {
+          headers: {
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch stops');
         }
@@ -338,7 +342,11 @@ function App() {
 
   const playAgentAudio = async (responseText: string) => {
     try {
-      const audioResponse = await fetch(`http://localhost:8000/conversation/audio?text=${encodeURIComponent(responseText)}`);
+      const audioResponse = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/audio?text=${encodeURIComponent(responseText)}`, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
       if (audioResponse.ok) {
         const audioBlob = await audioResponse.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
@@ -382,8 +390,11 @@ function App() {
       // Make sure we're sending the audio file with the correct filename and type
       formData.append('audio', audioBlob, 'recording.webm');
       
-      const response = await fetch(`http://localhost:8000/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`, {
+      const response = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`, {
         method: 'POST',
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        },
         body: formData
       });
 
@@ -598,11 +609,12 @@ function App() {
       console.log("🔑 Making fetch request to /conversation/retell-token");
       
       // Call the backend endpoint to get a Retell access token
-      const response = await fetch('http://localhost:8000/conversation/retell-token', {
+      const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/conversation/retell-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         // Add empty body to ensure POST works correctly
         body: JSON.stringify({
@@ -650,7 +662,7 @@ function App() {
       console.error("❌ Error getting Retell access token:", error);
       
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error("🔌 Network error - Is your backend server running at http://localhost:8000?");
+        console.error("🔌 Network error - Is your backend server running at https://trusting-dolphin-internally.ngrok-free.app?");
       }
       
       throw error;
@@ -880,8 +892,11 @@ function App() {
         message: message
       });
       
-      const response = await fetch(`http://localhost:8000/conversation/chat?${queryParams.toString()}&stop_id=${selectedStopId}`, {
-        method: 'POST'
+      const response = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/chat?${queryParams.toString()}&stop_id=${selectedStopId}`, {
+        method: 'POST',
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
       });
 
       if (!response.ok) {
@@ -1011,14 +1026,18 @@ function App() {
       return; // Already handled above
     }
 
-    let url = `http://localhost:8000/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`
+    let url = `https://trusting-dolphin-internally.ngrok-free.app/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`
     if (send_thread_id) {
       url += `&thread_id=${threadId}`
     }
     
     try {
       console.log(`📡 Fetching from ${url}`);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to initialize chat');
