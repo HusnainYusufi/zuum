@@ -16,6 +16,7 @@ from services.langrapghs.destination_langrapgh_service import destination_langgr
 import time
 from db_models import Journey
 from db_models import JourneyState
+from db_models import CheckIn
 import asyncio
 from datetime import datetime, timedelta
 from db_models import Journey
@@ -293,5 +294,94 @@ def update_reported_location_eta(request: dict = Body(...)):
     
     except Exception as e:
         logger.error(f"Unexpected error in update_reported_location_eta: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
+@router.post("/update_checkIn")
+def check_in(request: dict = Body(...)):
+    """Update the checkIn by extracting chat_summary, query, and stop_id and storing in database."""
+    try:
+        logger.info(f"Received in update_checkIn: {request}")
+        
+        # Extract values from request - handle different formats
+        stop_id = None
+        chat_summary = None
+        query = None
+        
+        if isinstance(request, dict):
+            # Try to get stop_id and query from call.retell_llm_dynamic_variables if it exists
+            if 'call' in request and 'retell_llm_dynamic_variables' in request['call']:
+                if 'stop_id' in request['call']['retell_llm_dynamic_variables']:
+                    stop_id = int(request['call']['retell_llm_dynamic_variables']['stop_id'])
+                elif 'id' in request['call']['retell_llm_dynamic_variables']:
+                    stop_id = int(request['call']['retell_llm_dynamic_variables']['id'])
+                
+                # Extract query from retell_llm_dynamic_variables
+                if 'query' in request['call']['retell_llm_dynamic_variables']:
+                    query = request['call']['retell_llm_dynamic_variables']['query']
+            
+            # Handle args format (most common in tool call invocations)
+            if 'args' in request and isinstance(request['args'], dict):
+                args = request['args']
+                if 'chat_summary' in args:
+                    chat_summary = args['chat_summary']
+                if 'query' in args:
+                    query = args['query']
+                if 'stop_id' in args:
+                    stop_id = args['stop_id']
+            
+            # Handle name/args format for tool calls
+            elif 'name' in request and request['name'] == 'update_checkIn' and 'args' in request:
+                args = request['args']
+                if 'chat_summary' in args:
+                    chat_summary = args['chat_summary']
+                if 'query' in args:
+                    query = args['query']
+                if 'stop_id' in args:
+                    stop_id = args['stop_id']
+            
+            # Handle direct format
+            elif 'chat_summary' in request:
+                chat_summary = request['chat_summary']
+                if 'query' in request:
+                    query = request['query']
+                if 'stop_id' in request:
+                    stop_id = request['stop_id']
+        
+        # Default stop_id if not provided
+        if stop_id is None:
+            stop_id = 1  # Default to first stop
+        
+        # Create timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        
+        # Create new CheckIn record
+        check_in_record = CheckIn(
+            stop_id=stop_id,
+            query=query,
+            summary=chat_summary,
+            timestamp=timestamp
+        )
+        
+        db.add(check_in_record)
+        db.commit()
+        
+        logger.info(f"Stored check-in: stop_id={stop_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}'")
+        
+        return {
+            'message': 'Check-in stored successfully',
+            'check_in_id': check_in_record.id,
+            'stop_id': stop_id,
+            'summary': chat_summary,
+            'query': query,
+            'timestamp': timestamp
+        }
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error in update_checkIn: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in update_checkIn: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
 
