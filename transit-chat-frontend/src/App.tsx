@@ -4,7 +4,7 @@ import Phone from './components/Phone';
 import Sidebar from './components/Sidebar';
 import StakeholderDashboard from './components/StakeholderDashboard';
 import './App.css';
-
+import { backend_url } from './config';
 interface Message {
   text: string;
   isUser: boolean;
@@ -36,6 +36,9 @@ function App() {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
+  
+  const [conversationType, setConversationType] = useState<string | null>('workflow');
+  const [query, setQuery] = useState<string>('');
   const [showDashboard, setShowDashboard] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -115,7 +118,7 @@ function App() {
   useEffect(() => {
     const fetchStops = async () => {
       try {
-        const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/stops/details', {
+        const response = await fetch(`${backend_url}/stops/details`, {
           headers: {
             'ngrok-skip-browser-warning': 'true'
           }
@@ -342,7 +345,7 @@ function App() {
 
   const playAgentAudio = async (responseText: string) => {
     try {
-      const audioResponse = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/audio?text=${encodeURIComponent(responseText)}`, {
+      const audioResponse = await fetch(`${backend_url}/conversation/audio?text=${encodeURIComponent(responseText)}`, {
         headers: {
           'ngrok-skip-browser-warning': 'true'
         }
@@ -390,7 +393,7 @@ function App() {
       // Make sure we're sending the audio file with the correct filename and type
       formData.append('audio', audioBlob, 'recording.webm');
       
-      const response = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`, {
+      const response = await fetch(`${backend_url}/conversation/chat?thread_id=${threadIdParam}&stop_id=${selectedStopId}`, {
         method: 'POST',
         headers: {
           'ngrok-skip-browser-warning': 'true'
@@ -609,7 +612,7 @@ function App() {
       console.log("🔑 Making fetch request to /conversation/retell-token");
       
       // Call the backend endpoint to get a Retell access token
-      const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/conversation/retell-token', {
+      const response = await fetch(`${backend_url}/conversation/retell-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -619,7 +622,8 @@ function App() {
         // Add empty body to ensure POST works correctly
         body: JSON.stringify({
           stop_id: selectedStopId,
-          journey_id: 1
+          journey_id: 1,
+          query: conversationType === 'checkin' ? query : null
         })
       });
       
@@ -892,7 +896,7 @@ function App() {
         message: message
       });
       
-      const response = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/chat?${queryParams.toString()}&stop_id=${selectedStopId}`, {
+      const response = await fetch(`${backend_url}/conversation/chat?${queryParams.toString()}&stop_id=${selectedStopId}`, {
         method: 'POST',
         headers: {
           'ngrok-skip-browser-warning': 'true'
@@ -1026,7 +1030,7 @@ function App() {
       return; // Already handled above
     }
 
-    let url = `https://trusting-dolphin-internally.ngrok-free.app/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`
+    let url = `${backend_url}/conversation/initialize?stop_id=${selectedStopId}&is_audio=${isVoiceCall}`
     if (send_thread_id) {
       url += `&thread_id=${threadId}`
     }
@@ -1213,6 +1217,10 @@ function App() {
               onToggleRecording={handleToggleMicrophone}
               conversationState={conversationState}
               agentType={agentType}
+              conversationType={conversationType || 'workflow'}
+              setConversationType={setConversationType}
+              query={query}
+              setQuery={setQuery}
             />
           </div>
         </div>

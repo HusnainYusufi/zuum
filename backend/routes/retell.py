@@ -16,6 +16,7 @@ from services.langrapghs.destination_langrapgh_service import destination_langgr
 import time
 from db_models import Journey
 from db_models import JourneyState
+from db_models import CheckIn
 import asyncio
 from datetime import datetime, timedelta
 from db_models import Journey
@@ -294,3 +295,152 @@ def update_reported_location_eta(request: dict = Body(...)):
     except Exception as e:
         logger.error(f"Unexpected error in update_reported_location_eta: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
+@router.post("/update_checkIn")
+def check_in(request: dict = Body(...)):
+    """Update the checkIn by extracting chat_summary, query, and stop_id and storing in database."""
+    try:
+        logger.info(f"Received in update_checkIn: {request}")
+        
+        # Extract values from request - handle different formats
+        stop_id = None
+        chat_summary = None
+        query = None
+        issue_flagged = False
+        exception_type = None
+        call_confidence_score = None
+        requires_human_review = False
+        tags = None
+        load_id = None
+        
+        if isinstance(request, dict):
+            # Try to get stop_id, query, and load_number from call.retell_llm_dynamic_variables if it exists
+            if 'call' in request and 'retell_llm_dynamic_variables' in request['call']:
+                if 'stop_id' in request['call']['retell_llm_dynamic_variables']:
+                    stop_id = int(request['call']['retell_llm_dynamic_variables']['stop_id'])
+                elif 'id' in request['call']['retell_llm_dynamic_variables']:
+                    stop_id = int(request['call']['retell_llm_dynamic_variables']['id'])
+                
+                # Extract query from retell_llm_dynamic_variables
+                if 'query' in request['call']['retell_llm_dynamic_variables']:
+                    query = request['call']['retell_llm_dynamic_variables']['query']
+                
+                # Extract load_number as load_id if available
+                if 'load_number' in request['call']['retell_llm_dynamic_variables']:
+                    load_id = request['call']['retell_llm_dynamic_variables']['load_number']
+                elif 'load_id' in request['call']['retell_llm_dynamic_variables']:
+                    load_id = request['call']['retell_llm_dynamic_variables']['load_id']
+            
+            # Handle args format (most common in tool call invocations)
+            if 'args' in request and isinstance(request['args'], dict):
+                args = request['args']
+                if 'chat_summary' in args:
+                    chat_summary = args['chat_summary']
+                elif 'AI_Response_Summary' in args:
+                    chat_summary = args['AI_Response_Summary']
+                if 'query' in args:
+                    query = args['query']
+                if 'stop_id' in args:
+                    stop_id = args['stop_id']
+                if 'issue_flagged' in args:
+                    issue_flagged = args['issue_flagged']
+                if 'exception_type' in args:
+                    exception_type = args['exception_type']
+                if 'call_confidence_score' in args:
+                    call_confidence_score = args['call_confidence_score']
+                if 'requires_human_review' in args:
+                    requires_human_review = args['requires_human_review']
+                if 'tags' in args:
+                    tags = args['tags']
+                if 'load_id' in args:
+                    load_id = args['load_id']
+                elif 'load_number' in args:
+                    load_id = args['load_number']
+            
+            # Handle name/args format for tool calls
+            elif 'name' in request and request['name'] == 'update_checkIn' and 'args' in request:
+                args = request['args']
+                if 'chat_summary' in args:
+                    chat_summary = args['chat_summary']
+                elif 'AI_Response_Summary' in args:
+                    chat_summary = args['AI_Response_Summary']
+                if 'query' in args:
+                    query = args['query']
+                if 'stop_id' in args:
+                    stop_id = args['stop_id']
+                if 'issue_flagged' in args:
+                    issue_flagged = args['issue_flagged']
+                if 'exception_type' in args:
+                    exception_type = args['exception_type']
+                if 'call_confidence_score' in args:
+                    call_confidence_score = args['call_confidence_score']
+                if 'requires_human_review' in args:
+                    requires_human_review = args['requires_human_review']
+                if 'tags' in args:
+                    tags = args['tags']
+                if 'load_id' in args:
+                    load_id = args['load_id']
+                elif 'load_number' in args:
+                    load_id = args['load_number']
+            
+            # Handle direct format
+            elif 'chat_summary' in request:
+                chat_summary = request['chat_summary']
+                if 'query' in request:
+                    query = request['query']
+                if 'stop_id' in request:
+                    stop_id = request['stop_id']
+                if 'issue_flagged' in request:
+                    issue_flagged = request['issue_flagged']
+                if 'exception_type' in request:
+                    exception_type = request['exception_type']
+                if 'call_confidence_score' in request:
+                    call_confidence_score = request['call_confidence_score']
+                if 'requires_human_review' in request:
+                    requires_human_review = request['requires_human_review']
+                if 'tags' in request:
+                    tags = request['tags']
+                if 'load_id' in request:
+                    load_id = request['load_id']
+                elif 'load_number' in request:
+                    load_id = request['load_number']
+        
+        # Default stop_id if not provided
+        if stop_id is None:
+            stop_id = 1  # Default to first stop
+        
+        # Create timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        
+        # Create new CheckIn record with correct field names
+        check_in_record = CheckIn(
+            stop_id=stop_id,
+            load_id=load_id,
+            query=query,
+            AI_Response_Summary=chat_summary,  # Correct field name
+            AI_Timestamp=timestamp,  # Correct field name
+            Issue_Flagged=issue_flagged,
+            Exception_Type=exception_type,
+            Call_confidence_score=call_confidence_score,
+            Requires_Human_Review=requires_human_review,
+            Tags=tags
+        )
+        
+        db.add(check_in_record)
+        db.commit()
+        
+        logger.info(f"Stored check-in: stop_id={stop_id}, load_id={load_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}', issue_flagged={issue_flagged}, exception_type='{exception_type}', confidence_score='{call_confidence_score}', requires_review={requires_human_review}, tags='{tags}'")
+        
+        return {
+            'message': 'Check-in stored successfully',
+        }
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error in update_checkIn: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in update_checkIn: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+

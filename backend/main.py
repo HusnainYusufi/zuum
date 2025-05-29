@@ -10,6 +10,9 @@ from transit import initialize_transit_chat, process_transit_chat_sequence, get_
 from init_db import init_db
 from routes import conversation_router, ui_router, retell_router, tests_router
 from dotenv import load_dotenv
+# Add database imports
+from db_models import CheckIn, Stop as StopModel, get_db
+from sqlalchemy.orm import Session
 
 load_dotenv()
 
@@ -71,6 +74,23 @@ class StopDetail(BaseModel):
     is_destination: bool
 
 
+class CheckInResponse(BaseModel):
+    id: int
+    stop_id: int
+    load_id: Optional[str] = None
+    query: Optional[str] = None
+    AI_Response_Summary: Optional[str] = None
+    AI_Timestamp: Optional[str] = None
+    Issue_Flagged: bool = False
+    Exception_Type: Optional[str] = None
+    Call_confidence_score: Optional[str] = None
+    Requires_Human_Review: bool = False
+    Tags: Optional[str] = None
+    stop_name: Optional[str] = None
+    stop_location: Optional[str] = None
+    stop_eta: Optional[str] = None
+
+
 # Get all stops (basic info)
 @app.get("/stops", response_model=List[Stop])
 async def stops():
@@ -100,112 +120,76 @@ async def chat_history(stop_id: int):
         logger.error(f"Error in chat history endpoint: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+# Get all check-ins
+@app.get("/check-ins", response_model=List[CheckInResponse])
+async def get_check_ins(db: Session = Depends(get_db)):
+    try:
+        # Query check-ins with stop information, ordered by newest first
+        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).order_by(CheckIn.AI_Timestamp.desc()).all()
+        
+        # Transform to response model
+        result = []
+        for check_in in check_ins:
+            result.append(CheckInResponse(
+                id=check_in.id,
+                stop_id=check_in.stop_id,
+                load_id=check_in.load_id,
+                query=check_in.query,
+                AI_Response_Summary=check_in.AI_Response_Summary,
+                AI_Timestamp=check_in.AI_Timestamp,
+                Issue_Flagged=check_in.Issue_Flagged,
+                Exception_Type=check_in.Exception_Type,
+                Call_confidence_score=check_in.Call_confidence_score,
+                Requires_Human_Review=check_in.Requires_Human_Review,
+                Tags=check_in.Tags,
+                stop_name=check_in.stop.name if check_in.stop else None,
+                stop_location=check_in.stop.location if check_in.stop else None,
+                stop_eta=check_in.stop.eta if check_in.stop else None
+            ))
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error in check-ins endpoint: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Get check-ins for a specific stop
+@app.get("/check-ins/{stop_id}", response_model=List[CheckInResponse])
+async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
+    try:
+        # Query check-ins for specific stop with stop information, ordered by newest first
+        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).filter(CheckIn.stop_id == stop_id).order_by(CheckIn.AI_Timestamp.desc()).all()
+        
+        # Transform to response model
+        logger.info(f"Found {len(check_ins)} check-ins for stop {stop_id}")
+        result = []
+        for check_in in check_ins:
+            result.append(CheckInResponse(
+                id=check_in.id,
+                stop_id=check_in.stop_id,
+                load_id=check_in.load_id,
+                query=check_in.query,
+                AI_Response_Summary=check_in.AI_Response_Summary,
+                AI_Timestamp=check_in.AI_Timestamp,
+                Issue_Flagged=check_in.Issue_Flagged,
+                Exception_Type=check_in.Exception_Type,
+                Call_confidence_score=check_in.Call_confidence_score,
+                Requires_Human_Review=check_in.Requires_Human_Review,
+                Tags=check_in.Tags,
+                stop_name=check_in.stop.name if check_in.stop else None,
+                stop_location=check_in.stop.location if check_in.stop else None,
+                stop_eta=check_in.stop.eta if check_in.stop else None
+            ))
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error in check-ins by stop endpoint: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 state_dict = {}
-    
-@app.post("/transit-chat", response_model=ChatResponse)
-async def transit_chat(request: ChatRequest):
-    try:
-        # Get the stop_id from the request
-        stop_id = request.stop_id
 
-        if not stop_id:
-            raise HTTPException(status_code=400, detail="Stop ID is required")
-        
-        # Initialize state with stop_id if provided
-        if stop_id not in state_dict:
-            # current_state = state_dict[stop_id]
-            state_dict[stop_id] = initialize_transit_chat(stop_id)
-
-        current_state = state_dict[stop_id]
-        response = process_transit_chat_sequence(current_state, request.message)
-
-        state_dict[stop_id] = response["state"] # update the state
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error in transit chat endpoint: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/transit-chat", response_model=ChatResponse)
-# async def transit_chat(request: ChatRequest):
-#     try:
-#         # Get the stop_id from the request
-#         stop_id = request.stop_id
-
-#         if not stop_id:
-#             raise HTTPException(status_code=400, detail="Stop ID is required")
-        
-#         # Initialize state with stop_id if provided
-#         current_state = initialize_transit_chat(stop_id)
-        
-#         # Process the transit chat sequence with the user's message
-#         response = process_transit_chat_sequence(current_state, request.message)
-        
-#         # Log the response for debugging
-#         logger.debug(f"Transit API Response before sending: {response}")
-        
-#         # Ensure response is properly formatted
-#         if isinstance(response, dict) and 'message' in response and 'state' in response:
-#             return response
-#         else:
-#             # Handle legacy format or unexpected response
-#             formatted_response = ChatResponse(
-#                 message=str(response),
-#                 state={
-#                     "bool3": current_state.get("bool3", False),
-#                     "bool2": current_state.get("bool2", False),
-#                     "bool1": current_state.get("bool1", False),
-#                     "bool0": current_state.get("bool0", False),
-#                     "stop_id": stop_id,
-#                     "current_step": "scheduled" if not current_state.get("is_scheduled") else "location" if not current_state.get("location_provided") else "eta"
-#                 }
-#             )
-#             logger.debug(f"Formatted transit response: {formatted_response}")
-#             return formatted_response
-
-#     except Exception as e:
-#         logger.error(f"Error in transit chat endpoint: {str(e)}")
-#         traceback.print_exc()
-#         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/transit-chat", response_model=ChatResponse)
-async def get_transit_chat(stop_id: Optional[int] = None):
-    try:
-        # Initialize state with stop_id if provided
-        current_state = initialize_transit_chat(stop_id) if stop_id else transit_state
-        
-        # Get the initial state and message
-        response = process_transit_chat_sequence(current_state)
-        
-        # Log the response for debugging
-        logger.debug(f"Transit API Response before sending: {response}")
-        
-        # Ensure response is properly formatted
-        if isinstance(response, dict) and 'message' in response and 'state' in response:
-            return response
-        else:
-            # Handle legacy format or unexpected response
-            formatted_response = ChatResponse(
-                message=str(response),
-                state={
-                    "bool3": current_state.get("bool3", False),
-                    "bool2": current_state.get("bool2", False),
-                    "bool1": current_state.get("bool1", False),
-                    "bool0": current_state.get("bool0", False),
-                    "stop_id": stop_id,
-                    "current_step": "scheduled" if not current_state.get("is_scheduled") else "location" if not current_state.get("location_provided") else "eta"
-                }
-            )
-            logger.debug(f"Formatted transit response: {formatted_response}")
-            return formatted_response
-
-    except Exception as e:
-        logger.error(f"Error in transit chat endpoint: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 

@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Text, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timedelta
 import os
 from pathlib import Path
@@ -82,6 +82,23 @@ class Notification(Base):
     stop_id = Column(Integer, nullable=True)
     severity = Column(String, default="info")
     read = Column(Boolean, default=False)
+    
+class CheckIn(Base):
+    __tablename__ = "check_ins"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    stop_id = Column(Integer, ForeignKey('stops.id'), index=True)
+    load_id = Column(Text)
+    query = Column(Text)
+    AI_Response_Summary = Column(Text)
+    AI_Timestamp = Column(String)
+    Issue_Flagged = Column(Boolean, default=False)
+    Exception_Type = Column(String)
+    Call_confidence_score = Column(String)
+    Requires_Human_Review = Column(Boolean, default=False)
+    Tags = Column(String)
+    # Define relationship to Stop
+    stop = relationship("Stop", backref="check_ins")
 
 # Create all tables
 def create_tables():

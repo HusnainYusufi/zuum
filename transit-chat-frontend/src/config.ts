@@ -1,0 +1,1 @@
+export const backend_url = "https://trusting-dolphin-internally.ngrok-free.app";

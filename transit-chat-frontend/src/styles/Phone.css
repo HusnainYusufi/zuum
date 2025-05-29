@@ -273,10 +273,11 @@
   justify-content: center;
   align-items: center;
   padding: 20px;
+  bottom: 0;
   position: absolute;
   z-index: 1;
   width: 100%;
-  height: 100%;
+  height: 82%;
 }
 
 .initialize-button {
@@ -391,4 +392,113 @@
 
 .dark-mode .retell-single-button:hover {
   background-color: #1e3c6e;
+}
+
+/* Conversation Type Switch Styles */
+.conversation-type-switch {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 10px 15px;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.switch-label input[type="radio"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--input-border);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.switch-label input[type="radio"]:checked {
+  border-color: var(--button-bg);
+  background-color: var(--button-bg);
+}
+
+.switch-label input[type="radio"]:checked::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.switch-label:hover {
+  color: var(--button-bg);
+}
+
+.switch-label:hover input[type="radio"] {
+  border-color: var(--button-bg);
+}
+
+/* Query Input Label */
+.query-input-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color);
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Adjust input container when label is present */
+.input-container:has(.query-input-label) {
+  gap: 5px;
+}
+
+/* Query Input Section (before initialization) */
+.query-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 80%;
+  max-width: 300px;
+  margin-bottom: 20px;
+}
+
+.query-input-section .query-input-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+  text-align: left;
+}
+
+.query-input {
+  padding: 12px 16px;
+  border: 2px solid var(--input-border);
+  border-radius: 12px;
+  outline: none;
+  font-size: 14px;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+.query-input:focus {
+  border-color: var(--button-bg);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+}
+
+.query-input::placeholder {
+  color: var(--text-color);
+  opacity: 0.6;
 }
