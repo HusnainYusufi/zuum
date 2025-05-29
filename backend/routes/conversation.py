@@ -16,6 +16,15 @@ from services.langrapghs.destination_langrapgh_service import destination_langgr
 import time
 import asyncio
 from datetime import datetime, timedelta
+import os
+import requests
+import os
+import requests
+from dotenv import load_dotenv
+        
+# Load environment variables from .env file
+load_dotenv()
+        
 
 router = APIRouter(
     prefix="/conversation",
@@ -48,6 +57,7 @@ class RetellRequest(BaseModel):
     stop_id: Optional[int] = None
     journey_id: Optional[int] = None
     langraph_type: Optional[str] = None
+    query: Optional[str] = None
 
 # Internal function for sending notifications programmatically
 async def send_notification_internal(message: str, stop_id: Optional[int] = None, severity: str = "info"):
@@ -315,36 +325,32 @@ async def get_retell_token(request: RetellRequest = Body(...)):
     logger.info("Received request for Retell token")
     
     try:
-        import os
-        import requests
-        from dotenv import load_dotenv
-        
-        # Load environment variables from .env file
-        load_dotenv()
-        
         # Get your Retell API key from environment variables
         RETELL_API_KEY = os.getenv("RETELL_API_KEY")
-        RETELL_AGENT_ID = os.getenv("RETELL_AGENT_ID")
         if request.stop_id is not None or request.langraph_type is not None:
             stop = db.query(Stop).filter(Stop.id == request.stop_id).first()
             # Convert the SQLAlchemy model object to a dictionary
             stop_data = {column.name: getattr(stop, column.name) for column in stop.__table__.columns} if stop else {}
             # Convert all values to strings for Retell API
-            stop_data_for_retell = {k: str(v) if v is not None else "" for k, v in stop_data.items()}
+            data_for_retell = {k: str(v) if v is not None else "" for k, v in stop_data.items()}
             current_time = datetime.now()
-            stop_data_for_retell['current_date_time'] = current_time.strftime("%Y-%m-%dT%H:%M:%S")
-            stop_data_for_retell['load_number'] = 'lb-205'
+            data_for_retell['current_date_time'] = current_time.strftime("%Y-%m-%dT%H:%M:%S")
+            data_for_retell['load_number'] = 'lb-205'
             # Convert eta to a more natural language format for LLM context
-            if 'eta' in stop_data_for_retell:
+            if 'eta' in data_for_retell:
                 try:
-                    eta_datetime = datetime.strptime(stop_data_for_retell['eta'], "%Y-%m-%dT%H:%M:%S")
-                    stop_data_for_retell['eta'] = eta_datetime.strftime("%A, %d, %B, %Y, %I:%M %p")
+                    eta_datetime = datetime.strptime(data_for_retell['eta'], "%Y-%m-%dT%H:%M:%S")
+                    data_for_retell['eta'] = eta_datetime.strftime("%A, %d, %B, %Y, %I:%M %p")
                 except (ValueError, TypeError):
                     # Keep original if parsing fails
                     pass
         else:
             return HTTPException(status_code=400, detail="Stop ID or Journey ID are required") 
-        
+        if request.query is not None:
+            RETELL_AGENT_ID = os.getenv("CheckIn_RETELL_AGENT_ID")
+            data_for_retell['query'] = request.query
+        else:
+            RETELL_AGENT_ID = os.getenv("Workflow_RETELL_AGENT_ID")
         logger.debug(f"RETELL_API_KEY available: {RETELL_API_KEY is not None}")
         logger.debug(f"RETELL_AGENT_ID available: {RETELL_AGENT_ID is not None}")
         
@@ -371,11 +377,8 @@ async def get_retell_token(request: RetellRequest = Body(...)):
             headers={"Authorization": f"Bearer {RETELL_API_KEY}"},
             json={
                 "agent_id": RETELL_AGENT_ID,
-                "metadata": {
-                    "stop_data": stop_data,
-                    "journey_id": request.journey_id
-                },
-                "retell_llm_dynamic_variables": stop_data_for_retell
+                "metadata": data_for_retell,
+                "retell_llm_dynamic_variables": data_for_retell
             }
         )
         

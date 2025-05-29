@@ -31,6 +31,10 @@ interface PhoneProps {
   onToggleRecording?: () => void;
   conversationState?: ConversationState;
   agentType?: AgentType;
+  conversationType?: string;
+  setConversationType?: (type: string) => void;
+  query?: string;
+  setQuery?: (query: string) => void;
 }
 
 const Phone: React.FC<PhoneProps> = ({ 
@@ -48,7 +52,11 @@ const Phone: React.FC<PhoneProps> = ({
   isRecording = false,
   onToggleRecording = () => {},
   conversationState = 'idle',
-  agentType = 'custom'
+  agentType = 'custom',
+  conversationType = 'workflow',
+  setConversationType = () => {},
+  query = '',
+  setQuery = () => {}
 }) => {
   const [inputMessage, setInputMessage] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -139,8 +147,45 @@ const Phone: React.FC<PhoneProps> = ({
           )}
         </div>
         
+        <div className="conversation-type-switch">
+          <label className="switch-label">
+            <input
+              type="radio"
+              name="conversationType"
+              value="workflow"
+              checked={conversationType === 'workflow'}
+              onChange={() => setConversationType('workflow')}
+            />
+            <span>Workflow</span>
+          </label>
+          <label className="switch-label">
+            <input
+              type="radio"
+              name="conversationType"
+              value="checkin"
+              checked={conversationType === 'checkin'}
+              onChange={() => setConversationType('checkin')}
+            />
+            <span>Check-in</span>
+          </label>
+        </div>
+        
         {!isInitialized && (
           <div className="initialize-container">
+            {/* Show query input for check-in mode */}
+            {conversationType === 'checkin' && (
+              <div className="query-input-section">
+                <label className="query-input-label">What to ask?</label>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Enter your query..."
+                  className="message-input query-input"
+                />
+              </div>
+            )}
+            
             {/* Only show text chat button for custom agent */}
             {agentType === 'custom' && (
               <button 
@@ -183,6 +228,9 @@ const Phone: React.FC<PhoneProps> = ({
         
         {isInitialized && (
         <form onSubmit={handleSubmit} className="input-container">
+          {conversationType === 'checkin' && (
+            <label className="query-input-label">Query:</label>
+          )}
           <input
             type="text"
             value={inputMessage}

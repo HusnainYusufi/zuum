@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/StakeholderDashboard.css';
 import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck } from 'react-icons/fa';
 import { MdWarning, MdLocationOn, MdTimeline } from 'react-icons/md';
+import { backend_url } from '../config';
 
 interface Stop {
   id: number;
@@ -64,7 +65,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   // Fetch journey state from backend
   const fetchJourneyState = async () => {
     try {
-      const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/ui/journey_state', {
+      const response = await fetch(`${backend_url}/ui/journey_state`, {
         headers: {
           'ngrok-skip-browser-warning': 'true'
         }
@@ -83,7 +84,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const fetchStops = async () => {
     try {
       if (!loading) setIsRefreshing(true);
-      const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/stops/details', {
+      const response = await fetch(`${backend_url}/stops/details`, {
         headers: {
           'ngrok-skip-browser-warning': 'true'
         }
@@ -142,7 +143,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
       // In a real app, we'd make an API call here to get notifications from the backend
       try {
         // This is a polling mechanism to detect chat notifications
-        const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/conversation/active_notifications', {
+        const response = await fetch(`${backend_url}/conversation/active_notifications`, {
           headers: {
             'ngrok-skip-browser-warning': 'true'
           }
@@ -162,7 +163,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
       } catch (err) {
         // If the endpoint doesn't exist yet, we'll check for "not responding" in the server logs
         // This is a fallback until the API is implemented
-        const chatResponse = await fetch(`https://trusting-dolphin-internally.ngrok-free.app/conversation/initialize?stop_id=1&is_audio=false&dummy=${Math.random()}`, {
+        const chatResponse = await fetch(`${backend_url}/conversation/initialize?stop_id=1&is_audio=false&dummy=${Math.random()}`, {
           headers: {
             'ngrok-skip-browser-warning': 'true'
           }
@@ -219,7 +220,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     const checkForDriverNotifications = async () => {
       try {
         // We'll make one special call to check for driver inactivity
-        const response = await fetch('https://trusting-dolphin-internally.ngrok-free.app/conversation/check_driver_activity', {
+        const response = await fetch(`${backend_url}/conversation/check_driver_activity`, {
           headers: {
             'ngrok-skip-browser-warning': 'true'
           }

@@ -294,3 +294,4 @@ def update_reported_location_eta(request: dict = Body(...)):
     except Exception as e:
         logger.error(f"Unexpected error in update_reported_location_eta: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
