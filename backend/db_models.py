@@ -88,10 +88,15 @@ class CheckIn(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     stop_id = Column(Integer, ForeignKey('stops.id'), index=True)
+    load_id = Column(Text)
     query = Column(Text)
-    summary = Column(Text)
-    timestamp = Column(String)
-    
+    AI_Response_Summary = Column(Text)
+    AI_Timestamp = Column(String)
+    Issue_Flagged = Column(Boolean, default=False)
+    Exception_Type = Column(String)
+    Call_confidence_score = Column(String)
+    Requires_Human_Review = Column(Boolean, default=False)
+    Tags = Column(String)
     # Define relationship to Stop
     stop = relationship("Stop", backref="check_ins")
 

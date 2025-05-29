@@ -77,11 +77,18 @@ class StopDetail(BaseModel):
 class CheckInResponse(BaseModel):
     id: int
     stop_id: int
-    query: str
-    summary: str
-    timestamp: str
+    load_id: Optional[str] = None
+    query: Optional[str] = None
+    AI_Response_Summary: Optional[str] = None
+    AI_Timestamp: Optional[str] = None
+    Issue_Flagged: bool = False
+    Exception_Type: Optional[str] = None
+    Call_confidence_score: Optional[str] = None
+    Requires_Human_Review: bool = False
+    Tags: Optional[str] = None
     stop_name: Optional[str] = None
     stop_location: Optional[str] = None
+    stop_eta: Optional[str] = None
 
 
 # Get all stops (basic info)
@@ -118,8 +125,8 @@ async def chat_history(stop_id: int):
 @app.get("/check-ins", response_model=List[CheckInResponse])
 async def get_check_ins(db: Session = Depends(get_db)):
     try:
-        # Query check-ins with stop information
-        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).all()
+        # Query check-ins with stop information, ordered by newest first
+        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).order_by(CheckIn.AI_Timestamp.desc()).all()
         
         # Transform to response model
         result = []
@@ -127,11 +134,18 @@ async def get_check_ins(db: Session = Depends(get_db)):
             result.append(CheckInResponse(
                 id=check_in.id,
                 stop_id=check_in.stop_id,
+                load_id=check_in.load_id,
                 query=check_in.query,
-                summary=check_in.summary,
-                timestamp=check_in.timestamp,
+                AI_Response_Summary=check_in.AI_Response_Summary,
+                AI_Timestamp=check_in.AI_Timestamp,
+                Issue_Flagged=check_in.Issue_Flagged,
+                Exception_Type=check_in.Exception_Type,
+                Call_confidence_score=check_in.Call_confidence_score,
+                Requires_Human_Review=check_in.Requires_Human_Review,
+                Tags=check_in.Tags,
                 stop_name=check_in.stop.name if check_in.stop else None,
-                stop_location=check_in.stop.location if check_in.stop else None
+                stop_location=check_in.stop.location if check_in.stop else None,
+                stop_eta=check_in.stop.eta if check_in.stop else None
             ))
         
         return result
@@ -144,8 +158,8 @@ async def get_check_ins(db: Session = Depends(get_db)):
 @app.get("/check-ins/{stop_id}", response_model=List[CheckInResponse])
 async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
     try:
-        # Query check-ins for specific stop with stop information
-        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).filter(CheckIn.stop_id == stop_id).all()
+        # Query check-ins for specific stop with stop information, ordered by newest first
+        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).filter(CheckIn.stop_id == stop_id).order_by(CheckIn.AI_Timestamp.desc()).all()
         
         # Transform to response model
         logger.info(f"Found {len(check_ins)} check-ins for stop {stop_id}")
@@ -154,11 +168,18 @@ async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
             result.append(CheckInResponse(
                 id=check_in.id,
                 stop_id=check_in.stop_id,
+                load_id=check_in.load_id,
                 query=check_in.query,
-                summary=check_in.summary,
-                timestamp=check_in.timestamp,
+                AI_Response_Summary=check_in.AI_Response_Summary,
+                AI_Timestamp=check_in.AI_Timestamp,
+                Issue_Flagged=check_in.Issue_Flagged,
+                Exception_Type=check_in.Exception_Type,
+                Call_confidence_score=check_in.Call_confidence_score,
+                Requires_Human_Review=check_in.Requires_Human_Review,
+                Tags=check_in.Tags,
                 stop_name=check_in.stop.name if check_in.stop else None,
-                stop_location=check_in.stop.location if check_in.stop else None
+                stop_location=check_in.stop.location if check_in.stop else None,
+                stop_eta=check_in.stop.eta if check_in.stop else None
             ))
         
         return result

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/StakeholderDashboard.css';
-import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck, FaClipboardCheck } from 'react-icons/fa';
-import { MdWarning, MdLocationOn, MdTimeline, MdChatBubble, MdPerson } from 'react-icons/md';
+import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck, FaClipboardCheck, FaTags } from 'react-icons/fa';
+import { MdWarning, MdLocationOn, MdTimeline, MdChatBubble, MdPerson, MdSpeed } from 'react-icons/md';
 import { backend_url } from '../config';
 
 interface Stop {
@@ -29,11 +29,18 @@ interface Notification {
 interface CheckIn {
   id: number;
   stop_id: number;
-  query: string;
-  summary: string;
-  timestamp: string;
+  load_id?: string;
+  query?: string;
+  AI_Response_Summary?: string;
+  AI_Timestamp?: string;
+  Issue_Flagged: boolean;
+  Exception_Type?: string;
+  Call_confidence_score?: string;
+  Requires_Human_Review: boolean;
+  Tags?: string;
   stop_name?: string;
   stop_location?: string;
+  stop_eta?: string;
 }
 
 interface StakeholderDashboardProps {
@@ -464,24 +471,103 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
                   <div className="check-in-header">
                     <div className="check-in-id-wrapper">
                       <FaClipboardCheck className="check-in-icon" />
-                      <span className="check-in-id">Check-in #{checkIn.id.toString().padStart(2, '0')}/{new Date(checkIn.timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, '/')}, {new Date(checkIn.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}</span>
+                      <span className="check-in-id">
+                        Check-in #{checkIn.id.toString().padStart(2, '0')}
+                        {checkIn.load_id && ` | Load: ${checkIn.load_id}`}
+                        {checkIn.AI_Timestamp && ` | ${new Date(checkIn.AI_Timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, '/')}, ${new Date(checkIn.AI_Timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`}
+                      </span>
+                    </div>
+                    <div className="check-in-status">
+                      {checkIn.Issue_Flagged && (
+                        <span className="status-badge issue-flagged">
+                          <FaExclamationTriangle /> Issue Flagged
+                        </span>
+                      )}
+                      {checkIn.Requires_Human_Review && (
+                        <span className="status-badge requires-review">
+                          <MdPerson /> Requires Review
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="check-in-content">
+                    {checkIn.stop_location && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <MdLocationOn className="content-icon" />
+                          <span>LOCATION:</span>
+                        </div>
+                        <div className="field-value">{checkIn.stop_location}</div>
+                      </div>
+                    )}
+                    {checkIn.stop_eta && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <FaClock className="content-icon" />
+                          <span>ETA:</span>
+                        </div>
+                        <div className="field-value">{formatETA(checkIn.stop_eta)}</div>
+                      </div>
+                    )}
+                    {checkIn.query && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <MdChatBubble className="content-icon" />
+                          <span>QUERY:</span>
+                        </div>
+                        <div className="field-value">{checkIn.query}</div>
+                      </div>
+                    )}
+                    {checkIn.AI_Response_Summary && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <MdPerson className="content-icon" />
+                          <span>AI SUMMARY:</span>
+                        </div>
+                        <div className="field-value">{checkIn.AI_Response_Summary}</div>
+                      </div>
+                    )}
                     <div className="check-in-field">
                       <div className="field-label">
-                        <MdChatBubble className="content-icon" />
-                        <span>QUERY:</span>
+                        <FaExclamationTriangle className="content-icon" />
+                        <span>ISSUE FLAGGED:</span>
                       </div>
-                      <div className="field-value">{checkIn.query}</div>
+                      <div className="field-value">{checkIn.Issue_Flagged ? 'Yes' : 'No'}</div>
                     </div>
                     <div className="check-in-field">
                       <div className="field-label">
                         <MdPerson className="content-icon" />
-                        <span>SUMMARY:</span>
+                        <span>HUMAN REVIEW:</span>
                       </div>
-                      <div className="field-value">{checkIn.summary}</div>
+                      <div className="field-value">{checkIn.Requires_Human_Review ? 'Yes' : 'No'}</div>
                     </div>
+                    {checkIn.Exception_Type && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <FaExclamationTriangle className="content-icon" />
+                          <span>EXCEPTION TYPE:</span>
+                        </div>
+                        <div className="field-value">{checkIn.Exception_Type}</div>
+                      </div>
+                    )}
+                    {checkIn.Call_confidence_score && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <MdSpeed className="content-icon" />
+                          <span>CONFIDENCE SCORE:</span>
+                        </div>
+                        <div className="field-value">{checkIn.Call_confidence_score}%</div>
+                      </div>
+                    )}
+                    {checkIn.Tags && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <FaTags className="content-icon" />
+                          <span>TAGS:</span>
+                        </div>
+                        <div className="field-value">{checkIn.Tags}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))

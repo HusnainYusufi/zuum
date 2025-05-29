@@ -998,9 +998,10 @@
 }
 
 .check-in-header {
-  margin-bottom: 8px;
-  padding-bottom: 0;
-  border-bottom: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
 .check-in-id-wrapper {
@@ -1010,17 +1011,17 @@
 }
 
 .check-in-icon {
-  color: #58a6ff;
-  font-size: 12px;
-  opacity: 0.8;
+  color: var(--primary-light);
+  font-size: 14px;
+  margin-right: 4px;
 }
 
 .check-in-id {
-  font-size: 11px;
-  color: #7d8590;
-  font-weight: 400;
-  letter-spacing: 0;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .check-in-content {
@@ -1041,8 +1042,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-right: 10px;
   margin-bottom: 0;
-  min-width: 80px;
   flex-shrink: 0;
 }
 
@@ -1158,6 +1159,61 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
+/* Check-in Status Badges */
+.check-in-status {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-speed);
+}
+
+.status-badge.issue-flagged {
+  background-color: rgba(237, 137, 54, 0.2);
+  color: #f6ad55;
+  border: 1px solid rgba(237, 137, 54, 0.3);
+}
+
+.status-badge.issue-flagged:hover {
+  background-color: rgba(237, 137, 54, 0.3);
+  border-color: rgba(237, 137, 54, 0.5);
+}
+
+.status-badge.requires-review {
+  background-color: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+  border: 1px solid rgba(160, 174, 192, 0.3);
+}
+
+.status-badge.requires-review:hover {
+  background-color: rgba(160, 174, 192, 0.3);
+  border-color: rgba(160, 174, 192, 0.5);
+}
+
+/* Light mode styles for status badges */
+.dashboard-container:not(.dark-mode) .status-badge.issue-flagged {
+  background-color: rgba(237, 137, 54, 0.1);
+  color: #dd6b20;
+  border-color: rgba(237, 137, 54, 0.2);
+}
+
+.dashboard-container:not(.dark-mode) .status-badge.requires-review {
+  background-color: rgba(74, 85, 104, 0.1);
+  color: #4a5568;
+  border-color: rgba(74, 85, 104, 0.2);
+}
+
 /* Responsive styles */
 @media (max-width: 1400px) {
   .dashboard-main-grid {
@@ -1220,10 +1276,7 @@
     grid-template-columns: 1fr;
   }
   
-  .field-label {
-    min-width: 65px;
-  }
-  
+
   .field-label span {
     font-size: 10px;
   }
