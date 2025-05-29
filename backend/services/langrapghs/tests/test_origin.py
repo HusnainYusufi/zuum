@@ -64,9 +64,19 @@ def test_origin_langgraph():
     print("\n=== Starting Origin LangGraph Test ===")
     
     results = service.evaluate('origin-conversation-flow')
-    # Print results
+    # Calculate results
     correct_count = sum(1 for r in results if r["correct"])
-    print(f"Accuracy: {correct_count}/{len(results)} ({correct_count/len(results)*100:.1f}%)")
+    total_count = len(results)
+    accuracy = (correct_count/total_count)*100 if total_count > 0 else 0
+    
+    print(f"Accuracy: {correct_count}/{total_count} ({accuracy:.1f}%)")
+    
+    # Return the metrics for API consumption
+    return {
+        "total_responses": total_count,
+        "correct_responses": correct_count,
+        "accuracy": f"{accuracy:.1f}%"
+    }
 
 
     
