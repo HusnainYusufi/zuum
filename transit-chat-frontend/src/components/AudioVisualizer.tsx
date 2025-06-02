@@ -6,7 +6,7 @@ import { BiMicrophone, BiPhoneOff, BiStop } from 'react-icons/bi';
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 
 // Define agent types
-type AgentType = 'custom' | 'retell';
+type AgentType = 'custom' | 'apicall';
 
 interface AudioVisualizerProps {
   isActive: boolean;
@@ -215,7 +215,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   // Get status text based on conversation state
   const getStatusText = () => {
-    if (agentType === 'retell') {
+    if (agentType === 'apicall') {
       if (isRecording) {
         return 'Retell Call Active';
       } else {
@@ -238,7 +238,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   // Get status color based on conversation state
   const getStatusColor = () => {
-    if (agentType === 'retell' && isRecording) {
+    if (agentType === 'apicall' && isRecording) {
       return '#E91E63'; // Pink for Retell
     }
     
@@ -260,7 +260,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   // Get microphone button tooltip based on agent type
   const getMicButtonTooltip = () => {
-    if (agentType === 'retell') {
+    if (agentType === 'apicall') {
       return isRecording ? "Mute Microphone" : "Unmute Microphone";
     } else {
       return isRecording ? "Stop Recording & Send" : "Resume Recording";
@@ -322,10 +322,10 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       >
         <button 
           onClick={onToggle}
-          className={`mic-button ${agentType === 'retell' ? `retell-mic-button ${isRecording ? 'active' : 'muted'}` : ''}`}
+          className={`mic-button ${agentType === 'apicall' ? `retell-mic-button ${isRecording ? 'active' : 'muted'}` : ''}`}
           style={{
             ...buttonBaseStyle,
-            backgroundColor: agentType === 'retell' 
+            backgroundColor: agentType === 'apicall' 
               ? (isRecording ? '#4CAF50' : '#ff6b6b') 
               : isRecording 
                 ? 'var(--button-bg, #ffffff)' 
@@ -335,10 +335,10 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             position: 'relative'
           }}
           title={getMicButtonTooltip()}
-          disabled={(agentType !== 'retell') && (conversationState === 'processing' || conversationState === 'agentSpeaking')}
+          disabled={(agentType !== 'apicall') && (conversationState === 'processing' || conversationState === 'agentSpeaking')}
         >
           {isRecording ? <BiStop size={24} /> : <BiMicrophone size={24} />}
-          {agentType === 'retell' && (
+          {agentType === 'apicall' && (
             <span 
               style={{
                 position: 'absolute',
