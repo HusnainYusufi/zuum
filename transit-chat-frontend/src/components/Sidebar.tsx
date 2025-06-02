@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import '../styles/Sidebar.css';
 
 // Define agent types
-type AgentType = 'custom' | 'retell';
+type AgentType = 'custom' | 'apicall';
 
 interface Stop {
   id: number;
@@ -74,12 +74,12 @@ const Sidebar: React.FC<SidebarProps> = ({
           <span>Agent Selection</span>
         </div>
         <div className="agent-toggle">
-        <button 
-            className={`agent-toggle-button ${agentType === 'retell' ? 'active' : ''}`}
-            onClick={() => onToggleAgentType('retell')}
+          <button 
+            className={`agent-toggle-button ${agentType === 'apicall' ? 'active' : ''}`}
+            onClick={() => onToggleAgentType('apicall')}
             disabled={isCallMode} // Disable switching while in a call
           >
-            <span role="img" aria-label="Retell">🤖</span> API call
+            <span role="img" aria-label="API Call">🤖</span> API call
           </button>
           <button 
             className={`agent-toggle-button ${agentType === 'custom' ? 'active' : ''}`}
@@ -88,7 +88,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             <span role="img" aria-label="Custom">🎙️</span> Custom Agent
           </button>
-          
         </div>
       </div>
     </div>

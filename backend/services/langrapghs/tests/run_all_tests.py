@@ -2,7 +2,9 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
 
+load_dotenv()
 # Add the backend directory to Python path
 current_dir = Path(__file__).parent
 backend_dir = current_dir.parent.parent.parent
@@ -17,7 +19,7 @@ os.environ['LANGSMITH_API_KEY'] = 'lsv2_pt_4840155dea6a4ea691d0da7b562e96cf_29c9
 os.environ['LANGSMITH_TRACING'] = 'true'
 os.environ['LANGSMITH_ENDPOINT'] = 'https://api.smith.langchain.com'
 os.environ['LANGSMITH_PROJECT'] = 'voice_freight_broker'
-os.environ['OPENAI_API_KEY'] = 'ssk-proj-QzDMBdW8JkcYlRgG0tqwrGZTa0RrKCF1OzTx6nz2HQHCcX-2QIihpzVex0dqOSP9DJy_VBr-EVT3BlbkFJvtRpnLi2eKMpyaRQnxB9kMnqfiS4_mIbuUyQ1wGS0mNShsEesLNa9CYgy5ZIXRZRiGWusIZsoA'
+os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
 
 
 def run_all_tests():

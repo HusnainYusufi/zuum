@@ -26,7 +26,7 @@ interface Stop {
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 
 // Define agent types
-type AgentType = 'custom' | 'retell';
+type AgentType = 'custom' | 'apicall';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -50,9 +50,9 @@ function App() {
   const [initAttempt, setInitAttempt] = useState(0);
   
   // New state for agent type
-  const [agentType, setAgentType] = useState<AgentType>('retell');
-  const [isRetellCallActive, setIsRetellCallActive] = useState(false);
-  const retellClientRef = useRef<RetellWebClient | null>(null);
+  const [agentType, setAgentType] = useState<AgentType>('apicall');
+  const [isAPICallActive, setIsAPICallActive] = useState(false);
+  const apiCallClientRef = useRef<RetellWebClient | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const formatTime = () => {
@@ -87,10 +87,10 @@ function App() {
     
     // If there's an active call, stop it first
     if (isCallMode) {
-      if (agentType === 'retell' && retellClientRef.current && isRetellCallActive) {
-        console.log("⏹️ Stopping active Retell call before switching agent type");
-        retellClientRef.current.stopCall();
-        setIsRetellCallActive(false);
+      if (agentType === 'apicall' && apiCallClientRef.current && isAPICallActive) {
+        console.log("⏹️ Stopping active API call before switching agent type");
+        apiCallClientRef.current.stopCall();
+        setIsAPICallActive(false);
       } else if (agentType === 'custom' && audioStream) {
         console.log("⏹️ Stopping custom agent audio before switching agent type");
         audioStream.getTracks().forEach(track => track.stop());
@@ -222,11 +222,11 @@ function App() {
 
   // Handle recording toggle
   const handleRecordingToggle = () => {
-    if (isCallMode && agentType === 'retell' && retellClientRef.current) {
-      if (isRetellCallActive) {
-        retellClientRef.current.stopCall();
+    if (isCallMode && agentType === 'apicall' && apiCallClientRef.current) {
+      if (isAPICallActive) {
+        apiCallClientRef.current.stopCall();
       } else {
-        initializeRetellCall();
+        initializeAPICall();
       }
       return;
     }
@@ -461,25 +461,25 @@ function App() {
     }
   };
 
-  // Initialize Retell client
+  // Initialize API call client
   useEffect(() => {
-    console.log("Initializing Retell client");
+    console.log("Initializing API call client");
     
-    if (!retellClientRef.current) {
+    if (!apiCallClientRef.current) {
       try {
-        retellClientRef.current = new RetellWebClient();
-        console.log("Retell client created successfully");
+        apiCallClientRef.current = new RetellWebClient();
+        console.log("API call client created successfully");
         
         // Set up event listeners
-        retellClientRef.current.on("call_started", () => {
-          console.log("Retell call started event received");
-          setIsRetellCallActive(true);
+        apiCallClientRef.current.on("call_started", () => {
+          console.log("API call started event received");
+          setIsAPICallActive(true);
           // Set recording to true by default when call starts (mic is active)
           setIsRecording(true);
           
           // Add UI message that the call started
           const systemMessage: Message = {
-            text: "Call connected. You can speak with the Retell agent now.",
+            text: "Call connected. You can speak with the API call agent now.",
             isUser: false,
             timestamp: formatTime()
           };
@@ -496,9 +496,9 @@ function App() {
           });
         });
 
-        retellClientRef.current.on("call_ended", () => {
-          console.log("Retell call ended event received");
-          setIsRetellCallActive(false);
+        apiCallClientRef.current.on("call_ended", () => {
+          console.log("API call ended event received");
+          setIsAPICallActive(false);
           setIsRecording(false); // Ensure microphone state is reset
           
           // Add UI message that the call ended
@@ -520,17 +520,17 @@ function App() {
           });
         });
 
-        retellClientRef.current.on("agent_start_talking", () => {
+        apiCallClientRef.current.on("agent_start_talking", () => {
           console.log("Agent started talking event received");
           setConversationState('agentSpeaking');
         });
 
-        retellClientRef.current.on("agent_stop_talking", () => {
+        apiCallClientRef.current.on("agent_stop_talking", () => {
           console.log("Agent stopped talking event received");
           setConversationState('listening');
         });
 
-        retellClientRef.current.on("update", (update) => {
+        apiCallClientRef.current.on("update", (update) => {
           console.log("Update received:", update);
           if (update.transcript) {
             // Add the transcript to the messages
@@ -570,9 +570,9 @@ function App() {
           }
         });
 
-        retellClientRef.current.on("error", (error) => {
-          console.error("Retell error:", error);
-          setIsRetellCallActive(false);
+        apiCallClientRef.current.on("error", (error) => {
+          console.error("API call error:", error);
+          setIsAPICallActive(false);
           
           // Add error message to the UI
           const errorMessage: Message = {
@@ -593,21 +593,21 @@ function App() {
           });
         });
       } catch (error) {
-        console.error("Error initializing Retell client:", error);
+        console.error("Error initializing API call client:", error);
       }
     }
     
     return () => {
       // Clean up on component unmount
-      if (retellClientRef.current && isRetellCallActive) {
-        console.log("Cleaning up Retell call on unmount");
-        retellClientRef.current.stopCall();
+      if (apiCallClientRef.current && isAPICallActive) {
+        console.log("Cleaning up API call on unmount");
+        apiCallClientRef.current.stopCall();
       }
     };
   }, []);
 
   // Function to get an access token from your backend
-  const getRetellAccessToken = async () => {
+  const getAPICallAccessToken = async () => {
     try {
       console.log("🔑 Making fetch request to /conversation/retell-token");
       
@@ -632,7 +632,7 @@ function App() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("❌ Error response body:", errorText);
-        throw new Error(`Failed to get Retell access token: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(`Failed to get API call access token: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
       // Try to parse JSON response
@@ -647,12 +647,12 @@ function App() {
       
       // Check if we received a real token or a mock token
       if (data.message && data.message.includes("mock token")) {
-        console.warn("⚠️ Using mock Retell token. For production, configure RETELL_API_KEY in backend.");
+        console.warn("⚠️ Using mock API call token. For production, configure API_CALL_API_KEY in backend.");
       }
       
       // Log call information for debugging
       if (data.call_id) {
-        console.log(`📞 Retell call created with ID: ${data.call_id}, status: ${data.call_status || 'unknown'}`);
+        console.log(`📞 API call created with ID: ${data.call_id}, status: ${data.call_status || 'unknown'}`);
       }
       
       if (!data.access_token) {
@@ -663,7 +663,7 @@ function App() {
       setAccessToken(data.access_token);
       return data.access_token;
     } catch (error) {
-      console.error("❌ Error getting Retell access token:", error);
+      console.error("❌ Error getting API call access token:", error);
       
       if (error instanceof TypeError && error.message.includes('fetch')) {
         console.error("🔌 Network error - Is your backend server running at https://trusting-dolphin-internally.ngrok-free.app?");
@@ -673,19 +673,19 @@ function App() {
     }
   };
 
-  // Update the initializeRetellCall function
-  const initializeRetellCall = async () => {
-    console.log("📞 Starting Retell call initialization");
+  // Update the initializeAPICall function
+  const initializeAPICall = async () => {
+    console.log("📞 Starting API call initialization");
     
-    if (!retellClientRef.current) {
-      console.error("⚠️ Retell client not initialized");
+    if (!apiCallClientRef.current) {
+      console.error("⚠️ API call client not initialized");
       
       // Try to initialize it again
       try {
-        retellClientRef.current = new RetellWebClient();
-        console.log("✅ Retell client created on-demand");
+        apiCallClientRef.current = new RetellWebClient();
+        console.log("✅ API call client created on-demand");
       } catch (error) {
-        console.error("❌ Failed to create Retell client:", error);
+        console.error("❌ Failed to create API call client:", error);
         return;
       }
     }
@@ -695,7 +695,7 @@ function App() {
       try {
         console.log("🎤 Requesting microphone permissions");
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // We don't need to store this stream as Retell will handle it
+        // We don't need to store this stream as API call will handle it
         stream.getTracks().forEach(track => track.stop());
         console.log("✅ Microphone permissions granted");
       } catch (micError) {
@@ -724,20 +724,20 @@ function App() {
       // Set initial mic state to active
       setIsRecording(true);
       
-      // Get access token from your backend - this is where the issue might be
-      console.log("🔑 Requesting Retell token from backend...");
+      // Get access token from your backend
+      console.log("🔑 Requesting API call token from backend...");
       try {
-        const token = await getRetellAccessToken();
+        const token = await getAPICallAccessToken();
         console.log("✅ Successfully received token:", token ? "Token received" : "No token received");
         
         if (!token) {
           throw new Error("Failed to get valid access token");
         }
         
-        console.log("🚀 Starting call with Retell SDK");
+        console.log("🚀 Starting call with API call SDK");
         
         // Start the call
-        await retellClientRef.current.startCall({
+        await apiCallClientRef.current.startCall({
           accessToken: token,
           sampleRate: 24000, // 24kHz sample rate for better quality
           // Optional configuration below if needed
@@ -747,14 +747,14 @@ function App() {
         });
         
         console.log("✅ Call started successfully");
-        setIsRetellCallActive(true);
+        setIsAPICallActive(true);
         setConversationState('listening');
       } catch (tokenError) {
         console.error("❌ Error getting or using token:", tokenError);
         throw new Error(`Token error: ${tokenError instanceof Error ? tokenError.message : "Unknown token error"}`);
       }
     } catch (error) {
-      console.error("❌ Failed to initialize Retell call:", error);
+      console.error("❌ Failed to initialize API call:", error);
       
       // Reset the recording state
       setIsRecording(false);
@@ -789,9 +789,9 @@ function App() {
           setAudioStream(stream);
           setIsCallMode(true);
           setConversationState('idle');
-        } else if (agentType === 'retell') {
-          // For Retell, we'll initialize a voice call
-          console.log('🎤 Starting Retell call mode');
+        } else if (agentType === 'apicall') {
+          // For API call, we'll initialize a voice call
+          console.log('🎤 Starting API call mode');
           setIsCallMode(true);
           setConversationState('idle');
           handleInitializeChat(true);
@@ -806,10 +806,10 @@ function App() {
       if (agentType === 'custom' && audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         setAudioStream(null);
-      } else if (agentType === 'retell' && retellClientRef.current) {
-        console.log('📴 Ending Retell call');
-        retellClientRef.current.stopCall();
-        setIsRetellCallActive(false);
+      } else if (agentType === 'apicall' && apiCallClientRef.current) {
+        console.log('📴 Ending API call');
+        apiCallClientRef.current.stopCall();
+        setIsAPICallActive(false);
         
         // Add a message that call was ended by user
         const endMessage: Message = {
@@ -842,8 +842,8 @@ function App() {
       return;
     }
 
-    if (agentType === 'retell' && isCallMode) {
-      // For Retell agent in call mode, messages are handled differently
+    if (agentType === 'apicall' && isCallMode) {
+      // For API call agent in call mode, messages are handled differently
       // Just add the user message to the UI
       const userMessage: Message = {
         text: message,
@@ -862,7 +862,7 @@ function App() {
         return newMessages;
       });
       
-      // The response will come through the Retell event listeners
+      // The response will come through the API call event listeners
       return;
     }
 
@@ -980,14 +980,14 @@ function App() {
           alert('Unable to access microphone. Please check permissions.');
           return;
         }
-      } else if (agentType === 'retell' && !isCallMode) {
-        console.log('📱 Initializing Retell agent call immediately');
+      } else if (agentType === 'apicall' && !isCallMode) {
+        console.log('📱 Initializing API call agent call immediately');
         setIsCallMode(true);
-        setIsInitialized(true); // Mark as initialized for Retell
+        setIsInitialized(true); // Mark as initialized for API call
         
         // Add a "connecting" message
         const connectingMessage: Message = {
-          text: "Connecting to Retell voice call...",
+          text: "Connecting to API call voice call...",
           isUser: false,
           timestamp: formatTime()
         };
@@ -998,12 +998,12 @@ function App() {
         const threadIdToUse = selectedStopId.toString();
         setThreadId(threadIdToUse);
         
-        // Immediately start the Retell call
+        // Immediately start the API call
         try {
-          await initializeRetellCall();
+          await initializeAPICall();
         } catch (error) {
-          console.error("❌ Failed to start Retell call:", error);
-          // Add error message already handled in initializeRetellCall
+          console.error("❌ Failed to start API call:", error);
+          // Add error message already handled in initializeAPICall
         }
         
         return; // Return early as we've already initiated the call
@@ -1012,9 +1012,9 @@ function App() {
       if (agentType === 'custom' && audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         setAudioStream(null);
-      } else if (agentType === 'retell' && retellClientRef.current && isRetellCallActive) {
-        retellClientRef.current.stopCall();
-        setIsRetellCallActive(false);
+      } else if (agentType === 'apicall' && apiCallClientRef.current && isAPICallActive) {
+        apiCallClientRef.current.stopCall();
+        setIsAPICallActive(false);
       }
       setIsCallMode(false);
     }
@@ -1024,8 +1024,8 @@ function App() {
       setIsRecording(false);
     }
 
-    // For Retell agent in call mode, we've already handled initialization above
-    if (agentType === 'retell' && isVoiceCall) {
+    // For API call agent in call mode, we've already handled initialization above
+    if (agentType === 'apicall' && isVoiceCall) {
       setIsBlurred(false);
       return; // Already handled above
     }
@@ -1096,23 +1096,23 @@ function App() {
     }
   };
 
-  // Handle microphone toggle for Retell separately to avoid ending call
+  // Handle microphone toggle for API call separately to avoid ending call
   const handleToggleMicrophone = () => {
-    if (agentType === 'retell') {
-      if (!isRetellCallActive) {
+    if (agentType === 'apicall') {
+      if (!isAPICallActive) {
         // If call is not active, do nothing - call is already started by handleInitializeChat
-        console.log("ℹ️ Retell call not active");
+        console.log("ℹ️ API call not active");
         return;
       } else {
         // If call is active, just toggle mic state (not stopping the call)
         const newRecordingState = !isRecording;
-        console.log(`🎤 ${newRecordingState ? 'Unmuting' : 'Muting'} microphone for Retell call`);
+        console.log(`🎤 ${newRecordingState ? 'Unmuting' : 'Muting'} microphone for API call`);
         
         // Toggle recording state for UI feedback
         setIsRecording(newRecordingState);
         
-        // In a real implementation with Retell SDK you would use:
-        // retellClientRef.current.toggleMicrophone(); (if available)
+        // In a real implementation with API call SDK you would use:
+        // apiCallClientRef.current.toggleMicrophone(); (if available)
         
         // Add a message to indicate microphone state
         const micMessage: Message = {
@@ -1151,9 +1151,9 @@ function App() {
     if (agentType === 'custom' && audioStream) {
       audioStream.getTracks().forEach(track => track.stop());
       setAudioStream(null);
-    } else if (agentType === 'retell' && retellClientRef.current && isRetellCallActive) {
-      retellClientRef.current.stopCall();
-      setIsRetellCallActive(false);
+    } else if (agentType === 'apicall' && apiCallClientRef.current && isAPICallActive) {
+      apiCallClientRef.current.stopCall();
+      setIsAPICallActive(false);
     }
 
     setMessages([]);
@@ -1169,18 +1169,18 @@ function App() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // @ts-ignore - for debugging only
-      window.retellClient = retellClientRef;
+      window.apiCallClient = apiCallClientRef;
     }
   }, []);
 
-  // Add a debug useEffect to monitor Retell states
+  // Add a debug useEffect to monitor API call states
   useEffect(() => {
-    console.log(`Retell state update - Agent type: ${agentType}, Call active: ${isRetellCallActive}, Call mode: ${isCallMode}`);
-  }, [agentType, isRetellCallActive, isCallMode]);
+    console.log(`API call state update - Agent type: ${agentType}, Call active: ${isAPICallActive}, Call mode: ${isCallMode}`);
+  }, [agentType, isAPICallActive, isCallMode]);
 
   // Add effect to log microphone state changes
   useEffect(() => {
-    if (agentType === 'retell') {
+    if (agentType === 'apicall') {
       console.log(`🎤 Microphone state changed: ${isRecording ? 'ACTIVE' : 'MUTED'}`);
     }
   }, [isRecording, agentType]);
@@ -1213,7 +1213,7 @@ function App() {
               isCallMode={isCallMode}
               audioStream={audioStream}
               onToggleCallMode={handleToggleCallMode}
-              isRecording={agentType === 'retell' ? isRetellCallActive : isRecording}
+              isRecording={agentType === 'apicall' ? isAPICallActive : isRecording}
               onToggleRecording={handleToggleMicrophone}
               conversationState={conversationState}
               agentType={agentType}

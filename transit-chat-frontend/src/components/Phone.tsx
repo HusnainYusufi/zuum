@@ -13,7 +13,7 @@ interface Message {
 type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 
 // Define agent types
-type AgentType = 'custom' | 'retell';
+type AgentType = 'custom' | 'apicall';
 
 interface PhoneProps {
   messages: Message[];
@@ -30,7 +30,7 @@ interface PhoneProps {
   isRecording?: boolean;
   onToggleRecording?: () => void;
   conversationState?: ConversationState;
-  agentType?: AgentType;
+  agentType: AgentType;
   conversationType?: string;
   setConversationType?: (type: string) => void;
   query?: string;
@@ -87,8 +87,8 @@ const Phone: React.FC<PhoneProps> = ({
 
   // Determine if the call buttons should be disabled
   const shouldDisableCallButton = () => {
-    if (agentType === 'retell') {
-      // For Retell, only disable during processing
+    if (agentType === 'apicall') {
+      // For API call, only disable during processing
       return conversationState === 'processing';
     } else {
       // For custom agent, standard rules
@@ -98,8 +98,8 @@ const Phone: React.FC<PhoneProps> = ({
 
   // Get button text/label based on agent type and state
   const getCallButtonLabel = () => {
-    if (agentType === 'retell') {
-      return isRecording ? "End Retell Call" : "Start Retell Call";
+    if (agentType === 'apicall') {
+      return isRecording ? "End API Call" : "Start API Call";
     } else {
       return isCallMode ? "Switch to Text Mode" : "Switch to Call Mode";
     }
@@ -130,7 +130,7 @@ const Phone: React.FC<PhoneProps> = ({
           </button>
           )}
           <h2>
-            {agentType === 'retell' 
+            {agentType === 'apicall' 
               ? 'API call' 
               : 'Custom Agent Chat'
             }
@@ -199,11 +199,11 @@ const Phone: React.FC<PhoneProps> = ({
             )}
             <button 
               onClick={() => onInitialize(true)}
-              className={`initialize-button voice-call-button ${agentType === 'retell' ? 'retell-single-button' : ''}`}
+              className={`initialize-button voice-call-button ${agentType === 'apicall' ? 'apicall-single-button' : ''}`}
               disabled={isBlurred}
             >
               <BiPhone size={18} style={{ marginRight: '5px' }} />
-              {agentType === 'retell' 
+              {agentType === 'apicall' 
                 ? 'Start API call' 
                 : 'Start Voice Call'
               }
