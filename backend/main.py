@@ -11,7 +11,7 @@ from init_db import init_db
 from routes import conversation_router, ui_router, retell_router, tests_router
 from dotenv import load_dotenv
 # Add database imports
-from db_models import CheckIn, Stop as StopModel, get_db
+from db_models import CheckIn, Stop as StopModel, get_db, RetellCall
 from sqlalchemy.orm import Session
 
 load_dotenv()
@@ -89,6 +89,9 @@ class CheckInResponse(BaseModel):
     stop_name: Optional[str] = None
     stop_location: Optional[str] = None
     stop_eta: Optional[str] = None
+    # Add transcript fields
+    call_id: Optional[str] = None
+    call_transcript: Optional[str] = None
 
 
 # Get all stops (basic info)
@@ -125,12 +128,15 @@ async def chat_history(stop_id: int):
 @app.get("/check-ins", response_model=List[CheckInResponse])
 async def get_check_ins(db: Session = Depends(get_db)):
     try:
-        # Query check-ins with stop information, ordered by newest first
+        # Query check-ins with stop information and retell calls, ordered by newest first
         check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).order_by(CheckIn.AI_Timestamp.desc()).all()
         
         # Transform to response model
         result = []
         for check_in in check_ins:
+            # Get the first retell call for this check-in (if any)
+            retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in.id).first()
+            
             result.append(CheckInResponse(
                 id=check_in.id,
                 stop_id=check_in.stop_id,
@@ -145,7 +151,9 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 Tags=check_in.Tags,
                 stop_name=check_in.stop.name if check_in.stop else None,
                 stop_location=check_in.stop.location if check_in.stop else None,
-                stop_eta=check_in.stop.eta if check_in.stop else None
+                stop_eta=check_in.stop.eta if check_in.stop else None,
+                call_id=retell_call.call_id if retell_call else None,
+                call_transcript=retell_call.call_transcript if retell_call else None
             ))
         
         return result
@@ -158,13 +166,17 @@ async def get_check_ins(db: Session = Depends(get_db)):
 @app.get("/check-ins/{stop_id}", response_model=List[CheckInResponse])
 async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
     try:
-        # Query check-ins for specific stop with stop information, ordered by newest first
-        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).filter(CheckIn.stop_id == stop_id).order_by(CheckIn.AI_Timestamp.desc()).all()
+        # Query ALL check-ins regardless of stop_id, ordered by newest first
+        # Note: We're ignoring the stop_id parameter and fetching all check-ins
+        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).order_by(CheckIn.AI_Timestamp.desc()).all()
         
         # Transform to response model
-        logger.info(f"Found {len(check_ins)} check-ins for stop {stop_id}")
+        logger.info(f"Found {len(check_ins)} total check-ins (ignoring stop_id filter)")
         result = []
         for check_in in check_ins:
+            # Get the first retell call for this check-in (if any)
+            retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in.id).first()
+            
             result.append(CheckInResponse(
                 id=check_in.id,
                 stop_id=check_in.stop_id,
@@ -179,7 +191,9 @@ async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
                 Tags=check_in.Tags,
                 stop_name=check_in.stop.name if check_in.stop else None,
                 stop_location=check_in.stop.location if check_in.stop else None,
-                stop_eta=check_in.stop.eta if check_in.stop else None
+                stop_eta=check_in.stop.eta if check_in.stop else None,
+                call_id=retell_call.call_id if retell_call else None,
+                call_transcript=retell_call.call_transcript if retell_call else None
             ))
         
         return result
@@ -249,7 +263,7 @@ if __name__ == "__main__":
             
             # Start ngrok tunnel with static domain
             try:
-                ngrok_domain = "trusting-dolphin-internally.ngrok-free.app"
+                ngrok_domain = "legal-bluebird-bright.ngrok-free.app"
                 logger.info(f"Attempting to establish ngrok tunnel with domain: {ngrok_domain}")
                 
                 public_url = ngrok.connect(port, hostname=ngrok_domain).public_url

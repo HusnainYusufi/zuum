@@ -100,6 +100,16 @@ class CheckIn(Base):
     # Define relationship to Stop
     stop = relationship("Stop", backref="check_ins")
 
+class RetellCall(Base):
+    __tablename__ = "retell_calls"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    check_in_id = Column(Integer, ForeignKey('check_ins.id'), index=True)
+    call_id = Column(String)
+    call_transcript = Column(Text)
+    # Define relationships
+    check_in = relationship("CheckIn", backref="retell_calls")
+    
 # Create all tables
 def create_tables():
     Base.metadata.create_all(bind=engine)

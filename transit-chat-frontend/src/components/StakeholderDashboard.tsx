@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/StakeholderDashboard.css';
-import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck, FaClipboardCheck, FaTags } from 'react-icons/fa';
+import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck, FaClipboardCheck, FaTags, FaTimes } from 'react-icons/fa';
 import { MdWarning, MdLocationOn, MdTimeline, MdChatBubble, MdPerson, MdSpeed } from 'react-icons/md';
 import { backend_url } from '../config';
 
@@ -41,6 +41,8 @@ interface CheckIn {
   stop_name?: string;
   stop_location?: string;
   stop_eta?: string;
+  call_id?: string;
+  call_transcript?: string;
 }
 
 interface StakeholderDashboardProps {
@@ -58,6 +60,9 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(Date.now());
   const [journeyState, setJourneyState] = useState<number>(0);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
+  const [showTranscriptModal, setShowTranscriptModal] = useState<boolean>(false);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number; checkInId: number | null }>({ x: 0, y: 0, checkInId: null });
 
   // Format ETA to human readable form with 12-hour clock
   const formatETA = (etaString: string): string => {
@@ -101,7 +106,8 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   // Fetch check-ins for selected stop
   const fetchCheckIns = async (stopId: number) => {
     try {
-      const response = await fetch(`${backend_url}/check-ins/${stopId}`, {
+      // Always fetch all check-ins, ignoring the stopId parameter
+      const response = await fetch(`${backend_url}/check-ins`, {
         headers: {
           'ngrok-skip-browser-warning': 'true'
         }
@@ -253,10 +259,9 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
 
   // Fetch check-ins when selected stop changes
   useEffect(() => {
-    if (selectedStop) {
-      fetchCheckIns(selectedStop.id);
-    }
-  }, [selectedStop]);
+    // Always fetch all check-ins when component mounts or refreshes
+    fetchCheckIns(0); // Pass 0 as we're fetching all check-ins
+  }, []); // Remove selectedStop dependency
 
   // Manually check for notification the first time
   useEffect(() => {
@@ -355,6 +360,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
               fetchStops();
               fetchNotifications();
               fetchJourneyState();
+              fetchCheckIns(0); // Also refresh check-ins
             }} 
             disabled={isRefreshing}
           >
@@ -461,19 +467,53 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
         </div>
 
         <div className="check-ins-section">
-          <h3><FaClipboardCheck className="section-icon" /> CHECK-INS FOR {selectedStop ? selectedStop.name.toUpperCase() : 'ALL STOPS'}</h3>
+          <h3><FaClipboardCheck className="section-icon" /> ALL CHECK-INS</h3>
           <div className="check-ins-container">
             {checkIns.length === 0 ? (
-              <p className="no-check-ins">No check-ins available{selectedStop ? ' for this stop' : ''}.</p>
+              <p className="no-check-ins">No check-ins available.</p>
             ) : (
               checkIns.map(checkIn => (
-                <div key={checkIn.id} className="check-in-card">
+                <div 
+                  key={checkIn.id} 
+                  className="check-in-card clickable"
+                  onClick={() => {
+                    if (checkIn.call_transcript) {
+                      setSelectedCheckIn(checkIn);
+                      setShowTranscriptModal(true);
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    if (checkIn.call_transcript) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMousePosition({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top,
+                        checkInId: checkIn.id
+                      });
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setMousePosition({ x: 0, y: 0, checkInId: null });
+                  }}
+                >
+                  {checkIn.call_transcript && mousePosition.checkInId === checkIn.id && (
+                    <div 
+                      className="hover-tooltip"
+                      style={{
+                        left: `${mousePosition.x + 10}px`,
+                        top: `${mousePosition.y - 30}px`
+                      }}
+                    >
+                      Click to view transcript
+                    </div>
+                  )}
                   <div className="check-in-header">
                     <div className="check-in-id-wrapper">
                       <FaClipboardCheck className="check-in-icon" />
                       <span className="check-in-id">
                         Check-in #{checkIn.id.toString().padStart(2, '0')}
                         {checkIn.load_id && ` | Load: ${checkIn.load_id}`}
+                        {checkIn.stop_name && ` | ${checkIn.stop_name}`}
                         {checkIn.AI_Timestamp && ` | ${new Date(checkIn.AI_Timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, '/')}, ${new Date(checkIn.AI_Timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`}
                       </span>
                     </div>
@@ -488,6 +528,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
                           <MdPerson /> Requires Review
                         </span>
                       )}
+                      
                     </div>
                   </div>
                   <div className="check-in-content">
@@ -600,6 +641,66 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Transcript Modal */}
+      {showTranscriptModal && selectedCheckIn && (
+        <div className="modal-overlay" onClick={() => setShowTranscriptModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <MdChatBubble className="modal-icon" />
+                Call Transcript
+              </h2>
+              <button className="modal-close" onClick={() => setShowTranscriptModal(false)}>
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-info">
+                <div className="modal-info-item">
+                  <span className="modal-info-label">Check-in ID:</span>
+                  <span className="modal-info-value">#{selectedCheckIn.id.toString().padStart(2, '0')}</span>
+                </div>
+                {selectedCheckIn.call_id && (
+                  <div className="modal-info-item">
+                    <span className="modal-info-label">Call ID:</span>
+                    <span className="modal-info-value">{selectedCheckIn.call_id}</span>
+                  </div>
+                )}
+                {selectedCheckIn.load_id && (
+                  <div className="modal-info-item">
+                    <span className="modal-info-label">Load ID:</span>
+                    <span className="modal-info-value">{selectedCheckIn.load_id}</span>
+                  </div>
+                )}
+                {selectedCheckIn.stop_name && (
+                  <div className="modal-info-item">
+                    <span className="modal-info-label">Stop:</span>
+                    <span className="modal-info-value">{selectedCheckIn.stop_name}</span>
+                  </div>
+                )}
+              </div>
+              <div className="modal-transcript">
+                {selectedCheckIn.call_transcript?.split('\n').map((line, index) => {
+                  const isAgent = line.startsWith('Agent:');
+                  const isUser = line.startsWith('User:');
+                  // Remove the prefix from the line
+                  const cleanLine = isAgent ? line.replace('Agent:', '').trim() : 
+                                   isUser ? line.replace('User:', '').trim() : 
+                                   line.trim();
+                  return (
+                    <div key={index} className={`transcript-line-wrapper ${isAgent ? 'agent-wrapper' : isUser ? 'user-wrapper' : ''}`}>
+                      <div className={`transcript-line ${isAgent ? 'agent' : isUser ? 'user' : ''}`}>
+                        {cleanLine}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

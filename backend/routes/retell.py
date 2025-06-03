@@ -27,6 +27,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 from pathlib import Path
 import os
+from db_models import RetellCall
 
 class ChangeStateRequest(BaseModel):
     state: int
@@ -312,8 +313,17 @@ def check_in(request: dict = Body(...)):
         requires_human_review = False
         tags = None
         load_id = None
+        call_id = None
+        transcript = None
         
         if isinstance(request, dict):
+            # Extract call_id and transcript from the call object
+            if 'call' in request:
+                if 'call_id' in request['call']:
+                    call_id = request['call']['call_id']
+                if 'transcript' in request['call']:
+                    transcript = request['call']['transcript']
+                    
             # Try to get stop_id, query, and load_number from call.retell_llm_dynamic_variables if it exists
             if 'call' in request and 'retell_llm_dynamic_variables' in request['call']:
                 if 'stop_id' in request['call']['retell_llm_dynamic_variables']:
@@ -429,10 +439,25 @@ def check_in(request: dict = Body(...)):
         db.add(check_in_record)
         db.commit()
         
+        # Refresh the check_in_record to get the generated ID
+        db.refresh(check_in_record)
+        
+        # Store the RetellCall record if we have call_id and transcript
+        if call_id and transcript:
+            retell_call_record = RetellCall(
+                check_in_id=check_in_record.id,
+                call_id=call_id,
+                call_transcript=transcript
+            )
+            db.add(retell_call_record)
+            db.commit()
+            logger.info(f"Stored RetellCall: check_in_id={check_in_record.id}, call_id={call_id}")
+        
         logger.info(f"Stored check-in: stop_id={stop_id}, load_id={load_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}', issue_flagged={issue_flagged}, exception_type='{exception_type}', confidence_score='{call_confidence_score}', requires_review={requires_human_review}, tags='{tags}'")
         
         return {
             'message': 'Check-in stored successfully',
+            'check_in_id': check_in_record.id
         }
     
     except SQLAlchemyError as e:
