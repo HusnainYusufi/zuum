@@ -266,8 +266,9 @@ if __name__ == "__main__":
             
             # Start ngrok tunnel with static domain
             try:
-                # ngrok_domain = "https://trusting-dolphin-internally.ngrok-free.app"
-                ngrok_domain = "https://endless-optimum-cobra.ngrok-free.app"
+
+                ngrok_domain = os.getenv("BACKEND_ngrok_LINK")
+
                 logger.info(f"Attempting to establish ngrok tunnel with domain: {ngrok_domain}")
                 
                 public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
