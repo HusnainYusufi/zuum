@@ -215,7 +215,7 @@ const Phone: React.FC<PhoneProps> = ({
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`message ${message.isUser ? 'user-message' : 'bot-message'}`}
+              className={`message ${message.isUser ? 'user-message' : 'bot-message agent-wrapper'}`}
             >
               <div className="message-content">
                 <p>{message.text}</p>

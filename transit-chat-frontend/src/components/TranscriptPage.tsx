@@ -126,11 +126,41 @@ const TranscriptPage: React.FC<TranscriptPageProps> = ({ isDarkMode, checkIn, on
                 checkIn.call_transcript
                   .split('\n')
                   .map((line, index) => {
-                    const isAgent = line.startsWith('Agent:');
-                    const isUser = line.startsWith('User:');
-                    const cleanLine = isAgent ? line.replace('Agent:', '').trim() : 
-                                     isUser ? line.replace('User:', '').trim() : 
-                                     line.trim();
+                    // More flexible parsing to handle different transcript formats
+                    const isAgent = line.startsWith('Agent:') || 
+                                   line.startsWith('AI:') || 
+                                   line.startsWith('AGENT:') || 
+                                   line.startsWith('Assistant:') ||
+                                   line.startsWith('Bot:');
+                    const isUser = line.startsWith('User:') || 
+                                  line.startsWith('USER:') || 
+                                  line.startsWith('Driver:') || 
+                                  line.startsWith('DRIVER:') ||
+                                  line.startsWith('Human:');
+                    
+                    let cleanLine = line.trim();
+                    
+                    // Remove common prefixes
+                    if (isAgent) {
+                      cleanLine = line.replace(/^(Agent:|AI:|AGENT:|Assistant:|Bot:)\s*/i, '').trim();
+                    } else if (isUser) {
+                      cleanLine = line.replace(/^(User:|USER:|Driver:|DRIVER:|Human:)\s*/i, '').trim();
+                    }
+                    
+                    // If line doesn't have a clear prefix but has content, 
+                    // try to determine speaker based on context or assume it's an agent message
+                    // This is a fallback for transcripts without clear prefixes
+                    if (!isAgent && !isUser && cleanLine) {
+                      // For now, assume unprefixed messages are from the agent
+                      // You can adjust this logic based on your specific transcript format
+                      return {
+                        originalIndex: index,
+                        isAgent: true,
+                        isUser: false,
+                        cleanLine,
+                        hasContent: !!cleanLine
+                      };
+                    }
                     
                     return {
                       originalIndex: index,
