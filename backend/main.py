@@ -92,6 +92,7 @@ class CheckInResponse(BaseModel):
     # Add transcript fields
     call_id: Optional[str] = None
     call_transcript: Optional[str] = None
+    recording_url: Optional[str] = None
 
 
 # Get all stops (basic info)
@@ -153,9 +154,10 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 stop_location=check_in.stop.location if check_in.stop else None,
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
-                call_transcript=retell_call.call_transcript if retell_call else None
+                call_transcript=retell_call.call_transcript if retell_call else None,
+                recording_url=retell_call.recording_url if retell_call else None
             ))
-        
+        print(result)
         return result
     except Exception as e:
         logger.error(f"Error in check-ins endpoint: {str(e)}")
@@ -193,7 +195,8 @@ async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
                 stop_location=check_in.stop.location if check_in.stop else None,
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
-                call_transcript=retell_call.call_transcript if retell_call else None
+                call_transcript=retell_call.call_transcript if retell_call else None,
+                recording_url=check_in.Recording_URL
             ))
         
         return result
@@ -263,10 +266,12 @@ if __name__ == "__main__":
             
             # Start ngrok tunnel with static domain
             try:
-                ngrok_domain = "https://trusting-dolphin-internally.ngrok-free.app"
+                # ngrok_domain = "https://trusting-dolphin-internally.ngrok-free.app"
+                ngrok_domain = "https://endless-optimum-cobra.ngrok-free.app"
                 logger.info(f"Attempting to establish ngrok tunnel with domain: {ngrok_domain}")
                 
                 public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
+                # public_url = ngrok.connect(port).public_url
                 logger.info(f"✅ Ngrok tunnel established successfully at {public_url}")
                 
                 # Log ngrok admin interface
@@ -295,6 +300,3 @@ if __name__ == "__main__":
     # Start FastAPI application - use 0.0.0.0 for Docker compatibility
     logger.info(f"🚀 Starting FastAPI server on http://0.0.0.0:{port}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
-
-
-
