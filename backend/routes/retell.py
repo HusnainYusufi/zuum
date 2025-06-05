@@ -315,6 +315,7 @@ def check_in(request: dict = Body(...)):
         load_id = None
         call_id = None
         transcript = None
+        miles = None
         
         if isinstance(request, dict):
             # Extract call_id and transcript from the call object
@@ -340,6 +341,10 @@ def check_in(request: dict = Body(...)):
                     load_id = request['call']['retell_llm_dynamic_variables']['load_number']
                 elif 'load_id' in request['call']['retell_llm_dynamic_variables']:
                     load_id = request['call']['retell_llm_dynamic_variables']['load_id']
+                
+                # Extract miles if available
+                if 'miles' in request['call']['retell_llm_dynamic_variables']:
+                    miles = request['call']['retell_llm_dynamic_variables']['miles']
             
             # Handle args format (most common in tool call invocations)
             if 'args' in request and isinstance(request['args'], dict):
@@ -366,6 +371,8 @@ def check_in(request: dict = Body(...)):
                     load_id = args['load_id']
                 elif 'load_number' in args:
                     load_id = args['load_number']
+                if 'miles' in args:
+                    miles = args['miles']
             
             # Handle name/args format for tool calls
             elif 'name' in request and request['name'] == 'update_checkIn' and 'args' in request:
@@ -392,6 +399,8 @@ def check_in(request: dict = Body(...)):
                     load_id = args['load_id']
                 elif 'load_number' in args:
                     load_id = args['load_number']
+                if 'miles' in args:
+                    miles = args['miles']
             
             # Handle direct format
             elif 'chat_summary' in request:
@@ -414,6 +423,8 @@ def check_in(request: dict = Body(...)):
                     load_id = request['load_id']
                 elif 'load_number' in request:
                     load_id = request['load_number']
+                if 'miles' in request:
+                    miles = request['miles']
         
         # Default stop_id if not provided
         if stop_id is None:
@@ -433,7 +444,8 @@ def check_in(request: dict = Body(...)):
             Exception_Type=exception_type,
             Call_confidence_score=call_confidence_score,
             Requires_Human_Review=requires_human_review,
-            Tags=tags
+            Tags=tags,
+            miles=miles
         )
         
         db.add(check_in_record)
@@ -453,7 +465,7 @@ def check_in(request: dict = Body(...)):
             db.commit()
             logger.info(f"Stored RetellCall: check_in_id={check_in_record.id}, call_id={call_id}")
         
-        logger.info(f"Stored check-in: stop_id={stop_id}, load_id={load_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}', issue_flagged={issue_flagged}, exception_type='{exception_type}', confidence_score='{call_confidence_score}', requires_review={requires_human_review}, tags='{tags}'")
+        logger.info(f"Stored check-in: stop_id={stop_id}, load_id={load_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}', issue_flagged={issue_flagged}, exception_type='{exception_type}', confidence_score='{call_confidence_score}', requires_review={requires_human_review}, tags='{tags}', miles='{miles}'")
         
         return {
             'message': 'Check-in stored successfully',
@@ -468,4 +480,38 @@ def check_in(request: dict = Body(...)):
     except Exception as e:
         logger.error(f"Unexpected error in update_checkIn: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
+@router.post("/webhook/call-ended")
+async def retell_recording_webhook(request: dict = Body(...)):
+    """Handle Retell webhook events, specifically call_ended events."""
+    try:
+        # logger.info(f"Received Retell webhook: {request}")
+        
+        # Check if this is a call_ended event
+        if request.get("event") == "call_ended":
+            call_data = request.get("call", {})
+            
+            # Extract call_id and recording_url
+            call_id = call_data.get("call_id")
+            recording_url = call_data.get("recording_url")
+            
+            logger.info(f"Call ended - Call ID: {call_id}, Recording URL: {recording_url}")
+            
+            # Find the RetellCall record with this call_id and update it
+            if call_id:
+                retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+                if retell_call:
+                    retell_call.recording_url = recording_url
+                    db.commit()
+                    logger.info(f"Updated RetellCall with recording_url: {recording_url}")
+                else:
+                    logger.warning(f"No RetellCall found with call_id: {call_id}")
+            
+            return {"status": "success", "message": "Webhook processed successfully"}
+        
+        return {"status": "ignored", "message": "Not a call_ended event"}
+        
+    except Exception as e:
+        logger.error(f"Error processing Retell webhook: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 

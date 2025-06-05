@@ -43,6 +43,7 @@ interface CheckIn {
   stop_eta?: string;
   call_id?: string;
   call_transcript?: string;
+  recording_url?: string;
 }
 
 interface StakeholderDashboardProps {
@@ -566,6 +567,19 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
                           <span>AI SUMMARY:</span>
                         </div>
                         <div className="field-value">{checkIn.AI_Response_Summary}</div>
+                      </div>
+                    )}
+                    {checkIn.recording_url && (
+                      <div className="check-in-field">
+                        <div className="field-label">
+                          <MdPerson className="content-icon" />
+                          <span>RECORDING:</span>
+                        </div>
+                        <div className="field-value">
+                          <audio controls src={checkIn.recording_url} style={{ width: '100%' }}>
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
                       </div>
                     )}
                     <div className="check-in-field">

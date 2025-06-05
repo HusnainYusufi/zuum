@@ -1706,4 +1706,13 @@
 
 .dashboard-container:not(.dark-mode) .check-ins-section::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
+}
+
+.check-in-field audio {
+  height: 28px;
+  min-height: 28px;
+  max-width: 260px;
+  margin: 0;
+  align-self: center;
+  vertical-align: middle;
 } 
