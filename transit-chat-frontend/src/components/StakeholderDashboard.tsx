@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/StakeholderDashboard.css';
 import { FaBell, FaMapMarkerAlt, FaClock, FaRoute, FaExclamationTriangle, FaCheck, FaRoad, FaSync, FaLocationArrow, FaCompass, FaTruck, FaClipboardCheck, FaTags, FaTimes } from 'react-icons/fa';
 import { MdWarning, MdLocationOn, MdTimeline, MdChatBubble, MdPerson, MdSpeed } from 'react-icons/md';
@@ -47,9 +48,11 @@ interface CheckIn {
 
 interface StakeholderDashboardProps {
   isDarkMode: boolean;
+  onViewCheckIns?: () => void;
 }
 
-const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode }) => {
+const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode, onViewCheckIns }) => {
+  const navigate = useNavigate();
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -60,8 +63,6 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(Date.now());
   const [journeyState, setJourneyState] = useState<number>(0);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
-  const [showTranscriptModal, setShowTranscriptModal] = useState<boolean>(false);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number; checkInId: number | null }>({ x: 0, y: 0, checkInId: null });
 
   // Format ETA to human readable form with 12-hour clock
@@ -331,6 +332,8 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
     ));
   };
 
+
+
   // Delivery status steps
   const deliverySteps = [
     { title: "Confirmed", isActive: journeyState >= 0 },
@@ -411,54 +414,89 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
               <h2><FaMapMarkerAlt className="detail-title-icon" /> {selectedStop.name}</h2>
               
               <div className="detail-cards">
-                <div className="detail-card">
-                  <h3><MdLocationOn className="card-icon" /> Location Status</h3>
-                  <div className="detail-item">
-                    <span className="detail-label">Expected Location</span>
-                    <span className="detail-value">{selectedStop.expected_location}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Driver Location</span>
-                    <span className="detail-value">{selectedStop.reported_location}</span>
-                  </div>
-                  <div className="detail-status">
-                    {selectedStop.expected_location.toLowerCase().split(',')[0].includes(selectedStop.reported_location.toLowerCase().split(',')[0]) ? (
-                      <span className="status-ok"><FaCheck /> On Track</span>
-                    ) : (
-                      <span className="status-warning"><FaExclamationTriangle /> Off Route</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="detail-card">
-                  <h3><FaClock className="card-icon" /> Schedule Info</h3>
-                  <div className="detail-item">
-                    <span className="detail-label">Estimated Arrival</span>
-                    <span className="detail-value">{formatETA(selectedStop.eta)}</span>
-                  </div>
-                  {selectedStop.is_delayed && (
-                    <div className="detail-item">
-                      <span className="detail-label">Delay Reason</span>
-                      <span className="detail-value">{selectedStop.delay_reason || 'Not specified'}</span>
+                {/* Combined Location & Status Card */}
+                <div className="detail-card location-card">
+                  <div className="card-header">
+                    <h3><MdLocationOn className="card-icon" /> Live Tracking</h3>
+                    <div className="location-status-badge">
+                      {selectedStop.expected_location.toLowerCase().split(',')[0].includes(selectedStop.reported_location.toLowerCase().split(',')[0]) ? (
+                        <span className="status-ok"><FaCheck /> On Track</span>
+                      ) : (
+                        <span className="status-warning"><FaExclamationTriangle /> Off Route</span>
+                      )}
                     </div>
-                  )}
-                  <div className="detail-status">
-                    {selectedStop.is_delayed ? (
-                      <span className="status-warning"><FaExclamationTriangle /> Delayed</span>
-                    ) : (
-                      <span className="status-ok"><FaCheck /> On Time</span>
-                    )}
+                  </div>
+                  <div className="location-grid">
+                    <div className="location-info">
+                      <div className="location-item expected">
+                        <FaLocationArrow className="location-icon" />
+                        <div>
+                          <span className="location-label">Expected</span>
+                          <span className="location-value">{selectedStop.expected_location}</span>
+                        </div>
+                      </div>
+                      <div className="location-item current">
+                        <FaTruck className="location-icon" />
+                        <div>
+                          <span className="location-label">Current</span>
+                          <span className="location-value">{selectedStop.reported_location}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="route-info">
+                      <FaRoad className="route-icon" />
+                      <div>
+                        <span className="route-label">Highway</span>
+                        <span className="route-value">{selectedStop.nearest_highway || 'Not Available'}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="detail-card">
-                  <h3><FaRoad className="card-icon" /> Navigation Details</h3>
-                  <div className="detail-item">
-                    <span className="detail-label">Nearest Highway</span>
-                    <span className="detail-value">{selectedStop.nearest_highway || 'Not Available'}</span>
+                {/* Schedule & Timing Card */}
+                <div className="detail-card schedule-card">
+                  <div className="card-header">
+                    <h3><FaClock className="card-icon" /> Schedule Status</h3>
+                    <div className="schedule-status-badge">
+                      {selectedStop.is_delayed ? (
+                        <span className="status-warning"><FaExclamationTriangle /> Delayed</span>
+                      ) : (
+                        <span className="status-ok"><FaCheck /> On Time</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="detail-status">
-                    <span className="status-info"><FaCompass /> Transit Route</span>
+                  <div className="schedule-grid">
+                    <div className="eta-info">
+                      <div className="eta-main">
+                        <MdSpeed className="eta-icon" />
+                        <div>
+                          <span className="eta-label">Estimated Arrival</span>
+                          <span className="eta-value">{formatETA(selectedStop.eta)}</span>
+                        </div>
+                      </div>
+                      {selectedStop.is_delayed && (
+                        <div className="delay-info">
+                          <MdWarning className="delay-icon" />
+                          <div>
+                            <span className="delay-label">Delay Reason</span>
+                            <span className="delay-value">{selectedStop.delay_reason || 'Not specified'}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="timing-summary">
+                      <div className="timing-indicator">
+                        {selectedStop.is_delayed ? (
+                          <div className="delay-indicator-visual">
+                            <span className="delay-time">+{selectedStop.delay_reason ? '15' : '?'} min</span>
+                          </div>
+                        ) : (
+                          <div className="ontime-indicator-visual">
+                            <span className="ontime-text">On Schedule</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -475,141 +513,29 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
               checkIns.map(checkIn => (
                 <div 
                   key={checkIn.id} 
-                  className="check-in-card clickable"
-                  onClick={() => {
-                    if (checkIn.call_transcript) {
-                      setSelectedCheckIn(checkIn);
-                      setShowTranscriptModal(true);
-                    }
-                  }}
-                  onMouseMove={(e) => {
-                    if (checkIn.call_transcript) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setMousePosition({
-                        x: e.clientX - rect.left,
-                        y: e.clientY - rect.top,
-                        checkInId: checkIn.id
-                      });
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    setMousePosition({ x: 0, y: 0, checkInId: null });
-                  }}
+                  className="check-in-card"
                 >
-                  {checkIn.call_transcript && mousePosition.checkInId === checkIn.id && (
-                    <div 
-                      className="hover-tooltip"
-                      style={{
-                        left: `${mousePosition.x + 10}px`,
-                        top: `${mousePosition.y - 30}px`
-                      }}
-                    >
-                      Click to view transcript
-                    </div>
-                  )}
                   <div className="check-in-header">
                     <div className="check-in-id-wrapper">
                       <FaClipboardCheck className="check-in-icon" />
-                      <span className="check-in-id">
-                        Check-in #{checkIn.id.toString().padStart(2, '0')}
-                        {checkIn.load_id && ` | Load: ${checkIn.load_id}`}
-                        {checkIn.stop_name && ` | ${checkIn.stop_name}`}
+                      <span 
+                        className="check-in-id clickable-link"
+                        onClick={() => navigate(`/transcript/${checkIn.id}`)}
+                      >
+                        CHECK-IN #{checkIn.id.toString().padStart(2, '0')}
                         {checkIn.AI_Timestamp && ` | ${new Date(checkIn.AI_Timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, '/')}, ${new Date(checkIn.AI_Timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}`}
                       </span>
                     </div>
                     <div className="check-in-status">
                       {checkIn.Issue_Flagged && (
-                        <span className="status-badge issue-flagged">
-                          <FaExclamationTriangle /> Issue Flagged
-                        </span>
-                      )}
-                      {checkIn.Requires_Human_Review && (
-                        <span className="status-badge requires-review">
-                          <MdPerson /> Requires Review
+                        <span className="status-badge issue-flagged" title="Issue Flagged">
+                          ⚠️
                         </span>
                       )}
                       
                     </div>
                   </div>
-                  <div className="check-in-content">
-                    {checkIn.stop_location && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <MdLocationOn className="content-icon" />
-                          <span>LOCATION:</span>
-                        </div>
-                        <div className="field-value">{checkIn.stop_location}</div>
-                      </div>
-                    )}
-                    {checkIn.stop_eta && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <FaClock className="content-icon" />
-                          <span>ETA:</span>
-                        </div>
-                        <div className="field-value">{formatETA(checkIn.stop_eta)}</div>
-                      </div>
-                    )}
-                    {checkIn.query && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <MdChatBubble className="content-icon" />
-                          <span>QUERY:</span>
-                        </div>
-                        <div className="field-value">{checkIn.query}</div>
-                      </div>
-                    )}
-                    {checkIn.AI_Response_Summary && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <MdPerson className="content-icon" />
-                          <span>AI SUMMARY:</span>
-                        </div>
-                        <div className="field-value">{checkIn.AI_Response_Summary}</div>
-                      </div>
-                    )}
-                    <div className="check-in-field">
-                      <div className="field-label">
-                        <FaExclamationTriangle className="content-icon" />
-                        <span>ISSUE FLAGGED:</span>
-                      </div>
-                      <div className="field-value">{checkIn.Issue_Flagged ? 'Yes' : 'No'}</div>
-                    </div>
-                    <div className="check-in-field">
-                      <div className="field-label">
-                        <MdPerson className="content-icon" />
-                        <span>HUMAN REVIEW:</span>
-                      </div>
-                      <div className="field-value">{checkIn.Requires_Human_Review ? 'Yes' : 'No'}</div>
-                    </div>
-                    {checkIn.Exception_Type && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <FaExclamationTriangle className="content-icon" />
-                          <span>EXCEPTION TYPE:</span>
-                        </div>
-                        <div className="field-value">{checkIn.Exception_Type}</div>
-                      </div>
-                    )}
-                    {checkIn.Call_confidence_score && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <MdSpeed className="content-icon" />
-                          <span>CONFIDENCE SCORE:</span>
-                        </div>
-                        <div className="field-value">{checkIn.Call_confidence_score}%</div>
-                      </div>
-                    )}
-                    {checkIn.Tags && (
-                      <div className="check-in-field">
-                        <div className="field-label">
-                          <FaTags className="content-icon" />
-                          <span>TAGS:</span>
-                        </div>
-                        <div className="field-value">{checkIn.Tags}</div>
-                      </div>
-                    )}
-                  </div>
+
                 </div>
               ))
             )}
@@ -645,65 +571,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode 
         </div>
       )}
 
-      {/* Transcript Modal */}
-      {showTranscriptModal && selectedCheckIn && (
-        <div className="modal-overlay" onClick={() => setShowTranscriptModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <MdChatBubble className="modal-icon" />
-                Call Transcript
-              </h2>
-              <button className="modal-close" onClick={() => setShowTranscriptModal(false)}>
-                <FaTimes />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="modal-info">
-                <div className="modal-info-item">
-                  <span className="modal-info-label">Check-in ID:</span>
-                  <span className="modal-info-value">#{selectedCheckIn.id.toString().padStart(2, '0')}</span>
-                </div>
-                {selectedCheckIn.call_id && (
-                  <div className="modal-info-item">
-                    <span className="modal-info-label">Call ID:</span>
-                    <span className="modal-info-value">{selectedCheckIn.call_id}</span>
-                  </div>
-                )}
-                {selectedCheckIn.load_id && (
-                  <div className="modal-info-item">
-                    <span className="modal-info-label">Load ID:</span>
-                    <span className="modal-info-value">{selectedCheckIn.load_id}</span>
-                  </div>
-                )}
-                {selectedCheckIn.stop_name && (
-                  <div className="modal-info-item">
-                    <span className="modal-info-label">Stop:</span>
-                    <span className="modal-info-value">{selectedCheckIn.stop_name}</span>
-                  </div>
-                )}
-              </div>
-              <div className="modal-transcript">
-                {selectedCheckIn.call_transcript?.split('\n').map((line, index) => {
-                  const isAgent = line.startsWith('Agent:');
-                  const isUser = line.startsWith('User:');
-                  // Remove the prefix from the line
-                  const cleanLine = isAgent ? line.replace('Agent:', '').trim() : 
-                                   isUser ? line.replace('User:', '').trim() : 
-                                   line.trim();
-                  return (
-                    <div key={index} className={`transcript-line-wrapper ${isAgent ? 'agent-wrapper' : isUser ? 'user-wrapper' : ''}`}>
-                      <div className={`transcript-line ${isAgent ? 'agent' : isUser ? 'user' : ''}`}>
-                        {cleanLine}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };
