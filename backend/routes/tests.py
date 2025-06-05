@@ -34,9 +34,11 @@ async def run_all_tests():
             "results": test_results
         }
     except Exception as e:
+        import traceback
         return {
             "status": "error",
             "error": str(e),
+            "traceback": traceback.format_exc(),
             "results": {}
         }
 

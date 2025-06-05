@@ -1,0 +1,103 @@
+{
+    "conversations": [
+        {
+            "thread_id": "destination_thread_1",
+            "messages": [
+                {
+                    "role": "broker",
+                    "content": "Good morning Samson, can you provide your load number?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "it is lb_201"
+                },
+                {
+                    "role": "broker",
+                    "content": "Are you unloaded?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "Yes, just finished unloading in Grand Prairie"
+                },
+                {
+                    "role": "broker",
+                    "content": "Great! Have you signed the POD?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "Yes, I've signed and submitted the POD"
+                },
+                {
+                    "role": "broker",
+                    "content": "Perfect! Thanks brother. Have a safe trip!"
+                }
+            ]
+        },
+        {
+            "thread_id": "destination_thread_2",
+            "messages": [
+                {
+                    "role": "broker",
+                    "content": "Hi, can you provide your load number?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "it is lb_201"
+                },
+                {
+                    "role": "broker",
+                    "content": "Have you arrived at the destination in Wentzville, Missouri?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "Yes, I'm here at the facility"
+                },
+                {
+                    "role": "broker",
+                    "content": "Have you completed the POD signing?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "Yes, all paperwork is signed and submitted"
+                },
+                {
+                    "role": "broker",
+                    "content": "Thank you for the update. Drive safely!"
+                }
+            ]
+        },
+        {
+            "thread_id": "destination_thread_3",
+            "messages": [
+                {
+                    "role": "broker",
+                    "content": "Good morning, can you provide your load number?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "it is lb_201"
+                },
+                {
+                    "role": "broker",
+                    "content": "Are you already done in Taylor?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "Yes, just finished unloading"
+                },
+                {
+                    "role": "broker",
+                    "content": "Did you get the POD signed?"
+                },
+                {
+                    "role": "trucker",
+                    "content": "Yes, POD is signed and completed"
+                },
+                {
+                    "role": "broker",
+                    "content": "Perfect! Thanks for your help. Have a safe journey!"
+                }
+            ]
+        }
+    ]
+} 
