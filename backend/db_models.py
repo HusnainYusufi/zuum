@@ -97,6 +97,7 @@ class CheckIn(Base):
     Call_confidence_score = Column(String)
     Requires_Human_Review = Column(Boolean, default=False)
     Tags = Column(String)
+    miles = Column(String)  # Add miles field
     # Define relationship to Stop
     stop = relationship("Stop", backref="check_ins")
 
@@ -107,6 +108,7 @@ class RetellCall(Base):
     check_in_id = Column(Integer, ForeignKey('check_ins.id'), index=True)
     call_id = Column(String)
     call_transcript = Column(Text)
+    recording_url = Column(String)
     # Define relationships
     check_in = relationship("CheckIn", backref="retell_calls")
     

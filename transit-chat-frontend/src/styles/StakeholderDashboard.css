@@ -2272,3 +2272,12 @@
   display: block;
   font-size: 11px;
 }
+
+.check-in-field audio {
+  height: 28px;
+  min-height: 28px;
+  max-width: 260px;
+  margin: 0;
+  align-self: center;
+  vertical-align: middle;
+} 

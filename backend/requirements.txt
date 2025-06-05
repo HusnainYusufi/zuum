@@ -8,3 +8,5 @@ rouge-score
 sentence-transformers
 scikit-learn
 pyngrok
+sentence-transformers 
+rouge-score
