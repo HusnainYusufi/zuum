@@ -123,23 +123,34 @@ const TranscriptPage: React.FC<TranscriptPageProps> = ({ isDarkMode, checkIn, on
             </h3>
             <div className="transcript-content">
               {checkIn.call_transcript ? (
-                checkIn.call_transcript.split('\n').map((line, index) => {
-                  const isAgent = line.startsWith('Agent:');
-                  const isUser = line.startsWith('User:');
-                  const cleanLine = isAgent ? line.replace('Agent:', '').trim() : 
-                                   isUser ? line.replace('User:', '').trim() : 
-                                   line.trim();
-                  
-                  if (!cleanLine) return null;
-                  
-                  return (
-                    <div key={index} className={`transcript-line-wrapper ${isAgent ? 'agent-wrapper' : isUser ? 'user-wrapper' : ''}`}>
-                      <div className={`transcript-line ${isAgent ? 'agent' : isUser ? 'user' : ''}`}>
-                        {cleanLine}
+                checkIn.call_transcript
+                  .split('\n')
+                  .map((line, index) => {
+                    const isAgent = line.startsWith('Agent:');
+                    const isUser = line.startsWith('User:');
+                    const cleanLine = isAgent ? line.replace('Agent:', '').trim() : 
+                                     isUser ? line.replace('User:', '').trim() : 
+                                     line.trim();
+                    
+                    return {
+                      originalIndex: index,
+                      isAgent,
+                      isUser,
+                      cleanLine,
+                      hasContent: !!cleanLine
+                    };
+                  })
+                  .filter(item => item.hasContent)
+                  .map((item, filteredIndex) => (
+                    <div 
+                      key={`message-${item.originalIndex}-${filteredIndex}`} 
+                      className={`transcript-line-wrapper ${item.isAgent ? 'agent-wrapper' : item.isUser ? 'user-wrapper' : ''}`}
+                    >
+                      <div className={`transcript-line ${item.isAgent ? 'agent' : item.isUser ? 'user' : ''}`}>
+                        {item.cleanLine}
                       </div>
                     </div>
-                  );
-                })
+                  ))
               ) : (
                 <div className="no-transcript">
                   <MdChatBubble className="empty-icon" />

@@ -242,6 +242,8 @@
   border-radius: 18px;
   position: relative;
   margin-top: 24px;
+  display: flex;
+  width: 100%;
 }
 
 .transcript-page.dark-mode .transcript-line-wrapper {
@@ -301,6 +303,7 @@
   margin-left: 0;
   margin-right: auto;
   box-shadow: none;
+  justify-content: flex-start;
 }
 
 .transcript-line-wrapper.agent-wrapper * {
@@ -327,6 +330,7 @@
   margin-left: auto;
   margin-right: 0;
   box-shadow: none;
+  justify-content: flex-end;
 }
 
 .transcript-line-wrapper.user-wrapper * {
@@ -366,6 +370,9 @@
   background: #3b82f6 !important;
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
   margin-top: 0px !important;
+  display: block;
+  width: auto;
+  max-width: 100%;
 }
 
 .transcript-page.dark-mode .transcript-line-wrapper.agent-wrapper .transcript-line {
@@ -373,6 +380,9 @@
   font-weight: 500;
   background: #1d4ed8 !important;
   box-shadow: 0 2px 8px rgba(29, 78, 216, 0.4);
+  display: block;
+  width: auto;
+  max-width: 100%;
 }
 
 .transcript-line-wrapper.user-wrapper .transcript-line {
@@ -380,6 +390,9 @@
   font-weight: 500;
   background: #e5e7eb !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: block;
+  width: auto;
+  max-width: 100%;
 }
 
 .transcript-page.dark-mode .transcript-line-wrapper.user-wrapper .transcript-line {
@@ -387,6 +400,9 @@
   font-weight: 500;
   background: #374151 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: block;
+  width: auto;
+  max-width: 100%;
 }
 
 .no-transcript {
