@@ -1,1 +1,1 @@
-export const backend_url = "https://trusting-dolphin-internally.ngrok-free.app";
+export const backend_url = process.env.BACKEND_ngrok_LINK || "http://localhost:8000";
