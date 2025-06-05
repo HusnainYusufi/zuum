@@ -1,7 +1,11 @@
 import os
 import sys
+import json
 from datetime import datetime
 from pathlib import Path
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from rouge_score import rouge_scorer
 
 # Add the backend directory to Python path
 current_dir = Path(__file__).parent
@@ -10,126 +14,222 @@ if str(backend_dir) not in sys.path:
     sys.path.append(str(backend_dir))
 
 from services.langrapghs.origin_langraph import origin_langgraph_service
+from langgraph.types import Command
 from llm_config import llm
 from langchain_core.messages import SystemMessage, HumanMessage
-from langsmith import evaluate, Client
 
+# Initialize models
+model = SentenceTransformer('all-MiniLM-L6-v2')
+rouge = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-# examples = [
-#     # First message (bot greeting)
-#     {
-#         "inputs": {"stop_id": 1},  # Empty user input for first message
-#         "outputs": {"output": "Hey, just checking—are we confirmed for the pickup at Las Vegas, NV"}  # Expected bot response
-#     },
-#     # Second turn (carrier confirmation)
-#     {
-#         "inputs": {"input": "Yes, I have"},  # Carrier response
-#         "outputs": {"output": "Great! Did you pickup the load?"}  # Expected bot response
-#     },
-#     # Third turn (load picked)
-#     {
-#         "inputs": {"input": "Yes, the load is ready for pickup"},
-#         "outputs": {"output": "Perfect! Have you started your journey yet?"}
-#     },
-#     # Fourth turn (journey started)
-#     {
-#         "inputs": {"input": "Yes, I'm on my way to the pickup location"},
-#         "outputs": {"output": "Thanks for confirming everything. Have a safe journey!"}
-#     }
-# ]
+def get_embedding(text: str) -> np.ndarray:
+    """Get the embedding vector for a given text."""
+    return model.encode(text)
 
-# client = Client()
-# dataset = client.create_dataset("origin-conversation-flow")
-# client.create_examples(
-#     dataset_id=dataset.id,
-#     examples=examples
-# )
+def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
+    """Calculate cosine similarity between two vectors."""
+    return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
+def get_rouge_scores(expected: str, actual: str) -> dict:
+    """Calculate Rouge scores between two texts."""
+    scores = rouge.score(expected, actual)
+    return {
+        'rouge1': scores['rouge1'].fmeasure,
+        'rouge2': scores['rouge2'].fmeasure,
+        'rougeL': scores['rougeL'].fmeasure
+    }
 
+def compare_messages(expected: str, actual: str) -> tuple:
+    """Compare messages using meaning, cosine similarity, and Rouge scores."""
+    # Get meaning comparison
+    prompt = f"""You are a message comparison expert. Your task is to determine if two messages are conveying the same core meaning or intent, even if they use different words.
 
+Focus on the main purpose of the message, not minor details. For example:
+- If both messages are asking for carrier confirmation or asking if they are ready for pickup, they're the same regardless if one of them is asking for confirmation and the other is asking if they are ready for pickup, or if one is asking for extra information 
+- If both messages are asking if the load is ready, they're the same
+- If both messages are asking if the journey has started or if they are on the road or dispatched, they're the same
+- If both messages are farewell/goodbye messages, they're the same
 
-#    # Define expected responses for each turn
-# datasets = {
-#         'carrier_confirmation': "ds-carrier-confirmation",
-#         'load_picked': "ds-load-picked",
-#         'journey_started': "ds-journey-started",
-#         'goodbye': "ds-goodbye"
-#     }
+Expected message: "{expected}"
+Actual message: "{actual}"
+
+Are these messages conveying the same core meaning/intent? Answer with only 'yes' or 'no'."""
+
+    response = llm.invoke([SystemMessage(content=prompt)])
+    meaning_match = response.content.strip().lower() == 'yes'
+    
+    # Get cosine similarity
+    expected_embedding = get_embedding(expected)
+    actual_embedding = get_embedding(actual)
+    cos_sim = float(cosine_similarity(expected_embedding, actual_embedding))
+    
+    # Get Rouge scores
+    rouge_scores = get_rouge_scores(expected, actual)
+    
+    # Calculate combined score (weighted average)
+    combined_score = float(
+        0.4 * cos_sim +  # Cosine similarity weight
+        0.3 * rouge_scores['rougeL'] +  # Rouge-L weight
+        0.3 * (1.0 if meaning_match else 0.0)  # Meaning match weight
+    )
+    
+    return meaning_match, cos_sim, rouge_scores, combined_score
+
+def load_conversations():
+    conversations_file = current_dir.parent / 'tests' / 'real_conversations' / "test_origin_conversation.json"
+    with open(conversations_file, 'r') as f:
+        return json.load(f)['conversations']
 
 def test_origin_langgraph():
     # Use the singleton instance
     service = origin_langgraph_service
-
-    # Test the conversation flow
+    
+    # Load test conversations
+    conversations = load_conversations()
+    
+    # Test each conversation thread
     print("\n=== Starting Origin LangGraph Test ===")
     
-    results = service.evaluate('origin-conversation-flow')
-    # Calculate results
-    correct_count = sum(1 for r in results if r["correct"])
-    total_count = len(results)
-    accuracy = (correct_count/total_count)*100 if total_count > 0 else 0
-    
-    print(f"Accuracy: {correct_count}/{total_count} ({accuracy:.1f}%)")
-    
-    # Return the metrics for API consumption
-    return {
-        "total_responses": total_count,
-        "correct_responses": correct_count,
-        "accuracy": f"{accuracy:.1f}%"
+    total_scores = {
+        'meaning': 0,
+        'cosine': 0,
+        'rouge': 0,
+        'combined': 0
     }
-
-
+    total_responses = 0
+    conversation_results = []
     
-    # correct_responses = 0
-    # total_responses = len(expected_responses)
+    for conversation in conversations:
+        thread_id = conversation['thread_id']
+        messages = conversation['messages']
+        thread_results = {
+            'thread_id': thread_id,
+            'responses': []
+        }
+        
+        print(f"\nTesting conversation thread: {thread_id}")
+        
+        # Create initial state
+        initial_state = {
+            "messages": [],
+            "stop_id": 1,
+            "running": True,
+            "load_number": "lb_201"
+        }
+        
+        # First message - should get carrier confirmation request
+        response = service.run(initial_state, thread_id)
+        expected = messages[0]['content']  # First broker message
+        print("\nBot:", response)
+        print("Expected:", expected)
+        
+        meaning_match, cos_sim, rouge_scores, combined_score = compare_messages(expected, response)
+        print(f"Meaning Match: {'Yes' if meaning_match else 'No'}")
+        print(f"Cosine Similarity: {cos_sim:.2f}")
+        print(f"Rouge Scores:")
+        print(f"  Rouge-1: {rouge_scores['rouge1']:.2f}")
+        print(f"  Rouge-2: {rouge_scores['rouge2']:.2f}")
+        print(f"  Rouge-L: {rouge_scores['rougeL']:.2f}")
+        print(f"Combined Score: {combined_score:.2f}")
+        
+        thread_results['responses'].append({
+            'expected': expected,
+            'actual': response,
+            'meaning_match': meaning_match,
+            'cosine_similarity': cos_sim,
+            'rouge_scores': rouge_scores,
+            'combined_score': combined_score
+        })
+        
+        if meaning_match:
+            total_scores['meaning'] += 1
+        if cos_sim >= 0.7:  # Threshold for cosine similarity
+            total_scores['cosine'] += 1
+        if rouge_scores['rougeL'] >= 0.7:  # Threshold for Rouge score
+            total_scores['rouge'] += 1
+        if combined_score >= 0.7:  # Threshold for combined score
+            total_scores['combined'] += 1
+        total_responses += 1
+        
+        # Simulate each trucker response and verify broker's next message
+        for i in range(1, len(messages), 2):
+            if i + 1 < len(messages):  # Ensure we have a broker message to compare against
+                trucker_response = messages[i]['content']
+                expected_broker = messages[i + 1]['content']
+                
+                response = service.run(Command(resume={'data': trucker_response}), thread_id)
+                print("\nTrucker:", trucker_response)
+                print("Bot:", response)
+                print("Expected:", expected_broker)
+                
+                meaning_match, cos_sim, rouge_scores, combined_score = compare_messages(expected_broker, response)
+                print(f"Meaning Match: {'Yes' if meaning_match else 'No'}")
+                print(f"Cosine Similarity: {cos_sim:.2f}")
+                print(f"Rouge Scores:")
+                print(f"  Rouge-1: {rouge_scores['rouge1']:.2f}")
+                print(f"  Rouge-2: {rouge_scores['rouge2']:.2f}")
+                print(f"  Rouge-L: {rouge_scores['rougeL']:.2f}")
+                print(f"Combined Score: {combined_score:.2f}")
+                
+                thread_results['responses'].append({
+                    'trucker_input': trucker_response,
+                    'expected': expected_broker,
+                    'actual': response,
+                    'meaning_match': meaning_match,
+                    'cosine_similarity': cos_sim,
+                    'rouge_scores': rouge_scores,
+                    'combined_score': combined_score
+                })
+                
+                if meaning_match:
+                    total_scores['meaning'] += 1
+                if cos_sim >= 0.7:
+                    total_scores['cosine'] += 1
+                if rouge_scores['rougeL'] >= 0.7:
+                    total_scores['rouge'] += 1
+                if combined_score >= 0.7:
+                    total_scores['combined'] += 1
+                total_responses += 1
+        
+        conversation_results.append(thread_results)
     
-    # # First message - should get carrier confirmation request
-    # response = service.run(initial_state, thread_id)
-    # print("\nBot:", response)
-    # print("Expected:", expected_responses['carrier_confirmation'])
-    # is_same = compare_messages(expected_responses['carrier_confirmation'], response)
-    # print(f"Same meaning: {'Yes' if is_same else 'No'}")
-    # if is_same:
-    #     correct_responses += 1
+    # Print final results
+    print("\n=== Test Results ===")
+    print(f"Total Responses: {total_responses}")
+    print(f"Meaning Match Score: {total_scores['meaning']}/{total_responses}")
+    print(f"Cosine Similarity Score: {total_scores['cosine']}/{total_responses}")
+    print(f"Rouge Score: {total_scores['rouge']}/{total_responses}")
+    print(f"Combined Score: {total_scores['combined']}/{total_responses}")
+    print("\n=== Test Complete ===")
     
-    # # Simulate carrier confirmation
-    # carrier_response = "Yes, I have"
-    # response = service.run(Command(resume={'data': carrier_response}), thread_id)
-    # print("\nCarrier:", carrier_response)
-    # print("Bot:", response)
-    # print("Expected:", expected_responses['load_picked'])
-    # is_same = compare_messages(expected_responses['load_picked'], response)
-    # print(f"Same meaning: {'Yes' if is_same else 'No'}")
-    # if is_same:
-    #     correct_responses += 1
-
-    # # Simulate load ready response
-    # carrier_response = "Yes, the load is ready for pickup"
-    # response = service.run(Command(resume={'data': carrier_response}), thread_id)
-    # print("\nCarrier:", carrier_response)
-    # print("Bot:", response)
-    # print("Expected:", expected_responses['journey_started'])
-    # is_same = compare_messages(expected_responses['journey_started'], response)
-    # print(f"Same meaning: {'Yes' if is_same else 'No'}")
-    # if is_same:
-    #     correct_responses += 1
-    # # Simulate journey started response
-    # carrier_response = "Yes, I'm on my way to the pickup location"
-    # response = service.run(Command(resume={'data': carrier_response}), thread_id)
-    # print("\nCarrier:", carrier_response)
-    # print("Bot:", response)
-    # print("Expected:", expected_responses['goodbye'])
-    # is_same = compare_messages(expected_responses['goodbye'], response)
-    # print(f"Same meaning: {'Yes' if is_same else 'No'}")
-    # if is_same:
-    #     correct_responses += 1
-    
-    # # Print final results
-    # print("\n=== Test Results ===")
-    # print(f"Total Responses: {total_responses}")
-    # print(f"Correct Responses: {correct_responses}")
-    # print(f"Accuracy: {(correct_responses/total_responses)*100:.1f}%")
-    # print("\n=== Test Complete ===")
+    # Return results as JSON object
+    return {
+        'test_name': 'origin',
+        'total_responses': total_responses,
+        'scores': {
+            'meaning': {
+                'passed': total_scores['meaning'],
+                'total': total_responses,
+                'percentage': (total_scores['meaning'] / total_responses * 100) if total_responses > 0 else 0
+            },
+            'cosine': {
+                'passed': total_scores['cosine'],
+                'total': total_responses,
+                'percentage': (total_scores['cosine'] / total_responses * 100) if total_responses > 0 else 0
+            },
+            'rouge': {
+                'passed': total_scores['rouge'],
+                'total': total_responses,
+                'percentage': (total_scores['rouge'] / total_responses * 100) if total_responses > 0 else 0
+            },
+            'combined': {
+                'passed': total_scores['combined'],
+                'total': total_responses,
+                'percentage': (total_scores['combined'] / total_responses * 100) if total_responses > 0 else 0
+            }
+        },
+        'conversation_results': conversation_results
+    }
 
 if __name__ == "__main__":
     test_origin_langgraph() 
