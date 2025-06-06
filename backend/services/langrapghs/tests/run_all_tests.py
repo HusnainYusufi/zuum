@@ -8,9 +8,9 @@ backend_dir = current_dir.parent.parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.append(str(backend_dir))
 
-from backend.services.langrapghs.tests.test_origin import test_origin_langgraph
-from backend.services.langrapghs.tests.test_transit_offtime import test_transit_langgraph
-from backend.services.langrapghs.tests.test_destination import test_destination_langgraph
+from services.langrapghs.tests.test_origin import test_origin_langgraph
+from services.langrapghs.tests.test_transit_offtime import test_transit_langgraph
+from services.langrapghs.tests.test_destination import test_destination_langgraph
 
 def run_all_tests():
     print("\n=== Starting All Tests ===")
