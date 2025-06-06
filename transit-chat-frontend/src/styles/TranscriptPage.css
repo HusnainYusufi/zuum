@@ -1,5 +1,6 @@
 .transcript-page {
   min-height: 100vh;
+  text-align: left;
   background-color: #f5f5f5;
   color: #333;
   padding: 20px;
@@ -77,16 +78,47 @@
 
 .transcript-container {
   display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 30px;
-  max-width: 1400px;
+  grid-template-columns: 300px minmax(400px, 1fr) 350px;
+  gap: 24px;
+  max-width: 1600px;
   margin: 0 auto;
+  padding: 0 20px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1400px) {
+  .transcript-container {
+    grid-template-columns: 250px minmax(350px, 1fr) 300px;
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 1200px) {
   .transcript-container {
     grid-template-columns: 1fr;
     gap: 20px;
+  }
+
+  .transcript-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .transcript-sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .transcript-container {
+    padding: 0 12px;
+  }
+
+  .transcript-info,
+  .transcript-sidebar {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -96,7 +128,18 @@
   gap: 20px;
 }
 
-.info-card, .status-card, .transcript-card {
+.transcript-main {
+  min-width: 0; /* Prevent overflow in grid */
+}
+
+.transcript-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.info-card, .status-card, .transcript-card, .summary-card, .metadata-card {
+  height: fit-content;
   background: white;
   border: 1px solid #d0d7de;
   border-radius: 8px;
@@ -106,7 +149,9 @@
 
 .transcript-page.dark-mode .info-card,
 .transcript-page.dark-mode .status-card,
-.transcript-page.dark-mode .transcript-card {
+.transcript-page.dark-mode .transcript-card,
+.transcript-page.dark-mode .summary-card,
+.transcript-page.dark-mode .metadata-card {
   background: #161b22 !important;
   border: 1px solid #30363d !important;
   color: #f0f6fc !important;
@@ -213,25 +258,17 @@
   color: #f0f6fc !important;
 }
 
-.transcript-main {
+.transcript-card {
+  height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
 }
 
 .transcript-content {
-  max-height: 70vh;
+  flex: 1;
   overflow-y: auto;
-  border: 1px solid #d0d7de !important;
-  border-radius: 12px;
-  background: #f8fafc !important;
-  color: #24292f !important;
-  padding: 16px 8px;
-}
-
-.transcript-page.dark-mode .transcript-content {
-  border: 1px solid #30363d !important;
-  background: #161b22 !important;
-  color: #f0f6fc !important;
+  margin: 0 -8px;
+  padding: 0 8px;
 }
 
 .transcript-line-wrapper {
@@ -293,8 +330,6 @@
 .transcript-page.dark-mode .transcript-line-wrapper.user-wrapper::before {
   color: rgba(156, 163, 175, 0.8);
 }
-
-
 
 .transcript-line-wrapper.agent-wrapper {
   background: transparent !important;
@@ -360,8 +395,6 @@
   background: inherit !important;
   border: none !important;
 }
-
-
 
 /* Apply background and styling to the actual message bubbles */
 .transcript-line-wrapper.agent-wrapper .transcript-line {
@@ -694,4 +727,124 @@
     padding-bottom: 12px;
     margin-bottom: 12px;
   }
+}
+
+.summary-card, .metadata-card {
+  max-height: calc((100vh - 240px) / 2);
+  overflow-y: auto;
+}
+
+.summary-card h3, .metadata-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #24292f;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transcript-page.dark-mode .summary-card h3,
+.transcript-page.dark-mode .metadata-card h3 {
+  color: #f0f6fc !important;
+}
+
+.summary-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #24292f;
+  overflow-y: auto;
+}
+
+.transcript-page.dark-mode .summary-content {
+  color: #f0f6fc !important;
+}
+
+.summary-content p {
+  margin: 0;
+  padding: 12px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+}
+
+.transcript-page.dark-mode .summary-content p {
+  background: #21262d !important;
+  border-color: #30363d !important;
+}
+
+.metadata-content {
+  font-size: 14px;
+  color: #24292f;
+  overflow-y: auto;
+}
+
+.transcript-page.dark-mode .metadata-content {
+  color: #f0f6fc !important;
+}
+
+.metadata-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+}
+
+.transcript-page.dark-mode .metadata-item {
+  background: #21262d !important;
+  border-color: #30363d !important;
+}
+
+.metadata-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #656d76;
+  text-transform: capitalize;
+  min-width: 140px;
+}
+
+.transcript-page.dark-mode .metadata-label {
+  color: #8b949e !important;
+}
+
+.metadata-value {
+  font-size: 14px;
+  color: #24292f;
+  font-weight: 500;
+}
+
+.transcript-page.dark-mode .metadata-value {
+  color: #f0f6fc !important;
+}
+
+.recording-link {
+  color: #0969da;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.recording-link:hover {
+  color: #0550ae;
+  text-decoration: underline;
+}
+
+.transcript-page.dark-mode .recording-link {
+  color: #58a6ff !important;
+}
+
+.transcript-page.dark-mode .recording-link:hover {
+  color: #79c0ff !important;
 } 

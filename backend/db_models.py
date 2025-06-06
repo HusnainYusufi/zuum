@@ -111,6 +111,7 @@ class RetellCall(Base):
     recording_url = Column(String)
     # Define relationships
     check_in = relationship("CheckIn", backref="retell_calls")
+    check_in_metadata = Column(String)
     
 # Create all tables
 def create_tables():
