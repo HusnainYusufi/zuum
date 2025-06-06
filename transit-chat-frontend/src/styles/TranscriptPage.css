@@ -459,4 +459,239 @@
 
 .transcript-page.dark-mode .transcript-content::-webkit-scrollbar-thumb:hover {
   background: #6e7681;
+}
+
+/* Responsive Design - Tablet */
+@media (max-width: 1024px) {
+  .transcript-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .transcript-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+}
+
+/* Responsive Design - Mobile */
+@media (max-width: 768px) {
+  .transcript-page {
+    padding: 12px;
+  }
+
+  .transcript-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+  }
+
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .back-button {
+    padding: 10px 14px;
+    font-size: 13px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .transcript-header h1 {
+    font-size: 20px;
+    gap: 8px;
+  }
+
+  .page-icon {
+    font-size: 18px;
+  }
+
+  .transcript-container {
+    gap: 16px;
+  }
+
+  .transcript-info {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .info-card, .status-card, .transcript-card {
+    padding: 16px;
+  }
+
+  .info-card h3, .status-card h3, .transcript-card h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .section-icon {
+    font-size: 14px;
+  }
+
+  .info-item, .status-item {
+    padding: 10px;
+  }
+
+  .info-label, .status-label {
+    font-size: 11px;
+  }
+
+  .info-value, .status-value {
+    font-size: 13px;
+  }
+
+  .transcript-content {
+    max-height: 60vh;
+    padding: 12px 6px;
+  }
+
+  .transcript-line-wrapper {
+    max-width: 90%;
+    margin-bottom: 12px;
+    margin-top: 36px;
+  }
+
+  .transcript-line-wrapper.agent-wrapper::before,
+  .transcript-line-wrapper.user-wrapper::before {
+    font-size: 9px;
+    top: -18px;
+  }
+
+  .transcript-line {
+    font-size: 13px;
+    padding: 12px 16px;
+    border-radius: 16px;
+  }
+
+  .no-transcript {
+    padding: 30px 20px;
+  }
+
+  .empty-icon {
+    font-size: 36px;
+  }
+
+  .no-transcript p {
+    font-size: 14px;
+  }
+}
+
+/* Responsive Design - Small Mobile */
+@media (max-width: 480px) {
+  .transcript-page {
+    padding: 8px;
+  }
+
+  .transcript-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .back-button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .transcript-header h1 {
+    font-size: 18px;
+  }
+
+  .page-icon {
+    font-size: 16px;
+  }
+
+  .info-card, .status-card, .transcript-card {
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .info-card h3, .status-card h3, .transcript-card h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .info-item, .status-item {
+    padding: 8px;
+    gap: 2px;
+  }
+
+  .info-label, .status-label {
+    font-size: 10px;
+  }
+
+  .info-value, .status-value {
+    font-size: 12px;
+  }
+
+  .transcript-content {
+    max-height: 50vh;
+    padding: 8px 4px;
+    border-radius: 8px;
+  }
+
+  .transcript-line-wrapper {
+    max-width: 95%;
+    margin-bottom: 10px;
+    margin-top: 36px;
+  }
+
+  .transcript-line {
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+  }
+
+  .transcript-line-wrapper.agent-wrapper .transcript-line,
+  .transcript-page.dark-mode .transcript-line-wrapper.agent-wrapper .transcript-line {
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.2);
+  }
+
+  .transcript-line-wrapper.user-wrapper .transcript-line,
+  .transcript-page.dark-mode .transcript-line-wrapper.user-wrapper .transcript-line {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .back-button {
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .back-button:active {
+    transform: scale(0.98);
+  }
+
+  /* Improve scrolling performance on mobile */
+  .transcript-content {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Larger touch targets for better accessibility */
+  .info-item, .status-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .transcript-content {
+    max-height: 50vh;
+  }
+
+  .transcript-header {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
 } 

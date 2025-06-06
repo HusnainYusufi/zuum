@@ -65,6 +65,32 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode,
   const [journeyState, setJourneyState] = useState<number>(0);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number; checkInId: number | null }>({ x: 0, y: 0, checkInId: null });
+  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth <= 768);
+
+  // Detect mobile device
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close notifications when clicking outside on mobile
+  useEffect(() => {
+    if (isMobile && showNotifications) {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.notifications-panel') && !target.closest('.notification-icon')) {
+          setShowNotifications(false);
+        }
+      };
+
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isMobile, showNotifications]);
 
   // Format ETA to human readable form with 12-hour clock
   const formatETA = (etaString: string): string => {
@@ -333,8 +359,6 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode,
     ));
   };
 
-
-
   // Delivery status steps
   const deliverySteps = [
     { title: "Confirmed", isActive: journeyState >= 0 },
@@ -356,7 +380,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode,
   return (
     <div className={`dashboard-container ${isDarkMode ? 'dark-mode' : ''}`}>
       <div className="dashboard-header">
-        <h1><FaRoute className="header-icon" /> Transit Stakeholder Dashboard</h1>
+        <h1><FaRoute className="header-icon" /> {isMobile ? 'Transit Dashboard' : 'Transit Stakeholder Dashboard'}</h1>
         <div className="header-actions">
           <button 
             className={`refresh-button ${isRefreshing ? 'refreshing' : ''}`} 
@@ -368,7 +392,7 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode,
             }} 
             disabled={isRefreshing}
           >
-            <FaSync className="refresh-icon" /> Refresh
+            <FaSync className="refresh-icon" /> {!isMobile && 'Refresh'}
           </button>
           <div className="notification-icon" onClick={() => setShowNotifications(!showNotifications)}>
             <FaBell />
@@ -549,7 +573,18 @@ const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ isDarkMode,
         <div className="notifications-panel">
           <div className="notifications-header">
             <h2><FaBell className="panel-icon" /> Notifications</h2>
-            <button onClick={markAllAsRead}>Mark all as read</button>
+            <div className="notifications-header-actions">
+              <button onClick={markAllAsRead}>Mark all as read</button>
+              {isMobile && (
+                <button 
+                  className="notifications-close"
+                  onClick={() => setShowNotifications(false)}
+                  aria-label="Close notifications"
+                >
+                  <FaTimes />
+                </button>
+              )}
+            </div>
           </div>
           <div className="notifications-list">
             {notifications.length === 0 ? (
