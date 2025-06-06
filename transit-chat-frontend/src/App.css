@@ -40,18 +40,21 @@
   display: flex;
   gap: 10px;
   z-index: 1000;
+  align-items: center;
 }
 
 .toggle-button {
   background-color: #4285f4;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 10px 18px;
+  border-radius: 25px;
   cursor: pointer;
   font-size: 14px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .toggle-button:hover {
@@ -77,7 +80,50 @@
   background-color: #f39c12;
 }
 
-/* Media Query for smaller screens */
+/* Large Desktop Screens */
+@media (min-width: 1440px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 30px;
+    right: 30px;
+  }
+  
+  .toggle-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 30px;
+  }
+}
+
+/* Standard Desktop/Laptop */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 25px;
+    right: 25px;
+  }
+  
+  .toggle-button {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+}
+
+/* Tablet Landscape */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 20px;
+    right: 20px;
+  }
+  
+  .toggle-button {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+}
+
+/* Tablet Portrait & Mobile Landscape */
 @media (max-width: 768px) {
   .app-container {
     flex-direction: column;
@@ -110,6 +156,152 @@
     flex-direction: column;
     bottom: 20px;
     right: 20px;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  
+  .toggle-button {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-width: 140px;
+    text-align: center;
+  }
+}
+
+/* Mobile Portrait */
+@media (max-width: 480px) {
+  .view-toggle {
+    bottom: 15px;
+    right: 15px;
+    gap: 15px;
+  }
+  
+  .toggle-button {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: 120px;
+    border-radius: 20px;
+  }
+}
+
+/* Very Small Mobile */
+@media (max-width: 360px) {
+  .view-toggle {
+    bottom: 12px;
+    right: 12px;
+    gap: 12px;
+  }
+  
+  .toggle-button {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 100px;
+    border-radius: 18px;
+  }
+}
+
+/* Foldable/Very Wide Screens */
+@media (min-width: 1920px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 40px;
+    right: 40px;
+  }
+  
+  .toggle-button {
+    padding: 14px 28px;
+    font-size: 17px;
+    border-radius: 35px;
+  }
+}
+
+/* Mobile Landscape Orientation */
+@media (max-height: 500px) and (orientation: landscape) {
+  .view-toggle {
+    bottom: 10px;
+    right: 15px;
+    gap: 15px;
+    flex-direction: row;
+  }
+  
+  .toggle-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: 90px;
+  }
+}
+
+/* Touch-friendly improvements for all mobile devices */
+@media (hover: none) and (pointer: coarse) {
+  .toggle-button {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .toggle-button:active {
+    transform: scale(0.95);
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .toggle-button {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .toggle-button {
+    transition: none;
+  }
+  
+  .toggle-button:hover {
+    transform: none;
+  }
+  
+  .toggle-button:active {
+    transform: none;
+  }
+}
+
+/* Print media */
+@media print {
+  .view-toggle {
+    display: none;
+  }
+}
+
+/* Extreme viewport sizes */
+@media (max-width: 320px) {
+  .view-toggle {
+    bottom: 8px;
+    right: 8px;
+    gap: 8px;
+  }
+  
+  .toggle-button {
+    padding: 5px 8px;
+    font-size: 11px;
+    min-width: 80px;
+    border-radius: 15px;
+  }
+}
+
+/* Ultra-wide monitors */
+@media (min-width: 2560px) {
+  .view-toggle {
+    gap: 80px;
+    bottom: 50px;
+    right: 50px;
+  }
+  
+  .toggle-button {
+    padding: 16px 32px;
+    font-size: 18px;
+    border-radius: 40px;
   }
 }
 

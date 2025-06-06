@@ -20,7 +20,9 @@
   --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   --box-shadow-dark: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
-
+.card-header{
+  background-color: none !important;
+}
 .dashboard-container {
   width: 100%;
   margin: 0 auto;
@@ -230,6 +232,40 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
+.notifications-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notifications-close {
+  background: none;
+  border: none;
+  color: #718096;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notifications-close:hover {
+  background-color: rgba(226, 232, 240, 0.5);
+  color: #2d3748;
+}
+
+.dashboard-container.dark-mode .notifications-close {
+  color: #a0aec0;
+}
+
+.dashboard-container.dark-mode .notifications-close:hover {
+  background-color: rgba(74, 85, 104, 0.5);
+  color: #e2e8f0;
+}
+
 .dashboard-container.dark-mode .notifications-header {
   border-bottom-color: #4a5568;
 }
@@ -370,6 +406,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  padding: 17px;
+
   margin-bottom: 0;
   animation: fadeIn 0.5s ease-in-out;
 }
@@ -466,6 +504,8 @@
   gap: 20px;
   padding-right: 30px;
   height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Main Content Grid Layout - REMOVE OLD ONE */
@@ -496,21 +536,23 @@
 
 .stop-details h2 {
   margin-top: 0;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   font-size: 24px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 12px;
-  color: white;
+  color: #1f2937;
   padding: 20px 30px;
-  background-color: rgba(45, 55, 72, 0.8);
+  background-color: rgba(255, 255, 255, 0.9);
   border-radius: var(--border-radius);
-  border: 1px solid rgba(74, 85, 104, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-container.dark-mode .stop-details h2 {
-  background-color: rgba(26, 32, 44, 0.9);
+  color: white;
+  background-color: rgba(45, 55, 72, 0.8);
+  border: 1px solid rgba(74, 85, 104, 0.3);
 }
 
 /* Details Container - Grid Layout */
@@ -536,16 +578,22 @@
 }
 
 .detail-card {
-  background: linear-gradient(145deg, rgba(74, 85, 104, 0.3), rgba(45, 55, 72, 0.5));
+  background: rgba(255, 255, 255, 0.95);
   border-radius: var(--border-radius);
   padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform var(--transition-speed), box-shadow var(--transition-speed);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(5px);
   position: relative;
   overflow: hidden;
   height: fit-content;
+}
+
+.dashboard-container.dark-mode .detail-card {
+  background: linear-gradient(145deg, rgba(74, 85, 104, 0.3), rgba(45, 55, 72, 0.5));
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .detail-card::before {
@@ -564,31 +612,31 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
-.dashboard-container.dark-mode .detail-card {
-  background: linear-gradient(145deg, rgba(45, 55, 72, 0.6), rgba(26, 32, 44, 0.8));
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.dashboard-container.dark-mode .detail-card:hover {
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-}
-
 .detail-card h3 {
   margin-top: 0;
   margin-bottom: 22px;
   font-size: 18px;
   font-weight: 600;
-  color: white;
+  color: #1f2937;
   display: flex;
   align-items: center;
   gap: 10px;
   padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-container.dark-mode .detail-card h3 {
+  color: white;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .card-icon {
-  color: var(--primary-light);
+  color: var(--primary-color);
   font-size: 1.2em;
+}
+
+.dashboard-container.dark-mode .card-icon {
+  color: var(--primary-light);
 }
 
 .detail-item {
@@ -598,25 +646,41 @@
   padding: 12px;
   border-radius: 8px;
   transition: background-color var(--transition-speed);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .detail-item:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-container.dark-mode .detail-item {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dashboard-container.dark-mode .detail-item:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
 .detail-label {
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.6);
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
+.dashboard-container.dark-mode .detail-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .detail-value {
-  color: white;
+  color: #1f2937;
   font-weight: 600;
   font-size: 16px;
+}
+
+.dashboard-container.dark-mode .detail-value {
+  color: white;
 }
 
 .detail-status {
@@ -895,6 +959,7 @@
     width: 2px;
     height: 30px;
     margin: 5px 0;
+    display: none;
     align-self: center;
     top: 0;
     left: 12px;
@@ -907,264 +972,425 @@
 
 /* Check-ins Section Styles */
 .check-ins-section {
-  background: #0d1117;
-  border-radius: 0;
-  padding: 0;
-  border: none;
-  border-left: 1px solid rgba(48, 54, 61, 0.8);
-  animation: fadeIn 0.5s ease-in-out;
-  height: calc(100vh - 200px);
+  background: linear-gradient(135deg, #1e2a3a 0%, #2d3748 100%);
+  border-radius: 16px;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    0 1px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  min-height: 400px;
+  max-height: 700px;
   overflow-y: auto;
-  overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
-  position: sticky;
-  top: 0;
-  margin-top: 0;
+  animation: slideInUp 0.6s ease-out;
+  border: 1px solid rgba(66, 153, 225, 0.2);
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dashboard-container.dark-mode .check-ins-section {
-  background: #0d1117;
-  border-color: rgba(48, 54, 61, 0.8);
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.4),
+    0 1px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(79, 192, 255, 0.3);
 }
 
 .check-ins-section h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #58a6ff;
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 20px 25px;
-  border-bottom: 1px solid rgba(48, 54, 61, 0.8);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  gap: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  background: rgba(13, 17, 23, 0.95);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  background: linear-gradient(135deg, #4299e1, #63b3ed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .section-icon {
-  color: #58a6ff;
-  font-size: 1em;
+  color: #4299e1 !important;
+  font-size: 18px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .check-ins-container {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: 12px 0;
+  gap: 4px;
 }
 
 .no-check-ins {
   text-align: center;
-  color: rgba(139, 148, 158, 0.8);
-  padding: 60px 20px;
-  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
   font-style: italic;
+  padding: 30px 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
 }
 
-.check-in-card {
-  background: rgba(13, 17, 23, 0.6);
-  border: none;
-  border-bottom: 1px solid rgba(48, 54, 61, 0.6);
-  border-radius: 0;
-  padding: 0;
-  transition: all var(--transition-speed);
-  position: relative;
-  margin: 0;
+  .check-in-card {
+    background: transparent;
+    border-radius: 10px;
+    padding: 0;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: visible;
+    backdrop-filter: none;
+    min-height: 60px;
+  }
+
+.check-in-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4299e1, #63b3ed, #90cdf4);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .check-in-card.clickable {
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(48, 54, 61, 0.4);
-  overflow: hidden;
+  transform: translateY(0);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .check-in-card.clickable:hover {
-  transform: translateY(-2px);
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 
+    0 12px 32px rgba(66, 153, 225, 0.15),
+    0 6px 18px rgba(0, 0, 0, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: rgba(66, 153, 225, 0.4);
+  background: linear-gradient(135deg, rgba(66, 153, 225, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
 }
 
-/* Remove the old centered tooltip */
-.check-in-card.clickable::after {
-  display: none;
+.check-in-card.clickable:hover::before {
+  opacity: 1;
 }
 
-/* New mouse-following tooltip */
+  .check-in-card.clickable::after {
+    content: '→';
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%) translateX(10px);
+    opacity: 0;
+    color: #4299e1;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+
+  .check-in-card.clickable:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+
 .hover-tooltip {
   position: absolute;
-  background-color: rgba(0, 0, 0, 0.9);
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
   color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 500;
-  pointer-events: none;
   white-space: nowrap;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  border: 1px solid rgba(66, 153, 225, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.check-in-card:hover .hover-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-8px);
 }
 
 .dashboard-container.dark-mode .hover-tooltip {
-  background-color: rgba(49, 130, 206, 0.95);
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
 }
 
-.check-in-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 16px 20px 12px 20px;
-  background: rgba(13, 17, 23, 0.3);
-  border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+  .check-in-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 12px 16px;
+    background: transparent;
+    border-radius: 8px;
+    min-height: 50px;
+  }
+
+  .check-in-id-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .check-in-icon {
+    color: #4299e1;
+    font-size: 18px;
+    filter: drop-shadow(0 2px 4px rgba(66, 153, 225, 0.3));
+    animation: iconGlow 3s ease-in-out infinite;
+  }
+
+  @keyframes iconGlow {
+    0%, 100% { filter: drop-shadow(0 2px 4px rgba(66, 153, 225, 0.3)); }
+    50% { filter: drop-shadow(0 2px 8px rgba(66, 153, 225, 0.6)); }
+  }
+
+  .check-in-id {
+    font-size: 13px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #4299e1, #63b3ed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .clickable-link {
+    position: relative;
+    text-decoration: none;
+    background: linear-gradient(135deg, #4299e1, #63b3ed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+/* Light mode override for clickable links */
+.dashboard-container:not(.dark-mode) .clickable-link {
+  color: #0969da !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+  font-weight: 700;
 }
 
-.check-in-id-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.dashboard-container:not(.dark-mode) .clickable-link:hover {
+  color: #0553c1 !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
 }
 
-.check-in-icon {
-  color: var(--primary-light);
-  font-size: 14px;
-  margin-right: 4px;
-}
+  .clickable-link:hover {
+    background: linear-gradient(135deg, #63b3ed, #90cdf4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 
-.check-in-id {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
+  .check-in-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 0;
+    padding: 0 16px 16px 16px;
+  }
 
-.check-in-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 13px;
-  padding: 16px 20px 20px 20px;
-}
-
-.check-in-field {
-  display: flex;
-  flex-direction: row;
-  gap: 0;
-  align-items: flex-start;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(48, 54, 61, 0.2);
-  transition: background 0.2s ease;
-}
+  .check-in-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
 
 .check-in-field:hover {
-  background: rgba(48, 54, 61, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(66, 153, 225, 0.3);
+  transform: translateX(4px);
 }
 
-.field-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: 12px;
-  margin-bottom: 0;
-  flex-shrink: 0;
-  min-width: 140px;
-}
+  .field-label {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
 
 .field-value {
-  font-size: 13px;
-  color: #c9d1d9;
-  line-height: 1.4;
-  padding-left: 0;
-  text-align: left;
-  word-wrap: break-word;
-  flex: 1;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #ffffff !important;
+  font-weight: 600;
+  text-align: right;
 }
 
 .transcript-indicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  background: linear-gradient(135deg, #4299e1, #63b3ed);
+  color: white;
+  padding: 8px 16px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  background-color: rgba(49, 130, 206, 0.15);
-  color: #58a6ff;
-  border: 1px solid rgba(49, 130, 206, 0.3);
-  transition: all 0.2s ease;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .check-in-card.clickable:hover .transcript-indicator {
-  background-color: rgba(49, 130, 206, 0.25);
+  background: linear-gradient(135deg, #63b3ed, #90cdf4);
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(49, 130, 206, 0.3);
+  box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
 }
 
-/* Check-in Status Badges */
-.check-in-status {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  .check-in-status {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-end;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 6px 8px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border: none;
+    white-space: nowrap;
+    line-height: 1;
+    min-width: 28px;
+    height: 28px;
+  }
+
+  .issue-flagged {
+    background: rgba(88, 166, 255, 0.15);
+    color: #79c0ff;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    backdrop-filter: blur(4px);
+  }
+
+  .issue-flagged:hover {
+    background: rgba(88, 166, 255, 0.25);
+    border: 1px solid rgba(88, 166, 255, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .requires-review {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e6edf3;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+
+
+
+
+  .status-badge.issue-flagged {
+    background-color: #f59e0b;
+    color: #1f2937;
+  }
+
+  .status-badge.issue-flagged:hover {
+    background-color: #d97706;
+    color: #1f2937;
+  }
+
+  .status-badge.requires-review {
+    background-color: #4b5563;
+    color: #d1d5db;
+  }
+
+  .status-badge.requires-review:hover {
+    background-color: #374151;
+    color: #d1d5db;
+  }
+
+/* Responsive adjustments for check-in headers */
+@media (max-width: 600px) {
+  .check-in-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .check-in-status {
+    align-self: flex-end;
+    margin-top: -8px;
+  }
 }
 
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all var(--transition-speed);
-}
+@media (max-width: 480px) {
+  .check-in-id {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  
+  .status-badge {
+    font-size: 12px;
+    padding: 4px 6px;
+    min-width: 24px;
+    height: 24px;
+  }
+  
 
-.status-badge.issue-flagged {
-  background-color: rgba(237, 137, 54, 0.2);
-  color: #f6ad55;
-  border: 1px solid rgba(237, 137, 54, 0.3);
-}
-
-.status-badge.issue-flagged:hover {
-  background-color: rgba(237, 137, 54, 0.3);
-  border-color: rgba(237, 137, 54, 0.5);
-}
-
-.status-badge.requires-review {
-  background-color: rgba(160, 174, 192, 0.2);
-  color: #a0aec0;
-  border: 1px solid rgba(160, 174, 192, 0.3);
-}
-
-.status-badge.requires-review:hover {
-  background-color: rgba(160, 174, 192, 0.3);
-  border-color: rgba(160, 174, 192, 0.5);
-}
-
-/* Light mode styles for status badges */
-.dashboard-container:not(.dark-mode) .status-badge.issue-flagged {
-  background-color: rgba(237, 137, 54, 0.1);
-  color: #dd6b20;
-  border-color: rgba(237, 137, 54, 0.2);
-}
-
-.dashboard-container:not(.dark-mode) .status-badge.requires-review {
-  background-color: rgba(74, 85, 104, 0.1);
-  color: #4a5568;
-  border-color: rgba(74, 85, 104, 0.2);
+  
+  .check-in-status {
+    gap: 2px;
+  }
 }
 
 /* Responsive styles */
@@ -1201,24 +1427,36 @@
 @media (max-width: 768px) {
   .dashboard-main-grid {
     margin-top: 0;
-    padding: 0 10px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
   }
   
   .dashboard-left-content {
     padding-right: 0;
+    gap: 15px;
   }
   
   .check-ins-section {
-    height: 400px;
+    height: auto;
+    max-height: 400px;
+    margin-top: 20px;
+    width: 100%;
   }
   
   .check-ins-section h3 {
-    padding: 15px 20px;
-    font-size: 13px;
+    padding: 0 0 12px 0;
+    font-size: 16px;
   }
   
   .check-in-card {
-    padding: 12px 20px;
+    padding: 0;
+    margin-bottom: 8px;
+  }
+  
+  .check-in-header {
+    padding: 12px;
   }
   
   .field-value {
@@ -1457,21 +1695,7 @@
   border-color: #30363d;
 }
 
-.transcript-line.agent::before {
-  content: "AI";
-  position: absolute;
-  top: -20px;
-  left: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: #718096;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
-.dashboard-container.dark-mode .transcript-line.agent::before {
-  color: #8b949e;
-}
 
 /* User Messages */
 .transcript-line.user {
@@ -1484,30 +1708,12 @@
   background-color: #1f6feb;
 }
 
-.transcript-line.user::before {
-  content: "Driver";
-  position: absolute;
-  top: -20px;
-  right: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: #718096;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
-.dashboard-container.dark-mode .transcript-line.user::before {
-  color: #8b949e;
-}
 
-/* First message spacing */
-.transcript-line-wrapper:first-child .transcript-line {
-  margin-top: 20px;
-}
 
 /* Scrollbar for transcript */
 .modal-transcript::-webkit-scrollbar {
-  width: 8px;
+  width: 0px !important;
 }
 
 .modal-transcript::-webkit-scrollbar-track {
@@ -1565,7 +1771,7 @@
 }
 
 .check-in-card.expanded {
-  background: rgba(13, 17, 23, 0.6);
+  background: rgba(21, 26, 32, 0.8);
   margin: 0;
   border-radius: 0;
   border: none;
@@ -1600,8 +1806,8 @@
 
 .field-label span {
   font-size: 12px;
-  font-weight: 500;
-  color: #7d8590;
+  font-weight: 600;
+  color: #8b949e;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1629,7 +1835,43 @@
 }
 
 .check-ins-section::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 148, 158, 0.5);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Dark mode overrides for check-ins */
+.dashboard-container.dark-mode .check-in-card {
+  background: rgba(21, 26, 32, 0.8) !important;
+  border-color: rgba(48, 54, 61, 0.6) !important;
+}
+
+.dashboard-container.dark-mode .check-in-card.clickable {
+  background: rgba(21, 26, 32, 0.8) !important;
+  border-color: rgba(48, 54, 61, 0.4) !important;
+}
+
+.dashboard-container.dark-mode .check-in-header {
+  background: rgba(30, 35, 42, 0.8) !important;
+  border-bottom-color: rgba(48, 54, 61, 0.5) !important;
+}
+
+.dashboard-container.dark-mode .check-in-field {
+  background: rgba(30, 35, 42, 0.6) !important;
+}
+
+.dashboard-container.dark-mode .check-in-field:hover {
+  background: rgba(48, 54, 61, 0.4) !important;
+}
+
+.dashboard-container.dark-mode .check-in-content {
+  background: transparent !important;
+}
+
+.dashboard-container.dark-mode .check-in-id-wrapper {
+  background: transparent !important;
+}
+
+.dashboard-container.dark-mode .field-label {
+  background: transparent !important;
 }
 
 /* Light mode styles for check-ins */
@@ -1645,12 +1887,12 @@
 }
 
 .dashboard-container:not(.dark-mode) .check-in-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: #ffffff;
   border-color: #e1e4e8;
 }
 
 .dashboard-container:not(.dark-mode) .check-in-card.clickable {
-  background: rgba(255, 255, 255, 0.9);
+  background: #ffffff;
   border-color: #e1e4e8;
 }
 
@@ -1660,24 +1902,30 @@
 }
 
 .dashboard-container:not(.dark-mode) .check-in-header {
-  background: rgba(246, 248, 250, 0.8);
+  background: #f6f8fa;
   border-bottom-color: #e1e4e8;
 }
 
 .dashboard-container:not(.dark-mode) .check-in-field {
-  background: rgba(246, 248, 250, 0.6);
+  background: #f6f8fa;
 }
 
 .dashboard-container:not(.dark-mode) .check-in-field:hover {
-  background: rgba(226, 232, 240, 0.7);
+  background: #e2e8f0;
 }
 
 .dashboard-container:not(.dark-mode) .check-in-id {
-  color: #57606a;
+  color: #0969da !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+  font-weight: 700;
 }
 
 .dashboard-container:not(.dark-mode) .field-value {
-  color: #24292f;
+  color: #24292f !important;
+  font-weight: 600;
 }
 
 .dashboard-container:not(.dark-mode) .no-check-ins {
@@ -1693,7 +1941,8 @@
 }
 
 .dashboard-container:not(.dark-mode) .field-label span {
-  color: #57606a;
+  color: #656d76 !important;
+  font-weight: 600;
 }
 
 .dashboard-container:not(.dark-mode) .check-ins-section::-webkit-scrollbar-track {
@@ -1708,6 +1957,371 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
+/* Light mode status badge improvements */
+.dashboard-container:not(.dark-mode) .status-badge.issue-flagged {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #dc2626 !important;
+  font-weight: 700;
+}
+
+.dashboard-container:not(.dark-mode) .status-badge.issue-flagged:hover {
+  background-color: #b91c1c !important;
+  color: #ffffff !important;
+  border: 1px solid #b91c1c !important;
+}
+
+.dashboard-container:not(.dark-mode) .status-badge.requires-review {
+  background-color: #f59e0b !important;
+  color: #1f2937 !important;
+  border: 1px solid #f59e0b !important;
+  font-weight: 700;
+}
+
+.dashboard-container:not(.dark-mode) .status-badge.requires-review:hover {
+  background-color: #d97706 !important;
+  color: #1f2937 !important;
+  border: 1px solid #d97706 !important;
+}
+
+/* Enhanced Detail Cards Layout */
+.detail-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1200px) {
+  .detail-cards {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}
+
+/* Card Header Styling */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-container.dark-mode .card-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+}
+
+.dashboard-container:not(.dark-mode) .card-header h3 {
+  color: #1f2937 !important;
+}
+
+/* Status Badges in Headers */
+.location-status-badge,
+.schedule-status-badge {
+  display: flex;
+}
+
+.location-status-badge .status-ok,
+.location-status-badge .status-warning,
+.schedule-status-badge .status-ok,
+.schedule-status-badge .status-warning {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Location Card Styling */
+.location-card {
+  position: relative;
+}
+
+.location-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.location-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.location-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  border-left: 3px solid;
+}
+
+.dashboard-container.dark-mode .location-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.location-item.expected {
+  border-left-color: #3b82f6;
+}
+
+.location-item.current {
+  border-left-color: #10b981;
+}
+
+.location-icon {
+  font-size: 16px;
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.dashboard-container:not(.dark-mode) .location-icon {
+  color: #3b82f6;
+}
+
+.location-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 2px;
+}
+
+.dashboard-container:not(.dark-mode) .location-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.location-value {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.dashboard-container:not(.dark-mode) .location-value {
+  color: #1f2937;
+}
+
+/* Route Info */
+.route-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.dashboard-container:not(.dark-mode) .route-info {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.route-icon {
+  font-size: 16px;
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.dashboard-container:not(.dark-mode) .route-icon {
+  color: #3b82f6;
+}
+
+.route-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(96, 165, 250, 0.8);
+  margin-bottom: 2px;
+}
+
+.dashboard-container:not(.dark-mode) .route-label {
+  color: rgba(59, 130, 246, 0.8);
+}
+
+.route-value {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #60a5fa;
+}
+
+.dashboard-container:not(.dark-mode) .route-value {
+  color: #3b82f6;
+}
+
+/* Schedule Card Styling */
+.schedule-grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  .schedule-grid {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.eta-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eta-main,
+.delay-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  border-left: 3px solid;
+}
+
+.dashboard-container.dark-mode .eta-main,
+.dashboard-container.dark-mode .delay-info {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.eta-main {
+  border-left-color: #10b981;
+}
+
+.delay-info {
+  border-left-color: #f59e0b;
+}
+
+.eta-icon,
+.delay-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.eta-icon {
+  color: #34d399;
+}
+
+.delay-icon {
+  color: #fbbf24;
+}
+
+.dashboard-container:not(.dark-mode) .eta-icon {
+  color: #10b981;
+}
+
+.dashboard-container:not(.dark-mode) .delay-icon {
+  color: #f59e0b;
+}
+
+.eta-label,
+.delay-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 2px;
+}
+
+.dashboard-container:not(.dark-mode) .eta-label,
+.dashboard-container:not(.dark-mode) .delay-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.eta-value,
+.delay-value {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.dashboard-container:not(.dark-mode) .eta-value,
+.dashboard-container:not(.dark-mode) .delay-value {
+  color: #1f2937;
+}
+
+/* Timing Summary */
+.timing-summary {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+}
+
+.timing-indicator {
+  text-align: center;
+}
+
+.delay-indicator-visual,
+.ontime-indicator-visual {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.delay-indicator-visual {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.ontime-indicator-visual {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.dashboard-container:not(.dark-mode) .delay-indicator-visual {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+.dashboard-container:not(.dark-mode) .ontime-indicator-visual {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #16a34a;
+}
+
+.delay-time,
+.ontime-text {
+  display: block;
+  font-size: 11px;
+}
+
 .check-in-field audio {
   height: 28px;
   min-height: 28px;
@@ -1715,4 +2329,799 @@
   margin: 0;
   align-self: center;
   vertical-align: middle;
+}
+
+/* ===== ENHANCED MOBILE RESPONSIVE STYLES ===== */
+
+/* Small Desktop / Large Tablet (1024px) */
+@media (max-width: 1024px) {
+  .dashboard-container {
+    padding: 20px 30px;
+  }
+  
+  .dashboard-main-grid {
+    grid-template-columns: 1fr 400px;
+    gap: 20px;
+  }
+  
+  .detail-cards {
+    gap: 15px;
+  }
+  
+  .stop-details h2 {
+    font-size: 22px;
+    padding: 18px 25px;
+  }
+  
+  .delivery-timeline {
+    padding: 20px;
+  }
+  
+  .delivery-timeline h2 {
+    font-size: 22px;
+  }
+}
+
+/* Tablet Portrait (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+  
+  .check-ins-section {
+    max-height: 500px;
+    margin-top: 20px;
+  }
+  
+  .dashboard-left-content {
+    padding-right: 0;
+  }
+  
+  .detail-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Mobile Landscape & Small Tablet (600px - 767px) */
+@media (max-width: 767px) {
+  .dashboard-container {
+    padding: 15px;
+  }
+  
+  /* Main grid becomes single column */
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .dashboard-header {
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 18px;
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .header-icon {
+    font-size: 20px;
+  }
+  
+  .header-actions {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  
+  .refresh-button {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: auto;
+  }
+  
+  .notification-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+  
+  .notification-badge {
+    font-size: 11px;
+    min-width: 16px;
+    height: 16px;
+  }
+  
+  /* Stops Selector Mobile */
+  .stops-selector {
+    gap: 8px;
+    margin-bottom: 15px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+  
+  .stops-selector::-webkit-scrollbar {
+    height: 4px;
+  }
+  
+  .stops-selector::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+  }
+  
+  .stops-selector::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+  }
+  
+  .stop-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  
+  /* Delivery Timeline Mobile */
+  .delivery-timeline {
+    padding: 18px;
+    margin-bottom: 15px;
+  }
+  
+  .delivery-timeline h2 {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+  
+  .timeline-container {
+    padding: 15px 0;
+  }
+  
+  .timeline-step {
+    width: 100%;
+  }
+  
+  .timeline-node {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .timeline-title {
+    font-size: 13px;
+  }
+  
+  /* Stop Details Mobile */
+  .stop-details {
+    margin-bottom: 15px;
+  }
+  
+  .stop-details h2 {
+    font-size: 18px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    gap: 8px;
+  }
+  
+  .detail-title-icon {
+    font-size: 1em;
+  }
+  
+  /* Detail Cards Mobile */
+  .detail-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .detail-card {
+    padding: 16px;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+  }
+  
+  .dashboard-container.dark-mode .detail-card {
+    background: rgba(45, 55, 72, 0.95);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(74, 85, 104, 0.3);
+  }
+  
+  .card-header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+  
+  .card-header h3 {
+    font-size: 15px;
+  }
+  
+  .card-icon {
+    font-size: 1em;
+  }
+  
+  .location-status-badge .status-ok,
+  .location-status-badge .status-warning,
+  .schedule-status-badge .status-ok,
+  .schedule-status-badge .status-warning {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  
+  .location-item,
+  .eta-main,
+  .delay-info {
+    padding: 10px;
+  }
+  
+  .location-icon,
+  .eta-icon,
+  .delay-icon,
+  .route-icon {
+    font-size: 14px;
+  }
+  
+  .location-label,
+  .eta-label,
+  .delay-label,
+  .route-label {
+    font-size: 10px;
+  }
+  
+  .location-value,
+  .eta-value,
+  .delay-value,
+  .route-value {
+    font-size: 12px;
+  }
+  
+  .route-info {
+    padding: 8px 10px;
+  }
+  
+  .timing-summary {
+    min-width: 80px;
+  }
+  
+  .delay-indicator-visual,
+  .ontime-indicator-visual {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .delay-time,
+  .ontime-text {
+    font-size: 10px;
+  }
+  
+  /* Check-ins Section Mobile */
+  .check-ins-section {
+    padding: 16px;
+    min-height: auto;
+    max-height: 450px;
+    border-radius: 12px;
+    margin-top: 20px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .check-ins-section h3 {
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+  
+  .section-icon {
+    font-size: 15px;
+  }
+  
+  .check-in-card {
+    min-height: 50px;
+  }
+  
+  .check-in-header {
+    padding: 10px 12px;
+    min-height: 45px;
+  }
+  
+  .check-in-icon {
+    font-size: 16px;
+  }
+  
+  .check-in-id {
+    font-size: 12px;
+  }
+  
+  .check-in-card.clickable::after {
+    right: 12px;
+    font-size: 14px;
+  }
+  
+  /* Notifications Panel Mobile */
+  .notifications-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  .notifications-header {
+    padding: 12px 15px;
+    position: sticky;
+    top: 0;
+    background-color: inherit;
+    z-index: 10;
+  }
+  
+  .notifications-header h2 {
+    font-size: 16px;
+  }
+  
+  .notifications-header button {
+    font-size: 13px;
+    padding: 5px 10px;
+  }
+  
+  .notifications-list {
+    max-height: calc(100vh - 60px);
+    padding-bottom: 20px;
+  }
+  
+  .notification-item {
+    padding: 12px 15px;
+  }
+  
+  .notification-content p {
+    font-size: 13px;
+  }
+  
+  .notification-time {
+    font-size: 11px;
+  }
+}
+
+/* Mobile Portrait (480px - 599px) */
+@media (max-width: 599px) {
+  .dashboard-container {
+    padding: 12px;
+  }
+  
+  .dashboard-main-grid {
+    gap: 15px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 18px;
+  }
+  
+  .refresh-button {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  
+  .refresh-icon {
+    font-size: 12px;
+  }
+  
+  .stop-button {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .delay-indicator {
+    font-size: 14px;
+  }
+  
+  /* Timeline adjustments for small screens */
+  .timeline-container {
+    gap: 15px;
+  }
+  
+  .timeline-step {
+    gap: 10px;
+  }
+  
+  .timeline-connector {
+    height: 20px;
+  }
+  
+  /* Detail cards spacing */
+  .detail-card {
+    padding: 14px;
+  }
+  
+  .location-grid,
+  .schedule-grid {
+    gap: 10px;
+  }
+  
+  /* Check-ins adjustments */
+  .check-ins-section {
+    padding: 14px;
+    margin-top: 15px;
+  }
+  
+  .check-in-header {
+    padding: 10px;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .check-in-id-wrapper {
+    gap: 6px;
+    flex: 1;
+  }
+  
+  .check-in-id {
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.3;
+  }
+  
+  .status-badge {
+    font-size: 11px;
+    padding: 3px 5px;
+    min-width: 22px;
+    height: 22px;
+  }
+}
+
+/* Small Mobile (320px - 479px) */
+@media (max-width: 479px) {
+  /* Text overflow handling */
+  .location-value,
+  .eta-value,
+  .delay-value,
+  .route-value,
+  .check-in-id,
+  .notification-content p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    
+  }
+  
+  .location-item,
+  .eta-main,
+  .delay-info {
+    overflow: hidden;
+  }
+  .dashboard-container {
+    padding: 10px;
+  }
+  
+  .dashboard-header {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 16px;
+    gap: 6px;
+  }
+  
+  .dashboard-header h1 .header-icon {
+    display: none; /* Hide icon on very small screens */
+  }
+  
+  .header-icon {
+    font-size: 18px;
+  }
+  
+  .notification-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+  
+  .notification-badge {
+    font-size: 10px;
+    min-width: 14px;
+    height: 14px;
+    top: -3px;
+    right: -3px;
+  }
+  
+  /* Delivery Timeline */
+  .delivery-timeline {
+    padding: 15px;
+  }
+  
+  .delivery-timeline h2 {
+    font-size: 16px;
+    gap: 8px;
+  }
+  
+  .timeline-node {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .timeline-title {
+    font-size: 12px;
+  }
+  
+  /* Stop Details */
+  .stop-details h2 {
+    font-size: 16px;
+    padding: 12px 16px;
+  }
+  
+  /* Detail Cards */
+  .detail-card {
+    padding: 12px;
+  }
+  
+  .card-header h3 {
+    font-size: 14px;
+    gap: 6px;
+  }
+  
+  .location-item,
+  .eta-main,
+  .delay-info {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .location-icon,
+  .eta-icon,
+  .delay-icon {
+    font-size: 12px;
+  }
+  
+  .location-label,
+  .eta-label,
+  .delay-label {
+    font-size: 9px;
+  }
+  
+  .location-value,
+  .eta-value,
+  .delay-value {
+    font-size: 11px;
+  }
+  
+  /* Check-ins Section */
+  .check-ins-section {
+    padding: 12px;
+    min-height: auto;
+    max-height: 350px;
+    margin-top: 15px;
+  }
+  
+  .check-ins-section h3 {
+    font-size: 14px;
+    gap: 6px;
+  }
+  
+  .check-in-card {
+    min-height: 45px;
+  }
+  
+  .check-in-header {
+    padding: 8px;
+    min-height: 40px;
+  }
+  
+  .check-in-icon {
+    font-size: 14px;
+  }
+  
+  .check-in-id {
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  
+  .check-in-card.clickable::after {
+    display: none; /* Hide arrow on very small screens */
+  }
+  
+  /* Notifications */
+  .notifications-header {
+    padding: 10px 12px;
+  }
+  
+  .notifications-header h2 {
+    font-size: 15px;
+  }
+  
+  .panel-icon {
+    font-size: 16px;
+  }
+  
+  .notification-item {
+    padding: 10px 12px;
+  }
+  
+  .notification-content p {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  
+  .notification-time {
+    font-size: 10px;
+  }
+  
+  .unread-indicator {
+    width: 8px;
+    height: 8px;
+  }
+}
+
+/* Ultra Small Mobile (below 320px) */
+@media (max-width: 319px) {
+  .dashboard-container {
+    padding: 8px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 14px;
+  }
+  
+  .refresh-button {
+    padding: 8px;
+    min-width: auto;
+  }
+  
+  .stop-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .delivery-timeline {
+    padding: 12px;
+  }
+  
+  .delivery-timeline h2 {
+    font-size: 14px;
+  }
+  
+  .stop-details h2 {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+  
+  .detail-card {
+    padding: 10px;
+  }
+  
+  .check-ins-section {
+    padding: 10px;
+  }
+  
+  .check-ins-section h3 {
+    font-size: 13px;
+  }
+}
+
+/* Landscape Mode Adjustments */
+@media (max-height: 600px) and (orientation: landscape) {
+  .dashboard-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+  
+  .delivery-timeline {
+    padding: 15px;
+    margin-bottom: 10px;
+  }
+  
+  .timeline-container {
+    flex-direction: row;
+    padding: 10px 0;
+  }
+  
+  .timeline-step {
+    flex-direction: column;
+    width: auto;
+  }
+  
+  .timeline-connector {
+    width: auto;
+    height: 2px;
+    margin: 0 -20px;
+    top: -10px;
+    left: auto;
+  }
+  
+  .check-ins-section {
+    max-height: 350px;
+  }
+  
+  .detail-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .stop-button,
+  .refresh-button,
+  .notification-icon,
+  .check-in-card.clickable {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .stop-button:active,
+  .refresh-button:active {
+    transform: scale(0.95);
+  }
+  
+  .notification-icon:active {
+    transform: scale(0.9);
+  }
+  
+  .check-in-card.clickable:active {
+    transform: translateY(0);
+  }
+}
+
+/* High DPI Screen Adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .detail-card,
+  .check-in-card,
+  .stop-button,
+  .delivery-timeline {
+    border-width: 0.5px;
+  }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .refresh-button.refreshing .refresh-icon {
+    animation: none;
+  }
+  
+  .delay-indicator {
+    animation: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .dashboard-container {
+    padding: 20px;
+    background: white !important;
+    color: black !important;
+  }
+  
+  .header-actions,
+  .notifications-panel,
+  .check-in-card.clickable::after {
+    display: none !important;
+  }
+  
+  .detail-card,
+  .check-in-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .check-ins-section {
+    max-height: none;
+    overflow: visible;
+  }
 } 

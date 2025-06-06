@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { RetellWebClient } from 'retell-client-js-sdk';
 import Phone from './components/Phone';
 import Sidebar from './components/Sidebar';
 import StakeholderDashboard from './components/StakeholderDashboard';
+import CheckInPage from './components/CheckInPage';
+import TranscriptPageWrapper from './components/TranscriptPageWrapper';
 import './App.css';
 import { backend_url } from './config';
 interface Message {
@@ -28,6 +31,70 @@ type ConversationState = 'listening' | 'processing' | 'agentSpeaking' | 'idle';
 // Define agent types
 type AgentType = 'custom' | 'apicall';
 
+// ViewToggleButton component that uses useLocation
+const ViewToggleButton: React.FC<{ isDarkMode: boolean; toggleDarkMode: () => void }> = ({ isDarkMode, toggleDarkMode }) => {
+  const location = useLocation();
+  const isStakeholderPage = location.pathname === '/dashboard';
+  
+  return (
+    <div className="view-toggle">
+      <button 
+        onClick={() => window.location.href = isStakeholderPage ? '/' : '/dashboard'}
+        className="toggle-button"
+      >
+        {isStakeholderPage ? 'Switch to Testing' : 'Switch to Stakeholder Dashboard'}
+      </button>
+      <button 
+        onClick={toggleDarkMode}
+        className="toggle-button dark-toggle"
+      >
+        {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+      </button>
+    </div>
+  );
+};
+
+// Simple MainAppPage component
+const MainAppPage: React.FC<any> = (props) => {
+  return (
+    <div className="app-container">
+      <Sidebar 
+        stops={props.stops} 
+        selectedStopId={props.selectedStopId}
+        onSelectStop={props.handleSelectStop}
+        isDarkMode={props.isDarkMode}
+        agentType={props.agentType}
+        onToggleAgentType={props.toggleAgentType}
+        isCallMode={props.isCallMode}
+      />
+      <div className="main-content">
+        <Phone 
+          messages={props.messages} 
+          onSendMessage={props.handleSendMessage} 
+          isDarkMode={props.isDarkMode}
+          onToggleDarkMode={props.toggleDarkMode}
+          isInitialized={props.isInitialized}
+          onInitialize={props.handleInitializeChat}
+          isBlurred={props.isBlurred}
+          onReset={props.handleReset}
+          isCallMode={props.isCallMode}
+          audioStream={props.audioStream}
+          onToggleCallMode={props.handleToggleCallMode}
+          isRecording={props.agentType === 'apicall' ? props.isAPICallActive : props.isRecording}
+          onToggleRecording={props.handleToggleMicrophone}
+          conversationState={props.conversationState}
+          agentType={props.agentType}
+          conversationType={props.conversationType || 'workflow'}
+          setConversationType={props.setConversationType}
+          query={props.query}
+          setQuery={props.setQuery}
+        />
+      </div>
+  
+    </div>
+  );
+};
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [stops, setStops] = useState<Stop[]>([]);
@@ -40,6 +107,7 @@ function App() {
   const [conversationType, setConversationType] = useState<string | null>('workflow');
   const [query, setQuery] = useState<string>('');
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showCheckInPage, setShowCheckInPage] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isBlurred, setIsBlurred] = useState(false);
@@ -74,6 +142,17 @@ function App() {
 
   const toggleDashboard = () => {
     setShowDashboard(prev => !prev);
+    setShowCheckInPage(false); // Close check-in page when opening dashboard
+  };
+
+  const toggleCheckInPage = () => {
+    setShowCheckInPage(prev => !prev);
+    setShowDashboard(false); // Close dashboard when opening check-in page
+  };
+
+  const goBackToDashboard = () => {
+    setShowCheckInPage(false);
+    setShowDashboard(true);
   };
 
   // Toggle between agent types with clearer feedback
@@ -1186,60 +1265,56 @@ function App() {
   }, [isRecording, agentType]);
 
   return (
-    <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
-      {showDashboard ? (
-        <StakeholderDashboard isDarkMode={isDarkMode} />
-      ) : (
-        <div className="app-container">
-          <Sidebar 
-            stops={stops} 
-            selectedStopId={selectedStopId}
-            onSelectStop={handleSelectStop}
-            isDarkMode={isDarkMode}
-            agentType={agentType}
-            onToggleAgentType={toggleAgentType}
-            isCallMode={isCallMode}
+    <Router>
+      <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
+        <Routes>
+          <Route 
+            path="/dashboard" 
+            element={<StakeholderDashboard isDarkMode={isDarkMode} onViewCheckIns={toggleCheckInPage} />} 
           />
-          <div className="main-content">
-            <Phone 
-              messages={messages} 
-              onSendMessage={handleSendMessage} 
-              isDarkMode={isDarkMode}
-              onToggleDarkMode={toggleDarkMode}
-              isInitialized={isInitialized}
-              onInitialize={handleInitializeChat}
-              isBlurred={isBlurred}
-              onReset={handleReset}
-              isCallMode={isCallMode}
-              audioStream={audioStream}
-              onToggleCallMode={handleToggleCallMode}
-              isRecording={agentType === 'apicall' ? isAPICallActive : isRecording}
-              onToggleRecording={handleToggleMicrophone}
-              conversationState={conversationState}
-              agentType={agentType}
-              conversationType={conversationType || 'workflow'}
-              setConversationType={setConversationType}
-              query={query}
-              setQuery={setQuery}
-            />
-          </div>
-        </div>
-      )}
-      <div className="view-toggle">
-        <button 
-          onClick={toggleDashboard}
-          className="toggle-button"
-        >
-          {showDashboard ? 'Switch to Chat View' : 'Switch to Stakeholder Dashboard'}
-        </button>
-        <button 
-          onClick={toggleDarkMode}
-          className="toggle-button dark-toggle"
-        >
-          {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-        </button>
+          <Route 
+            path="/check-ins" 
+            element={<CheckInPage isDarkMode={isDarkMode} onBackToDashboard={goBackToDashboard} />} 
+          />
+          <Route 
+            path="/transcript/:checkInId" 
+            element={<TranscriptPageWrapper isDarkMode={isDarkMode} />} 
+          />
+                     <Route 
+            path="/" 
+            element={
+              <MainAppPage 
+                stops={stops}
+                selectedStopId={selectedStopId}
+                handleSelectStop={handleSelectStop}
+                isDarkMode={isDarkMode}
+                agentType={agentType}
+                toggleAgentType={toggleAgentType}
+                isCallMode={isCallMode}
+                messages={messages}
+                handleSendMessage={handleSendMessage}
+                toggleDarkMode={toggleDarkMode}
+                isInitialized={isInitialized}
+                handleInitializeChat={handleInitializeChat}
+                isBlurred={isBlurred}
+                handleReset={handleReset}
+                audioStream={audioStream}
+                handleToggleCallMode={handleToggleCallMode}
+                isAPICallActive={isAPICallActive}
+                isRecording={isRecording}
+                handleToggleMicrophone={handleToggleMicrophone}
+                conversationState={conversationState}
+                conversationType={conversationType}
+                setConversationType={setConversationType}
+                query={query}
+                setQuery={setQuery}
+              />
+            } 
+          />
+        </Routes>
+        <ViewToggleButton isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
       </div>
-    </div>
+    </Router>
   );
 }
 
