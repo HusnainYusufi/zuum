@@ -1305,7 +1305,6 @@ html, body {
 
   .check-in-status {
     display: flex;
-    flex-direction: column;
     gap: 3px;
     align-items: flex-end;
     justify-content: center;
