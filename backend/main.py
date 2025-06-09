@@ -5,6 +5,9 @@ from loguru import logger
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
@@ -16,10 +19,35 @@ from sqlalchemy.orm import Session
 
 load_dotenv()
 
-# Initialize the database
-init_db()
+# Initialize the database only if it's empty
+def init_db_if_empty():
+    """Initialize database only if it doesn't have data already"""
+    # First create tables
+    from db_models import create_tables
+    create_tables()
+    
+    db = next(get_db())
+    try:
+        # Check if we have any stops
+        existing_stops = db.query(StopModel).first()
+        if not existing_stops:
+            print("Database is empty, initializing with dummy data...")
+            init_db()
+        else:
+            print(f"Database already has data, skipping initialization. Found {db.query(StopModel).count()} stops.")
+    finally:
+        db.close()
+
+# Initialize the database only if empty
+init_db_if_empty()
 
 app = FastAPI()
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Set up Jinja2 templates
+templates = Jinja2Templates(directory="templates")
 
 # Add CORS middleware
 app.add_middleware(
@@ -93,8 +121,6 @@ class CheckInResponse(BaseModel):
     call_id: Optional[str] = None
     call_transcript: Optional[str] = None
     recording_url: Optional[str] = None
-    check_in_metadata: Optional[str] = None
-    miles: Optional[str] = None
 
 
 # Get all stops (basic info)
@@ -157,9 +183,7 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
-                recording_url=retell_call.recording_url if retell_call else None,
-                check_in_metadata=retell_call.check_in_metadata if retell_call else None,
-                miles=check_in.miles if hasattr(check_in, 'miles') else None
+                recording_url=retell_call.recording_url if retell_call else None
             ))
         print(result)
         return result
@@ -200,9 +224,7 @@ async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
-                recording_url=retell_call.recording_url if retell_call else None,
-                check_in_metadata=retell_call.check_in_metadata if retell_call else None,
-                miles=check_in.miles if hasattr(check_in, 'miles') else None
+                recording_url=check_in.Recording_URL
             ))
         
         return result
@@ -213,8 +235,11 @@ async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
 
 state_dict = {}
 
-
-
+# Root route redirects to dashboard
+@app.get("/dashboard")
+async def root():
+    """Redirect root to dashboard"""
+    return RedirectResponse(url="/ui/dashboard")
 
 if __name__ == "__main__":
     import uvicorn

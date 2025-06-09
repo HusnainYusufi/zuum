@@ -3,6 +3,8 @@ langchain_openai
 python-dotenv
 loguru
 fastapi[all]
+jinja2
+python-multipart
 sqlalchemy
 rouge-score
 sentence-transformers

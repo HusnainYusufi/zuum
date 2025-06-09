@@ -124,31 +124,4 @@ def get_db():
         yield db
     finally:
         db.close() 
-        
-def initialize_database():
-    # Create all tables
-    create_tables()
-    
-    # Add some initial test data
-    db = SessionLocal()
-    try:
-        # Check if we already have data
-        existing_stops = db.query(Stop).first()
-        if not existing_stops:
-            # Add sample stop
-            sample_stop = Stop(
-                id=1,
-                name="Test Stop",
-                location="Test City, State",
-                eta=(datetime.now() + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S"),
-                cross_street="Main St & 1st Ave",
-                nearest_highway="I-95",
-                is_delayed=False
-            )
-            db.add(sample_stop)
-            db.commit()
-    finally:
-        db.close()
-
-# Initialize the database when this module is imported
-initialize_database()
+# All database initialization is handled in init_db.py
