@@ -1075,7 +1075,7 @@ html, body {
     position: relative;
     overflow: visible;
     backdrop-filter: none;
-    min-height: 60px;
+
   }
 
 .check-in-card::before {

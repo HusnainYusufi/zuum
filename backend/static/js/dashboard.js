@@ -20,9 +20,8 @@ class StakeholderDashboard {
         this.showNotifications = false;
         this.lastNotificationTime = Date.now();
         
-        // Polling intervals
-        this.notificationPoller = null;
-        this.journeyStatePoller = null;
+        // WebSocket connection for real-time updates
+        this.ws = null;
         
         // Initialize dashboard
         this.init();
@@ -38,11 +37,145 @@ class StakeholderDashboard {
         // Load initial data
         await this.loadInitialData();
         
-        // Set up polling
-        this.setupPolling();
+        // Set up WebSocket connection for real-time updates
+        this.setupWebSocket();
         
         // Hide loading spinner
         this.hideLoadingSpinner();
+    }
+
+    setupWebSocket() {
+        // Determine WebSocket URL based on current location
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+        
+        try {
+            this.ws = new WebSocket(wsUrl);
+            
+            this.ws.onopen = () => {
+                console.log('WebSocket connection established');
+            };
+            
+            this.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            this.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            this.ws.onclose = () => {
+                console.log('WebSocket connection closed. Attempting to reconnect...');
+                // Attempt to reconnect after 5 seconds
+                setTimeout(() => this.setupWebSocket(), 5000);
+            };
+        } catch (error) {
+            console.error('Failed to establish WebSocket connection:', error);
+        }
+    }
+
+    handleWebSocketMessage(data) {
+        console.log('Received WebSocket message:', data);
+        
+        switch (data.type) {
+            case 'stop_update':
+                this.handleStopUpdate(data.data);
+                break;
+            case 'check_in_update':
+                this.handleCheckInUpdate(data.data);
+                break;
+            case 'journey_state_update':
+                this.handleJourneyStateUpdate(data.data);
+                break;
+            case 'notification':
+                this.handleNotification(data.data);
+                break;
+            default:
+                console.warn('Unknown WebSocket message type:', data.type);
+        }
+    }
+
+    handleStopUpdate(stopData) {
+        // Update the stop in our local state
+        const stopIndex = this.stops.findIndex(s => s.id === stopData.id);
+        if (stopIndex !== -1) {
+            this.stops[stopIndex] = stopData;
+            this.renderStopsSelector();
+            
+            // If this is the selected stop, update the details
+            if (this.selectedStop && this.selectedStop.id === stopData.id) {
+                this.selectedStop = stopData;
+                this.renderStopDetails();
+            }
+        } else {
+            // New stop, add it to the list
+            this.stops.push(stopData);
+            this.renderStopsSelector();
+        }
+        
+        // Check if we need to add notifications based on stop conditions
+        if (stopData.is_delayed) {
+            this.addNotification(
+                `${stopData.name} is delayed. Reason: ${stopData.delay_reason || 'Not provided'}`,
+                stopData.id,
+                'warning'
+            );
+        }
+        
+        if (stopData.expected_location !== stopData.reported_location) {
+            this.addNotification(
+                `${stopData.name} is off route. Expected: ${stopData.expected_location}, Reported: ${stopData.reported_location}`,
+                stopData.id,
+                'warning'
+            );
+        }
+    }
+
+    handleCheckInUpdate(checkInData) {
+        // Add or update check-in
+        const checkInIndex = this.checkIns.findIndex(c => c.id === checkInData.id);
+        if (checkInIndex !== -1) {
+            this.checkIns[checkInIndex] = checkInData;
+        } else {
+            // Add new check-in at the beginning
+            this.checkIns.unshift(checkInData);
+        }
+        this.renderCheckIns();
+        
+        // Add notification for new check-in
+        this.addNotification(
+            `New check-in #${checkInData.id} received${checkInData.Issue_Flagged ? ' - Issue Flagged!' : ''}`,
+            checkInData.stop_id,
+            checkInData.Issue_Flagged ? 'warning' : 'info'
+        );
+    }
+
+    handleJourneyStateUpdate(journeyStateData) {
+        this.journeyState = journeyStateData.state;
+        this.updateDeliveryTimeline();
+        
+        // Add notification for journey state change
+        const states = ['Confirmed', 'In transit', 'Delivered'];
+        if (journeyStateData.state < states.length) {
+            this.addNotification(
+                `Journey status updated: ${states[journeyStateData.state]}`,
+                null,
+                'info'
+            );
+        }
+    }
+
+    handleNotification(notificationData) {
+        this.addNotification(
+            notificationData.message,
+            notificationData.stop_id,
+            notificationData.severity || 'info'
+        );
     }
 
     setupEventListeners() {
@@ -152,7 +285,7 @@ class StakeholderDashboard {
 
     async fetchJourneyState() {
         try {
-            const response = await fetch(`${this.backendUrl}/ui/journey_state`, {
+            const response = await fetch(`${this.backendUrl}/journey_state`, {
                 headers: {
                     'ngrok-skip-browser-warning': 'true'
                 }
@@ -237,18 +370,6 @@ class StakeholderDashboard {
         } catch (error) {
             console.error('Error fetching notifications:', error);
         }
-    }
-
-    setupPolling() {
-        // Poll for notifications every 10 seconds
-        this.notificationPoller = setInterval(() => {
-            this.fetchNotifications();
-        }, 10000);
-        
-        // Poll for journey state every 5 seconds
-        this.journeyStatePoller = setInterval(() => {
-            this.fetchJourneyState();
-        }, 5000);
     }
 
     renderStopsSelector() {
@@ -349,7 +470,7 @@ class StakeholderDashboard {
                 <div class="check-in-header">
                     <div class="check-in-id-wrapper">
                         <i class="fas fa-clipboard-check check-in-icon"></i>
-                        <span class="check-in-id clickable-link" onclick="window.location.href='/transcript/${checkIn.id}'">
+                        <span class="check-in-id clickable-link" onclick="window.location.href='/checkin/${checkIn.id}'">
                             CHECK-IN #${checkIn.id.toString().padStart(2, '0')}${timestamp ? ` | ${timestamp}` : ''}
                         </span>
                     </div>
@@ -603,11 +724,9 @@ class StakeholderDashboard {
 
     // Cleanup method
     destroy() {
-        if (this.notificationPoller) {
-            clearInterval(this.notificationPoller);
-        }
-        if (this.journeyStatePoller) {
-            clearInterval(this.journeyStatePoller);
+        // Close WebSocket connection
+        if (this.ws) {
+            this.ws.close();
         }
     }
 }

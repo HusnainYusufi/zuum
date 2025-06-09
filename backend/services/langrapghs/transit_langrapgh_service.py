@@ -18,7 +18,9 @@ from dotenv import load_dotenv
 from db_models import Stop, get_db
 from services.langrapghs.prompts.transit_prompt import GET_LOCATION_OR_ETA_PROMPT,GET_LOCATION_AND_ETA_PROMPT, EXTRACT_LOCATION_AND_ETA_PROMPT, examples, DELAY_REASON_PROMPT, GET_DELAY_REASON_PROMPT, EXTRACT_HIGHWAY_NAME_PROMPT, GET_HIGHWAY_EXIT_PROMPT
 from services.langrapghs.prompts.basic_prompts import FALLBACK_PROMPT, GOODBYE_PROMPT
+from services.notification_service import notify_stop_update, send_notification
 import os
+import asyncio
 
 # Add the backend directory to Python path
 notebook_dir = Path().absolute()
@@ -190,7 +192,32 @@ def get_location_and_eta(state: State) -> State:
                     eta = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'reported_location': location, 'eta': eta})   
-        db.commit()     
+        db.commit()
+        
+        # Send notification about location and ETA update
+        stop = db.query(Stop).filter(Stop.id == state['stop_id']).first()
+        if stop:
+            stop_data = {
+                'id': stop.id,
+                'name': stop.name,
+                'location': stop.location,
+                'eta': stop.eta,
+                'is_delayed': stop.is_delayed,
+                'delay_reason': stop.delay_reason,
+                'expected_location': stop.expected_location,
+                'reported_location': stop.reported_location,
+                'nearest_highway': stop.nearest_highway,
+                'is_origin': stop.is_origin,
+                'is_destination': stop.is_destination
+            }
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(notify_stop_update(stop_data))
+                loop.close()
+            except Exception as e:
+                print(f"Could not send notification: {e}")
+            
         if eta is not None:
             try:
                 # Try to parse with ISO format first
@@ -226,6 +253,36 @@ def get_delay_reason(state:State):
     if 'yes' in msg.content.lower():
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'delay_reason':state['messages'][-1].content, 'is_delayed':True})
         db.commit()
+        
+        # Send notification about delay
+        stop = db.query(Stop).filter(Stop.id == state['stop_id']).first()
+        if stop:
+            stop_data = {
+                'id': stop.id,
+                'name': stop.name,
+                'location': stop.location,
+                'eta': stop.eta,
+                'is_delayed': stop.is_delayed,
+                'delay_reason': stop.delay_reason,
+                'expected_location': stop.expected_location,
+                'reported_location': stop.reported_location,
+                'nearest_highway': stop.nearest_highway,
+                'is_origin': stop.is_origin,
+                'is_destination': stop.is_destination
+            }
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(notify_stop_update(stop_data))
+                loop.run_until_complete(send_notification(
+                    f"{stop.name} is delayed. Reason: {state['messages'][-1].content}",
+                    stop.id,
+                    "warning"
+                ))
+                loop.close()
+            except Exception as e:
+                print(f"Could not send notification: {e}")
+        
         return{**state,'messages':[*state['messages'], AIMessage(content='', name='transit_chat')], 'delay_reason':state['messages'][-1].content}
     else:
         return{**state, 'messages':[*state['messages'], msg]}
@@ -273,6 +330,31 @@ def get_nearest_highway(state: State) -> State:
     if highway_name is not None:
         db.query(Stop).filter(Stop.id == state['stop_id']).update({'nearest_highway':highway_name})
         db.commit()
+        
+        # Send notification about highway update
+        stop = db.query(Stop).filter(Stop.id == state['stop_id']).first()
+        if stop:
+            stop_data = {
+                'id': stop.id,
+                'name': stop.name,
+                'location': stop.location,
+                'eta': stop.eta,
+                'is_delayed': stop.is_delayed,
+                'delay_reason': stop.delay_reason,
+                'expected_location': stop.expected_location,
+                'reported_location': stop.reported_location,
+                'nearest_highway': stop.nearest_highway,
+                'is_origin': stop.is_origin,
+                'is_destination': stop.is_destination
+            }
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(notify_stop_update(stop_data))
+                loop.close()
+            except Exception as e:
+                print(f"Could not send notification: {e}")
+        
         return {**state, 'nearest_highway':highway_name}
     else:
         return {**state, 'nearest_highway':None}

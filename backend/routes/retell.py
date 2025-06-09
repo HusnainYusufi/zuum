@@ -29,6 +29,7 @@ from pathlib import Path
 import os
 import json
 from db_models import RetellCall
+from services.notification_service import notify_stop_update, notify_check_in_update, notify_journey_state_update, send_notification
 
 class ChangeStateRequest(BaseModel):
     state: int
@@ -52,26 +53,25 @@ db = next(get_db())
 
 @router.post("/change_transit_state")
 def change_transit_state(request: dict = Body(...)):
-    """Change the current state of the journey."""
+    """Change the transit state for the journey."""
     try:
-        # Extract state value from request - handle both direct format and Retell format
+        # Extract state from request - handle different formats
         state = None
+        
         if isinstance(request, dict):
+            # Handle direct state in request
             if 'state' in request:
-                # Standard request format: {"state": 1}
                 state = request['state']
+            # Handle args format
             elif 'args' in request and isinstance(request['args'], dict) and 'state' in request['args']:
-                # Retell format: {"args": {"state": 1}, ...}
                 state = request['args']['state']
-            elif 'name' in request and request['name'] == 'change_transit_state' and 'args' in request:
-                # Alternative Retell format: {"name": "change_transit_state", "args": {...}}
-                if 'state' in request['args']:
-                    state = request['args']['state']
+            # Handle name/args format
+            elif 'name' in request and request['name'] == 'change_transit_state' and 'args' in request and 'state' in request['args']:
+                state = request['args']['state']
         
         if state is None:
             logger.error(f"Invalid request format: {request}")
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
-                               detail="Invalid request format. 'state' field is required.")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid request format. 'state' field is required.")
         
         # Update the journey state
         journey = db.query(Journey).filter(Journey.id == 1).update({'current_state': state})
@@ -80,6 +80,16 @@ def change_transit_state(request: dict = Body(...)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Journey not found")
         
         db.commit()
+        
+        # Send notification about journey state update
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(notify_journey_state_update(state))
+            loop.close()
+        except Exception as e:
+            logger.warning(f"Could not send notification: {e}")
+        
         return {'message': True}
     
     except HTTPException:
@@ -169,6 +179,31 @@ def add_delay_reason(request: dict = Body(...)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stop not found")
 
         db.commit()
+        
+        # Get the updated stop data for notification
+        updated_stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        if updated_stop:
+            stop_data = {
+                'id': updated_stop.id,
+                'name': updated_stop.name,
+                'location': updated_stop.location,
+                'eta': updated_stop.eta,
+                'is_delayed': updated_stop.is_delayed,
+                'delay_reason': updated_stop.delay_reason,
+                'expected_location': updated_stop.expected_location,
+                'reported_location': updated_stop.reported_location,
+                'nearest_highway': updated_stop.nearest_highway,
+                'is_origin': updated_stop.is_origin,
+                'is_destination': updated_stop.is_destination
+            }
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(notify_stop_update(stop_data))
+                loop.close()
+            except Exception as e:
+                logger.warning(f"Could not send notification: {e}")
+        
         return {'message': True}
     
     except HTTPException:
@@ -283,6 +318,31 @@ def update_reported_location_eta(request: dict = Body(...)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stop not found")
 
         db.commit()
+        
+        # Get the updated stop data for notification
+        updated_stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        if updated_stop:
+            stop_data = {
+                'id': updated_stop.id,
+                'name': updated_stop.name,
+                'location': updated_stop.location,
+                'eta': updated_stop.eta,
+                'is_delayed': updated_stop.is_delayed,
+                'delay_reason': updated_stop.delay_reason,
+                'expected_location': updated_stop.expected_location,
+                'reported_location': updated_stop.reported_location,
+                'nearest_highway': updated_stop.nearest_highway,
+                'is_origin': updated_stop.is_origin,
+                'is_destination': updated_stop.is_destination
+            }
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(notify_stop_update(stop_data))
+                loop.close()
+            except Exception as e:
+                logger.warning(f"Could not send notification: {e}")
+        
         return {'delay': delay}
     
     except HTTPException:
@@ -476,6 +536,40 @@ def check_in(request: dict = Body(...)):
                 db.add(retell_call_record)
                 db.commit()
                 logger.info(f"Created new RetellCall: check_in_id={check_in_record.id}, call_id={call_id}")
+        
+        # Get stop information for the check-in
+        stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        
+        # Prepare check-in data for notification
+        check_in_data = {
+            'id': check_in_record.id,
+            'stop_id': check_in_record.stop_id,
+            'load_id': check_in_record.load_id,
+            'query': check_in_record.query,
+            'AI_Response_Summary': check_in_record.AI_Response_Summary,
+            'AI_Timestamp': check_in_record.AI_Timestamp,
+            'Issue_Flagged': check_in_record.Issue_Flagged,
+            'Exception_Type': check_in_record.Exception_Type,
+            'Call_confidence_score': check_in_record.Call_confidence_score,
+            'Requires_Human_Review': check_in_record.Requires_Human_Review,
+            'Tags': check_in_record.Tags,
+            'stop_name': stop.name if stop else None,
+            'stop_location': stop.location if stop else None,
+            'stop_eta': stop.eta if stop else None,
+            'call_id': call_id,
+            'call_transcript': transcript
+        }
+        
+        # Send notification about new check-in
+        # Use asyncio.run to create a new event loop for the async operation
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(notify_check_in_update(check_in_data))
+            loop.close()
+        except Exception as e:
+            logger.warning(f"Could not send notification: {e}")
+            # Don't fail the request if notification fails
         
         logger.info(f"Stored check-in: stop_id={stop_id}, load_id={load_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}', issue_flagged={issue_flagged}, exception_type='{exception_type}', confidence_score='{call_confidence_score}', requires_review={requires_human_review}, tags='{tags}', miles='{miles}'")
         

@@ -77,24 +77,50 @@
 
 .transcript-container {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 350px 1fr 350px;
+  grid-template-areas: 
+    "info main sidebar";
   gap: 30px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
+@media (max-width: 1200px) {
+  .transcript-container {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+      "info info"
+      "main sidebar";
+    gap: 20px;
+  }
+}
+
 @media (max-width: 1024px) {
   .transcript-container {
     grid-template-columns: 1fr;
+    grid-template-areas: 
+      "info"
+      "main"
+      "sidebar";
     gap: 20px;
   }
 }
 
 .transcript-info {
+  grid-area: info;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
+
+.transcript-main {
+  grid-area: main;
+  min-width: 0; /* Prevent overflow in grid */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Grid area for sidebar is already defined in the transcript-sidebar styles below */
 
 .info-card, .status-card, .transcript-card {
   background: white;
@@ -102,6 +128,12 @@
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.transcript-card {
+  height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
 }
 
 .transcript-page.dark-mode .info-card,
@@ -213,19 +245,17 @@
   color: #f0f6fc !important;
 }
 
-.transcript-main {
-  display: flex;
-  flex-direction: column;
-}
+/* Transcript main is already defined above with grid-area */
 
 .transcript-content {
-  max-height: 70vh;
+  flex: 1;
   overflow-y: auto;
   border: 1px solid #d0d7de !important;
   border-radius: 12px;
   background: #f8fafc !important;
   color: #24292f !important;
   padding: 16px 8px;
+  margin: 0 -8px;
 }
 
 .transcript-page.dark-mode .transcript-content {
@@ -465,6 +495,10 @@
 @media (max-width: 1024px) {
   .transcript-container {
     grid-template-columns: 1fr;
+    grid-template-areas: 
+      "info"
+      "main"
+      "sidebar";
     gap: 20px;
   }
 
@@ -472,6 +506,17 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+  }
+
+  .transcript-sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .transcript-card {
+    height: auto;
+    min-height: 400px;
   }
 }
 
@@ -549,6 +594,12 @@
   .transcript-content {
     max-height: 60vh;
     padding: 12px 6px;
+    margin: 0;
+  }
+
+  .transcript-card {
+    height: auto;
+    min-height: 300px;
   }
 
   .transcript-line-wrapper {
@@ -694,4 +745,201 @@
     padding-bottom: 12px;
     margin-bottom: 12px;
   }
+}
+
+/* Transcript Sidebar Styles */
+.transcript-sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.summary-card, .metadata-card {
+  background: white;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.transcript-page.dark-mode .summary-card,
+.transcript-page.dark-mode .metadata-card {
+  background: #161b22 !important;
+  border: 1px solid #30363d !important;
+  color: #f0f6fc !important;
+}
+
+.summary-card h3, .metadata-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #24292f;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transcript-page.dark-mode .summary-card h3,
+.transcript-page.dark-mode .metadata-card h3 {
+  color: #f0f6fc !important;
+}
+
+.summary-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #24292f;
+}
+
+.transcript-page.dark-mode .summary-content {
+  color: #f0f6fc !important;
+}
+
+.summary-content p {
+  margin: 0;
+  padding: 12px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+}
+
+.transcript-page.dark-mode .summary-content p {
+  background: #21262d !important;
+  border-color: #30363d !important;
+}
+
+.metadata-content {
+  font-size: 14px;
+  color: #24292f;
+}
+
+.transcript-page.dark-mode .metadata-content {
+  color: #f0f6fc !important;
+}
+
+.metadata-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-item {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f6f8fa;
+  border-radius: 6px;
+  border: 1px solid #e1e4e8;
+}
+
+.transcript-page.dark-mode .metadata-item {
+  background: #21262d !important;
+  border-color: #30363d !important;
+}
+
+.metadata-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #656d76;
+  text-transform: capitalize;
+}
+
+.transcript-page.dark-mode .metadata-label {
+  color: #8b949e !important;
+}
+
+.metadata-value {
+  font-size: 12px;
+  color: #24292f;
+  word-break: break-word;
+}
+
+.transcript-page.dark-mode .metadata-value {
+  color: #f0f6fc !important;
+}
+
+/* Recording Link Styles */
+.recording-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0969da;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.recording-link:hover {
+  color: #0553c1;
+  text-decoration: underline;
+}
+
+.transcript-page.dark-mode .recording-link {
+  color: #58a6ff;
+}
+
+.transcript-page.dark-mode .recording-link:hover {
+  color: #79c0ff;
+}
+
+/* Recording actions styles */
+.recording-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.recording-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: #3182ce;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.recording-link:hover {
+    background-color: #2c5282;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.recording-link.download-link {
+    background-color: #48bb78;
+}
+
+.recording-link.download-link:hover {
+    background-color: #38a169;
+}
+
+.recording-link i {
+    font-size: 16px;
+}
+
+/* Dark mode styles for recording actions */
+.dark-mode .recording-link {
+    background-color: #4a5568;
+}
+
+.dark-mode .recording-link:hover {
+    background-color: #2d3748;
+}
+
+.dark-mode .recording-link.download-link {
+    background-color: #2d3748;
+    border: 1px solid #48bb78;
+    color: #48bb78;
+}
+
+.dark-mode .recording-link.download-link:hover {
+    background-color: #48bb78;
+    color: white;
 } 

@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse
 from origin import initialize_chat, process_chat_sequence
 from transit import initialize_transit_chat, process_transit_chat_sequence, get_all_stops, get_chat_history, get_all_stops_with_details
 from init_db import init_db
-from routes import conversation_router, ui_router, retell_router, tests_router
+from routes import conversation_router, ui_router, retell_router, tests_router, notifications_router
 from dotenv import load_dotenv
 # Add database imports
 from db_models import CheckIn, Stop as StopModel, get_db, RetellCall
@@ -63,6 +63,7 @@ app.include_router(conversation_router)
 app.include_router(ui_router)
 app.include_router(retell_router)
 app.include_router(tests_router)
+app.include_router(notifications_router)
 # Initialize the chat states
 state = initialize_chat()
 transit_state = initialize_transit_chat(1)
@@ -121,6 +122,7 @@ class CheckInResponse(BaseModel):
     call_id: Optional[str] = None
     call_transcript: Optional[str] = None
     recording_url: Optional[str] = None
+    check_in_metadata: Optional[str] = None
 
 
 # Get all stops (basic info)
@@ -183,7 +185,8 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
-                recording_url=retell_call.recording_url if retell_call else None
+                recording_url=retell_call.recording_url if retell_call else None,
+                check_in_metadata=retell_call.check_in_metadata if retell_call else None
             ))
         print(result)
         return result
@@ -192,54 +195,13 @@ async def get_check_ins(db: Session = Depends(get_db)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-# Get check-ins for a specific stop
-@app.get("/check-ins/{stop_id}", response_model=List[CheckInResponse])
-async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
-    try:
-        # Query ALL check-ins regardless of stop_id, ordered by newest first
-        # Note: We're ignoring the stop_id parameter and fetching all check-ins
-        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).order_by(CheckIn.AI_Timestamp.desc()).all()
-        
-        # Transform to response model
-        logger.info(f"Found {len(check_ins)} total check-ins (ignoring stop_id filter)")
-        result = []
-        for check_in in check_ins:
-            # Get the first retell call for this check-in (if any)
-            retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in.id).first()
-            
-            result.append(CheckInResponse(
-                id=check_in.id,
-                stop_id=check_in.stop_id,
-                load_id=check_in.load_id,
-                query=check_in.query,
-                AI_Response_Summary=check_in.AI_Response_Summary,
-                AI_Timestamp=check_in.AI_Timestamp,
-                Issue_Flagged=check_in.Issue_Flagged,
-                Exception_Type=check_in.Exception_Type,
-                Call_confidence_score=check_in.Call_confidence_score,
-                Requires_Human_Review=check_in.Requires_Human_Review,
-                Tags=check_in.Tags,
-                stop_name=check_in.stop.name if check_in.stop else None,
-                stop_location=check_in.stop.location if check_in.stop else None,
-                stop_eta=check_in.stop.eta if check_in.stop else None,
-                call_id=retell_call.call_id if retell_call else None,
-                call_transcript=retell_call.call_transcript if retell_call else None,
-                recording_url=check_in.Recording_URL
-            ))
-        
-        return result
-    except Exception as e:
-        logger.error(f"Error in check-ins by stop endpoint: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
 state_dict = {}
 
 # Root route redirects to dashboard
-@app.get("/dashboard")
+@app.get("/")
 async def root():
     """Redirect root to dashboard"""
-    return RedirectResponse(url="/ui/dashboard")
+    return RedirectResponse(url="/dashboard")
 
 if __name__ == "__main__":
     import uvicorn

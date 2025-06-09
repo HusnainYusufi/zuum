@@ -3,6 +3,7 @@ import os
 from datetime import datetime, time
 from typing import Annotated, TypedDict, Literal, Optional, List, Dict
 import re
+import asyncio
 
 from pydantic import BaseModel, Field
 
@@ -19,6 +20,7 @@ from loguru import logger
 
 # Import database models
 from db_models import Stop, ChatHistory, SessionLocal
+from services.notification_service import notify_stop_update, send_notification
 
 load_dotenv()
 
@@ -193,6 +195,28 @@ def get_location(state: TransitState):
                 if stop:
                     stop.reported_location = human_response
                     db.commit()
+                    
+                    # Send notification about location update
+                    stop_data = {
+                        'id': stop.id,
+                        'name': stop.name,
+                        'location': stop.location,
+                        'eta': stop.eta,
+                        'is_delayed': stop.is_delayed,
+                        'delay_reason': stop.delay_reason,
+                        'expected_location': stop.expected_location,
+                        'reported_location': stop.reported_location,
+                        'nearest_highway': stop.nearest_highway,
+                        'is_origin': stop.is_origin,
+                        'is_destination': stop.is_destination
+                    }
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(notify_stop_update(stop_data))
+                        loop.close()
+                    except Exception as e:
+                        logger.warning(f"Could not send notification: {e}")
             finally:
                 db.close()
 
@@ -226,6 +250,29 @@ def get_cross_street(state: TransitState):
             if stop:
                 stop.cross_street = human_response
                 db.commit()
+                
+                # Send notification about cross street update
+                stop_data = {
+                    'id': stop.id,
+                    'name': stop.name,
+                    'location': stop.location,
+                    'eta': stop.eta,
+                    'is_delayed': stop.is_delayed,
+                    'delay_reason': stop.delay_reason,
+                    'expected_location': stop.expected_location,
+                    'reported_location': stop.reported_location,
+                    'cross_street': stop.cross_street,
+                    'nearest_highway': stop.nearest_highway,
+                    'is_origin': stop.is_origin,
+                    'is_destination': stop.is_destination
+                }
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(notify_stop_update(stop_data))
+                    loop.close()
+                except Exception as e:
+                    logger.warning(f"Could not send notification: {e}")
         finally:
             db.close()
     
@@ -255,6 +302,29 @@ def get_nearest_highway(state: TransitState):
             if stop:
                 stop.nearest_highway = human_response
                 db.commit()
+                
+                # Send notification about highway update
+                stop_data = {
+                    'id': stop.id,
+                    'name': stop.name,
+                    'location': stop.location,
+                    'eta': stop.eta,
+                    'is_delayed': stop.is_delayed,
+                    'delay_reason': stop.delay_reason,
+                    'expected_location': stop.expected_location,
+                    'reported_location': stop.reported_location,
+                    'cross_street': stop.cross_street,
+                    'nearest_highway': stop.nearest_highway,
+                    'is_origin': stop.is_origin,
+                    'is_destination': stop.is_destination
+                }
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(notify_stop_update(stop_data))
+                    loop.close()
+                except Exception as e:
+                    logger.warning(f"Could not send notification: {e}")
         finally:
             db.close()
     
@@ -340,6 +410,29 @@ def get_eta(state: TransitState):
                         user_eta_str = user_eta_time.strftime("%I:%M %p")
                         stop.eta = user_eta_str
                     db.commit()
+                    
+                    # Send notification about ETA update
+                    stop_data = {
+                        'id': stop.id,
+                        'name': stop.name,
+                        'location': stop.location,
+                        'eta': stop.eta,
+                        'is_delayed': stop.is_delayed,
+                        'delay_reason': stop.delay_reason,
+                        'expected_location': stop.expected_location,
+                        'reported_location': stop.reported_location,
+                        'cross_street': stop.cross_street,
+                        'nearest_highway': stop.nearest_highway,
+                        'is_origin': stop.is_origin,
+                        'is_destination': stop.is_destination
+                    }
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(notify_stop_update(stop_data))
+                        loop.close()
+                    except Exception as e:
+                        logger.warning(f"Could not send notification: {e}")
             finally:
                 db.close()
 
@@ -376,6 +469,36 @@ def get_delay(state: TransitState):
                 stop.delay_reason = human_response
                 stop.is_delayed = True
                 db.commit()
+                
+                # Send notification about delay
+                stop_data = {
+                    'id': stop.id,
+                    'name': stop.name,
+                    'location': stop.location,
+                    'eta': stop.eta,
+                    'is_delayed': stop.is_delayed,
+                    'delay_reason': stop.delay_reason,
+                    'expected_location': stop.expected_location,
+                    'reported_location': stop.reported_location,
+                    'cross_street': stop.cross_street,
+                    'nearest_highway': stop.nearest_highway,
+                    'is_origin': stop.is_origin,
+                    'is_destination': stop.is_destination
+                }
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(notify_stop_update(stop_data))
+                    
+                    # Send a specific delay notification
+                    loop.run_until_complete(send_notification(
+                        f"{stop.name} is delayed. Reason: {human_response}",
+                        stop.id,
+                        "warning"
+                    ))
+                    loop.close()
+                except Exception as e:
+                    logger.warning(f"Could not send notification: {e}")
         finally:
             db.close()
     

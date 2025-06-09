@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from db_models import Journey
 
 router = APIRouter(
-    prefix="/ui",
+    prefix="",  # Empty prefix
     tags=["ui"],
     responses={404: {"description": "Not found"}},
 )
@@ -41,12 +41,10 @@ async def dashboard_page(request: Request):
     """Serve the stakeholder dashboard page"""
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-@router.get("/transcript/{check_in_id}", response_class=HTMLResponse)
-async def transcript_page(request: Request, check_in_id: int):
-    """Serve the transcript page for a specific check-in"""
-    # For now, just redirect back to dashboard
-    # In a full implementation, you would create a transcript.html template
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+@router.get("/checkin/{check_in_id}", response_class=HTMLResponse)
+async def checkin_page(request: Request, check_in_id: int):
+    """Serve the check-in page for a specific check-in"""
+    return templates.TemplateResponse("checkin.html", {"request": request})
 
 
 
