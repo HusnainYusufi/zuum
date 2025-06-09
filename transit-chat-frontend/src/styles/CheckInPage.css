@@ -422,6 +422,61 @@
   color: #c9d1d9;
 }
 
+/* Recording Link Styles */
+.recording-link {
+  color: #0969da;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.recording-link:hover {
+  color: #0550ae;
+  text-decoration: underline;
+}
+
+.check-in-page.dark-mode .recording-link {
+  color: #58a6ff;
+}
+
+.check-in-page.dark-mode .recording-link:hover {
+  color: #79c0ff;
+}
+
+/* Metadata Styles */
+.metadata-item {
+  align-items: flex-start;
+}
+
+.metadata-value {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metadata-entry {
+  font-size: 13px;
+  padding: 4px 8px;
+  background: #f6f8fa;
+  border-radius: 4px;
+  border: 1px solid #e1e4e8;
+}
+
+.check-in-page.dark-mode .metadata-entry {
+  background: #21262d;
+  border-color: #30363d;
+}
+
+.metadata-entry strong {
+  color: #656d76;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.check-in-page.dark-mode .metadata-entry strong {
+  color: #8b949e;
+}
+
 /* Query and Summary Sections */
 .query-section,
 .summary-section {

@@ -20,6 +20,9 @@ interface CheckIn {
   stop_eta?: string;
   call_id?: string;
   call_transcript?: string;
+  recording_url?: string;
+  check_in_metadata?: string;
+  miles?: string;
 }
 
 interface TranscriptPageWrapperProps {

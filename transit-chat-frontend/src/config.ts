@@ -1,3 +1,4 @@
+export const backend_url = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
-export const backend_url =  "https://mls4a7xawx5gd5-8000.proxy.runpod.net";
+// Export other configuration variables here
 

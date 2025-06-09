@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaClipboardCheck, FaArrowLeft, FaExclamationTriangle, FaTimes, FaClock, FaMapMarkerAlt, FaUser, FaPhone, FaTag, FaChartLine } from 'react-icons/fa';
+import { FaClipboardCheck, FaArrowLeft, FaExclamationTriangle, FaTimes, FaClock, FaMapMarkerAlt, FaUser, FaPhone, FaTag, FaChartLine, FaMicrophone, FaDatabase } from 'react-icons/fa';
 import { MdChatBubble, MdPerson, MdLocationOn, MdSpeed } from 'react-icons/md';
 import { backend_url } from '../config';
 import '../styles/CheckInPage.css';
@@ -22,6 +22,9 @@ interface CheckIn {
   stop_eta?: string;
   call_id?: string;
   call_transcript?: string;
+  recording_url?: string;
+  check_in_metadata?: string;
+  miles?: string;
 }
 
 interface CheckInPageProps {
@@ -195,6 +198,14 @@ const CheckInPage: React.FC<CheckInPageProps> = ({ isDarkMode, onBackToDashboard
                     </div>
                   )}
 
+                  {checkIn.miles && (
+                    <div className="detail-item">
+                      <MdSpeed className="detail-icon" />
+                      <span className="detail-label">Miles:</span>
+                      <span className="detail-value">{checkIn.miles}</span>
+                    </div>
+                  )}
+
                   {checkIn.stop_eta && (
                     <div className="detail-item">
                       <FaClock className="detail-icon" />
@@ -232,6 +243,42 @@ const CheckInPage: React.FC<CheckInPageProps> = ({ isDarkMode, onBackToDashboard
                       <FaTag className="detail-icon" />
                       <span className="detail-label">Tags:</span>
                       <span className="detail-value">{checkIn.Tags}</span>
+                    </div>
+                  )}
+
+                  {checkIn.recording_url && (
+                    <div className="detail-item">
+                      <FaMicrophone className="detail-icon" />
+                      <span className="detail-label">Recording:</span>
+                      <a 
+                        href={checkIn.recording_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="detail-value recording-link"
+                      >
+                        Listen to Recording
+                      </a>
+                    </div>
+                  )}
+
+                  {checkIn.check_in_metadata && (
+                    <div className="detail-item metadata-item">
+                      <FaDatabase className="detail-icon" />
+                      <span className="detail-label">Metadata:</span>
+                      <span className="detail-value metadata-value">
+                        {(() => {
+                          try {
+                            const metadata = JSON.parse(checkIn.check_in_metadata);
+                            return Object.entries(metadata).map(([key, value]) => (
+                              <div key={key} className="metadata-entry">
+                                <strong>{key}:</strong> {String(value)}
+                              </div>
+                            ));
+                          } catch {
+                            return checkIn.check_in_metadata;
+                          }
+                        })()}
+                      </span>
                     </div>
                   )}
                 </div>

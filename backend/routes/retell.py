@@ -27,6 +27,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 from pathlib import Path
 import os
+import json
 from db_models import RetellCall
 
 class ChangeStateRequest(BaseModel):
@@ -454,16 +455,27 @@ def check_in(request: dict = Body(...)):
         # Refresh the check_in_record to get the generated ID
         db.refresh(check_in_record)
         
-        # Store the RetellCall record if we have call_id and transcript
+        # Store or update the RetellCall record if we have call_id and transcript
         if call_id and transcript:
-            retell_call_record = RetellCall(
-                check_in_id=check_in_record.id,
-                call_id=call_id,
-                call_transcript=transcript
-            )
-            db.add(retell_call_record)
-            db.commit()
-            logger.info(f"Stored RetellCall: check_in_id={check_in_record.id}, call_id={call_id}")
+            # Check if a RetellCall with this call_id already exists
+            existing_retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+            
+            if existing_retell_call:
+                # Update existing RetellCall record
+                existing_retell_call.check_in_id = check_in_record.id
+                existing_retell_call.call_transcript = transcript
+                db.commit()
+                logger.info(f"Updated existing RetellCall: check_in_id={check_in_record.id}, call_id={call_id}")
+            else:
+                # Create new RetellCall record
+                retell_call_record = RetellCall(
+                    check_in_id=check_in_record.id,
+                    call_id=call_id,
+                    call_transcript=transcript
+                )
+                db.add(retell_call_record)
+                db.commit()
+                logger.info(f"Created new RetellCall: check_in_id={check_in_record.id}, call_id={call_id}")
         
         logger.info(f"Stored check-in: stop_id={stop_id}, load_id={load_id}, summary='{chat_summary}', query='{query}', timestamp='{timestamp}', issue_flagged={issue_flagged}, exception_type='{exception_type}', confidence_score='{call_confidence_score}', requires_review={requires_human_review}, tags='{tags}', miles='{miles}'")
         
@@ -515,3 +527,49 @@ async def retell_recording_webhook(request: dict = Body(...)):
         logger.error(f"Error processing Retell webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post('/check_in/set_metadata')
+def set_metadata(request: dict = Body(...)):
+    """Set the metadata for the check-in."""
+    try:
+        logger.info(f"Received in set_metadata: \n {request}")
+        
+        # Extract call_id and args from the request
+        call_id = None
+        args = None
+        
+        if isinstance(request, dict):
+            # Extract call_id from the call object
+            if 'call' in request and 'call_id' in request['call']:
+                call_id = request['call']['call_id']
+            
+            # Extract args
+            if 'args' in request:
+                args = request['args']
+        
+        # If we have both call_id and args, update or create RetellCall record
+        if call_id and args:
+            retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+            if retell_call:
+                # Update existing RetellCall with metadata
+                retell_call.check_in_metadata = json.dumps(args)
+                db.commit()
+                logger.info(f"Updated existing RetellCall with metadata for call_id: {call_id}")
+                return {"status": "success", "message": "Metadata updated in existing RetellCall record"}
+            else:
+                # Create new RetellCall record with metadata
+                new_retell_call = RetellCall(
+                    call_id=call_id,
+                    check_in_metadata=json.dumps(args)
+                )
+                db.add(new_retell_call)
+                db.commit()
+                logger.info(f"Created new RetellCall with metadata for call_id: {call_id}")
+                return {"status": "success", "message": "Metadata stored in new RetellCall record"}
+        else:
+            logger.warning(f"Missing call_id or args in request")
+            return {"status": "warning", "message": "Missing call_id or args in request"}
+            
+    except Exception as e:
+        logger.error(f"Error in set_metadata: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

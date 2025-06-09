@@ -1,6 +1,6 @@
 import React from 'react';
-import { FaArrowLeft, FaTimes } from 'react-icons/fa';
-import { MdChatBubble, MdPerson } from 'react-icons/md';
+import { FaArrowLeft, FaTimes, FaMicrophone, FaDatabase, FaUser } from 'react-icons/fa';
+import { MdChatBubble, MdPerson, MdSpeed } from 'react-icons/md';
 import '../styles/TranscriptPage.css';
 
 interface CheckIn {
@@ -20,6 +20,9 @@ interface CheckIn {
   stop_eta?: string;
   call_id?: string;
   call_transcript?: string;
+  recording_url?: string;
+  check_in_metadata?: string;
+  miles?: string;
 }
 
 interface TranscriptPageProps {
@@ -95,6 +98,25 @@ const TranscriptPage: React.FC<TranscriptPageProps> = ({ isDarkMode, checkIn, on
                       hour12: true 
                     })}
                   </span>
+                </div>
+              )}
+              {checkIn.miles && (
+                <div className="info-item">
+                  <span className="info-label">Miles:</span>
+                  <span className="info-value">{checkIn.miles}</span>
+                </div>
+              )}
+              {checkIn.recording_url && (
+                <div className="info-item">
+                  <span className="info-label">Recording:</span>
+                  <a 
+                    href={checkIn.recording_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="info-value recording-link"
+                  >
+                    <FaMicrophone /> Listen to Recording
+                  </a>
                 </div>
               )}
             </div>
@@ -189,6 +211,48 @@ const TranscriptPage: React.FC<TranscriptPageProps> = ({ isDarkMode, checkIn, on
               )}
             </div>
           </div>
+        </div>
+
+        <div className="transcript-sidebar">
+          {checkIn.AI_Response_Summary && (
+            <div className="summary-card">
+              <h3>
+                <FaUser className="section-icon" />
+                AI Summary
+              </h3>
+              <div className="summary-content">
+                <p>{checkIn.AI_Response_Summary}</p>
+              </div>
+            </div>
+          )}
+
+          {checkIn.check_in_metadata && (
+            <div className="metadata-card">
+              <h3>
+                <FaDatabase className="section-icon" />
+                Metadata
+              </h3>
+              <div className="metadata-content">
+                {(() => {
+                  try {
+                    const metadata = JSON.parse(checkIn.check_in_metadata);
+                    return (
+                      <div className="metadata-grid">
+                        {Object.entries(metadata).map(([key, value]) => (
+                          <div key={key} className="metadata-item">
+                            <span className="metadata-label">{key.replace(/_/g, ' ')}:</span>
+                            <span className="metadata-value">{String(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  } catch {
+                    return <p>{checkIn.check_in_metadata}</p>;
+                  }
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

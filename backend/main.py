@@ -93,6 +93,8 @@ class CheckInResponse(BaseModel):
     call_id: Optional[str] = None
     call_transcript: Optional[str] = None
     recording_url: Optional[str] = None
+    check_in_metadata: Optional[str] = None
+    miles: Optional[str] = None
 
 
 # Get all stops (basic info)
@@ -155,7 +157,9 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
-                recording_url=retell_call.recording_url if retell_call else None
+                recording_url=retell_call.recording_url if retell_call else None,
+                check_in_metadata=retell_call.check_in_metadata if retell_call else None,
+                miles=check_in.miles if hasattr(check_in, 'miles') else None
             ))
         print(result)
         return result
@@ -196,7 +200,9 @@ async def get_check_ins_by_stop(stop_id: int, db: Session = Depends(get_db)):
                 stop_eta=check_in.stop.eta if check_in.stop else None,
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
-                recording_url=check_in.Recording_URL
+                recording_url=retell_call.recording_url if retell_call else None,
+                check_in_metadata=retell_call.check_in_metadata if retell_call else None,
+                miles=check_in.miles if hasattr(check_in, 'miles') else None
             ))
         
         return result
