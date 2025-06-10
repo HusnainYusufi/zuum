@@ -36,10 +36,10 @@ jobs:
           DOCKER_IMAGE: jimc047/voice_freight_broker
         run: |
           # Build the image using docker-compose
-          docker-compose -f docker-compose.yml build
+          docker-compose -f docker-compose.yml build backend
           
           # Tag the image with 'latest'
-          docker tag voice_freight_broker:latest $DOCKER_IMAGE:latest
+          docker tag voice_freight_broker_backend:latest $DOCKER_IMAGE:latest
           
           # Push the image to Docker Hub
           docker push $DOCKER_IMAGE:latest
