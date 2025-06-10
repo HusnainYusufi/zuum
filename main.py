@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from init_db import init_db
-from routes import conversation_router, ui_router, retell_router, tests_router, notifications_router
+from routes import conversation_router, ui_router, retell_router, notifications_router
 from dotenv import load_dotenv
 from db_models import CheckIn, Stop as StopModel, get_db, RetellCall
 from sqlalchemy.orm import Session
@@ -60,7 +60,7 @@ app.add_middleware(
 app.include_router(conversation_router)
 app.include_router(ui_router)
 app.include_router(retell_router)
-app.include_router(tests_router)
+# app.include_router(tests_router)
 app.include_router(notifications_router)
 
 class ChatRequest(BaseModel):
