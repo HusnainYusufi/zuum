@@ -1,0 +1,39 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: jimc047
+          password: dckr_pat_v7-NN4FdapyZy8cZ01mqMETs7tA
+
+      - name: Build and push Docker image
+        env:
+          DOCKER_IMAGE: jimc047/voice_freight_broker
+        run: |
+          # Build the image using docker-compose
+          docker-compose -f docker-compose.yml build
+          
+          # Tag the image with 'latest'
+          docker tag voice_freight_broker:latest $DOCKER_IMAGE:latest
+          
+          # Push the image to Docker Hub
+          docker push $DOCKER_IMAGE:latest
