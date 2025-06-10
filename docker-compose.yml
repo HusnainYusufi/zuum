@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: jimc047/voice_freight_broker:latest  # Add this line
     container_name: voice-freight-broker
     ports:
       - "8000:8000"
@@ -21,9 +22,7 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-      # Mount source code for development
       - .:/app
-      # Preserve database
       - ./transit.db:/app/data/transit.db
       - backend_data:/app/data
     networks:
@@ -43,4 +42,4 @@ networks:
 
 volumes:
   backend_data:
-    driver: local 
+    driver: local
