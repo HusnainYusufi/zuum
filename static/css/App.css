@@ -1,0 +1,416 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  background-color: #121212;
+  color: white;
+  position: relative;
+}
+
+.App.dark-mode {
+  background-color: #121212;
+  color: white;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.view-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 1000;
+  align-items: center;
+}
+
+.toggle-button {
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.toggle-button:hover {
+  background-color: #3367d6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-button.dark-toggle {
+  background-color: #333;
+}
+
+.toggle-button.dark-toggle:hover {
+  background-color: #555;
+}
+
+.App.dark-mode .toggle-button.dark-toggle {
+  background-color: #f1c40f;
+  color: #333;
+}
+
+.App.dark-mode .toggle-button.dark-toggle:hover {
+  background-color: #f39c12;
+}
+
+/* Large Desktop Screens */
+@media (min-width: 1440px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 30px;
+    right: 30px;
+  }
+  
+  .toggle-button {
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 30px;
+  }
+}
+
+/* Standard Desktop/Laptop */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 25px;
+    right: 25px;
+  }
+  
+  .toggle-button {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+}
+
+/* Tablet Landscape */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 20px;
+    right: 20px;
+  }
+  
+  .toggle-button {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+}
+
+/* Tablet Portrait & Mobile Landscape */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    height: 200px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .stops-list {
+    display: flex;
+    flex-direction: row;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .stop-item {
+    min-width: 200px;
+    margin-right: 10px;
+  }
+
+  .main-content {
+    flex: 1;
+  }
+  
+  .view-toggle {
+    flex-direction: column;
+    bottom: 20px;
+    right: 20px;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  
+  .toggle-button {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-width: 140px;
+    text-align: center;
+  }
+}
+
+/* Mobile Portrait */
+@media (max-width: 480px) {
+  .view-toggle {
+    bottom: 15px;
+    right: 15px;
+    gap: 15px;
+  }
+  
+  .toggle-button {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: 120px;
+    border-radius: 20px;
+  }
+}
+
+/* Very Small Mobile */
+@media (max-width: 360px) {
+  .view-toggle {
+    bottom: 12px;
+    right: 12px;
+    gap: 12px;
+  }
+  
+  .toggle-button {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 100px;
+    border-radius: 18px;
+  }
+}
+
+/* Foldable/Very Wide Screens */
+@media (min-width: 1920px) {
+  .view-toggle {
+    gap: 10px;
+    bottom: 40px;
+    right: 40px;
+  }
+  
+  .toggle-button {
+    padding: 14px 28px;
+    font-size: 17px;
+    border-radius: 35px;
+  }
+}
+
+/* Mobile Landscape Orientation */
+@media (max-height: 500px) and (orientation: landscape) {
+  .view-toggle {
+    bottom: 10px;
+    right: 15px;
+    gap: 15px;
+    flex-direction: row;
+  }
+  
+  .toggle-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: 90px;
+  }
+}
+
+/* Touch-friendly improvements for all mobile devices */
+@media (hover: none) and (pointer: coarse) {
+  .toggle-button {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .toggle-button:active {
+    transform: scale(0.95);
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .toggle-button {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .toggle-button {
+    transition: none;
+  }
+  
+  .toggle-button:hover {
+    transform: none;
+  }
+  
+  .toggle-button:active {
+    transform: none;
+  }
+}
+
+/* Print media */
+@media print {
+  .view-toggle {
+    display: none;
+  }
+}
+
+/* Extreme viewport sizes */
+@media (max-width: 320px) {
+  .view-toggle {
+    bottom: 8px;
+    right: 8px;
+    gap: 8px;
+  }
+  
+  .toggle-button {
+    padding: 5px 8px;
+    font-size: 11px;
+    min-width: 80px;
+    border-radius: 15px;
+  }
+}
+
+/* Ultra-wide monitors */
+@media (min-width: 2560px) {
+  .view-toggle {
+    gap: 80px;
+    bottom: 50px;
+    right: 50px;
+  }
+  
+  .toggle-button {
+    padding: 16px 32px;
+    font-size: 18px;
+    border-radius: 40px;
+  }
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Enhanced Agent Type Toggle Styles */
+.agent-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+}
+
+.agent-toggle-button {
+  padding: 10px 20px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-toggle-button.active {
+  background-color: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.agent-toggle-button.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #2c5aa0;
+}
+
+.dark-mode .agent-toggle-button {
+  background-color: #333;
+  border-color: #555;
+  color: #eee;
+}
+
+.dark-mode .agent-toggle-button.active {
+  background-color: #2a5a9e;
+  border-color: #2a5a9e;
+  color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode .agent-toggle-button.active::after {
+  background-color: #1c3c68;
+}
+
+/* Hover effects */
+.agent-toggle-button:hover:not(.active) {
+  background-color: #e0e0e0;
+  transform: translateY(-1px);
+}
+
+.dark-mode .agent-toggle-button:hover:not(.active) {
+  background-color: #444;
+}
+
+/* Add this to your existing app.css file */
