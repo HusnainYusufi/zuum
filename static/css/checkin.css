@@ -942,4 +942,355 @@
 .dark-mode .recording-link.download-link:hover {
     background-color: #48bb78;
     color: white;
+}
+
+/* Feedback Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: relative;
+    background-color: #161b22;
+    margin: 5% auto;
+    padding: 24px;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid #30363d;
+    color: #f0f6fc;
+}
+
+.modal-close {
+    position: absolute;
+    right: 20px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #8b949e;
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+    color: #f0f6fc;
+}
+
+.modal-content h2 {
+    color: #f0f6fc;
+    margin-bottom: 24px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group h3 {
+    margin-bottom: 12px;
+    color: #f0f6fc;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.radio-group {
+    display: flex;
+    gap: 24px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #f0f6fc;
+}
+
+.radio-group input[type="radio"] {
+    accent-color: #238636;
+    width: 16px;
+    height: 16px;
+}
+
+textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    resize: vertical;
+    background-color: #0d1117;
+    color: #f0f6fc;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: #238636;
+    box-shadow: 0 0 0 2px rgba(35, 134, 54, 0.2);
+}
+
+input[type="text"],
+input[type="email"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background-color: #0d1117;
+    color: #f0f6fc;
+    font-size: 14px;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus {
+    outline: none;
+    border-color: #238636;
+    box-shadow: 0 0 0 2px rgba(35, 134, 54, 0.2);
+}
+
+input[type="file"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background-color: #0d1117;
+    color: #f0f6fc;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+    background-color: #238636;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 12px;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+input[type="file"]::-webkit-file-upload-button:hover {
+    background-color: #2ea043;
+}
+
+.submit-button {
+    background-color: #238636;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    width: 100%;
+    transition: background-color 0.2s ease;
+}
+
+.submit-button:hover {
+    background-color: #2ea043;
+}
+
+/* Placeholder styles */
+::placeholder {
+    color: #8b949e;
+    opacity: 1;
+}
+
+/* Responsive styles for modal */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 20px;
+    }
+
+    .radio-group {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .modal-content h2 {
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-content {
+        margin: 5% auto;
+        padding: 16px;
+    }
+
+    .form-group h3 {
+        font-size: 14px;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="email"],
+    input[type="file"] {
+        font-size: 13px;
+        padding: 10px;
+    }
+
+    .submit-button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}
+
+/* Feedback Button Styles */
+.feedback-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: #238636;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.feedback-button:hover {
+    background-color: #2ea043;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.feedback-button i {
+    font-size: 16px;
+}
+
+/* Dark mode styles for feedback button */
+.transcript-page.dark-mode .feedback-button {
+    background-color: #238636;
+    color: white;
+}
+
+.transcript-page.dark-mode .feedback-button:hover {
+    background-color: #2ea043;
+}
+
+/* Responsive styles for feedback button */
+@media (max-width: 768px) {
+    .feedback-button {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .feedback-button i {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .feedback-button {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+    
+    .feedback-button i {
+        font-size: 13px;
+    }
+}
+
+/* Thank You Message Styles */
+.thank-you-message {
+    text-align: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.thank-you-message h2 {
+    color: #f0f6fc;
+    margin-bottom: 16px;
+    font-size: 24px;
+}
+
+.thank-you-message p {
+    color: #8b949e;
+    font-size: 16px;
+    margin-bottom: 24px;
+}
+
+.thank-you-icon {
+    font-size: 48px;
+    color: #238636;
+    margin: 20px 0;
+    animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* Error Message Styles */
+.error-message {
+    text-align: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.error-message h2 {
+    color: #f0f6fc;
+    margin-bottom: 16px;
+    font-size: 24px;
+}
+
+.error-message p {
+    color: #8b949e;
+    font-size: 16px;
+    margin-bottom: 24px;
+}
+
+.error-icon {
+    font-size: 48px;
+    color: #da3633;
+    margin: 20px 0;
+    animation: scaleIn 0.5s ease-out;
+}
+
+/* Loading state for submit button */
+.submit-button:disabled {
+    background-color: #30363d;
+    cursor: not-allowed;
+    opacity: 0.7;
 } 

@@ -19,7 +19,7 @@
                             <i class="fas fa-arrow-left"></i> Back to Dashboard
                         </button>
                         <h1>
-                            <i class="fas fa-comment-dots page-icon"></i>
+                            <!-- <i class="fas fa-comment-dots page-icon"></i> -->
                             <span id="page-title">Call Transcript - Check-in #00</span>
                         </h1>
                     </div>
@@ -40,12 +40,16 @@
                                 <!-- Status will be populated by JavaScript -->
                             </div>
                         </div>
+
+                        <button class="feedback-button" id="feedback-button">
+                            <i class="fas fa-comment-alt"></i> Provide Feedback
+                        </button>
                     </div>
 
                     <div class="transcript-main">
                         <div class="transcript-card">
                             <h3>
-                                <i class="fas fa-comment-dots section-icon"></i>
+                                <!-- <i class="fas fa-comment-dots section-icon"></i> -->
                                 Call Transcript
                             </h3>
                             <div class="transcript-content" id="transcript-content">
@@ -88,6 +92,56 @@
         </div>
     </div>
 
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="modal-close">&times;</span>
+            <h2>Feedback Form</h2>
+            <form id="feedback-form">
+                <div class="form-group">
+                    <h3>Feedback Type</h3>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="feedbackType" value="comments" checked>
+                            Comments
+                        </label>
+                        <label>
+                            <input type="radio" name="feedbackType" value="suggestions">
+                            Suggestions
+                        </label>
+                        <label>
+                            <input type="radio" name="feedbackType" value="questions">
+                            Questions
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <h3>Describe Your Feedback</h3>
+                    <textarea name="feedbackDescription" required placeholder="Please describe your feedback here..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <h3>Images (Optional)</h3>
+                    <input type="file" name="feedbackImages" multiple accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <h3>Name</h3>
+                    <input type="text" name="userName" required placeholder="Enter your name">
+                </div>
+
+                <div class="form-group">
+                    <h3>Email</h3>
+                    <input type="email" name="userEmail" required placeholder="Enter your email">
+                </div>
+
+                <button type="submit" class="submit-button">Submit Feedback</button>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/js/checkin.js"></script>
+    <script src="/static/js/feedback.js"></script>
 </body>
 </html> 

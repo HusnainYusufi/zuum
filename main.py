@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 import os
 from loguru import logger
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -14,6 +14,10 @@ from dotenv import load_dotenv
 from db_models import CheckIn, Stop as StopModel, get_db, RetellCall
 from sqlalchemy.orm import Session
 from services.db_service import get_all_stops, get_all_stops_with_details
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 
 load_dotenv()
 
@@ -116,6 +120,63 @@ class CheckInResponse(BaseModel):
     recording_url: Optional[str] = None
     check_in_metadata: Optional[str] = None
 
+class FeedbackRequest(BaseModel):
+    feedbackType: str
+    userName: str
+    userEmail: str
+    feedbackDescription: str
+
+@app.post("/send-feedback")
+async def send_feedback(
+    feedbackType: str = Form(...),
+    userName: str = Form(...),
+    userEmail: str = Form(...),
+    feedbackDescription: str = Form(...),
+    feedbackImages: List[UploadFile] = File(None)
+):
+    try:
+        # Create message
+        msg = MIMEMultipart()
+        # msg['Subject'] = f'New Feedback: {feedbackType}'
+        msg['Subject'] = f'Freight Broker: Feedback'
+        msg['From'] = os.getenv('FEEDBACK_SENDER_EMAIL')
+        msg['To'] = os.getenv('FEEDBACK_RECIPIENT_EMAIL')
+        
+        # Create email body
+        body = f"""
+        New Feedback Received:
+        
+        Type: {feedbackType}
+        Name: {userName}
+        Email: {userEmail}
+        
+        Feedback:
+        {feedbackDescription}
+        """
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Attach files if any
+        if feedbackImages:
+            for file in feedbackImages:
+                if file.filename:
+                    contents = await file.read()
+                    attachment = MIMEApplication(contents, _subtype=file.content_type.split('/')[1])
+                    attachment.add_header('Content-Disposition', 'attachment', filename=file.filename)
+                    msg.attach(attachment)
+        
+        # Send email
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(
+                os.getenv('SMTP_USERNAME', ''),
+                os.getenv('SMTP_PASSWORD', '')
+            )
+            smtp.send_message(msg)
+        
+        return {"success": True, "message": "Feedback sent successfully"}
+    except Exception as e:
+        logger.error(f"Error sending feedback: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Get all stops (basic info)
 @app.get("/stops", response_model=List[Stop])
