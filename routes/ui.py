@@ -46,5 +46,10 @@ async def checkin_page(request: Request, check_in_id: int):
     """Serve the check-in page for a specific check-in"""
     return templates.TemplateResponse("checkin.html", {"request": request})
 
+@router.get("/test-forms-chat", response_class=HTMLResponse)
+async def test_forms_chat_page(request: Request):
+    """Serve the test forms chat interface page"""
+    return templates.TemplateResponse("test_forms_chat.html", {"request": request})
+
 
 

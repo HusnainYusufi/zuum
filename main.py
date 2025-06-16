@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from init_db import init_db
 from routes import conversation_router, ui_router, retell_router, notifications_router
+from routes.test_froms import router as test_forms_router
 from dotenv import load_dotenv
 from db_models import CheckIn, Stop as StopModel, get_db, RetellCall
 from sqlalchemy.orm import Session
@@ -67,6 +68,7 @@ app.include_router(ui_router)
 app.include_router(retell_router)
 # app.include_router(tests_router)
 app.include_router(notifications_router)
+app.include_router(test_forms_router)
 
 # Initialize Twilio client
 twilio_client = Client(

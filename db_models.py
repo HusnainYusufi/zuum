@@ -100,7 +100,6 @@ class RetellCall(Base):
     call_id = Column(String)
     call_transcript = Column(Text)
     recording_url = Column(String)
-    # Define relationships
     check_in = relationship("CheckIn", backref="retell_calls")
     check_in_metadata = Column(String)
     
