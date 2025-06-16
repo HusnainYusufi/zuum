@@ -18,6 +18,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from twilio.rest import Client
 
 load_dotenv()
 
@@ -66,6 +67,16 @@ app.include_router(ui_router)
 app.include_router(retell_router)
 # app.include_router(tests_router)
 app.include_router(notifications_router)
+
+# Initialize Twilio client
+twilio_client = Client(
+    os.getenv('TWILIO_ACCOUNT_SID', ''),
+    os.getenv('TWILIO_AUTH_TOKEN', '')
+)
+TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')
+
+# Get recipient phone numbers from environment variable
+FEEDBACK_RECIPIENT_PHONES = os.getenv('FEEDBACK_RECIPIENT_PHONES', '').split(',')
 
 class ChatRequest(BaseModel):
     message: str
@@ -137,12 +148,11 @@ async def send_feedback(
     try:
         # Create message
         msg = MIMEMultipart()
-        # msg['Subject'] = f'New Feedback: {feedbackType}'
         msg['Subject'] = f'Freight Broker: Feedback'
         msg['From'] = os.getenv('FEEDBACK_SENDER_EMAIL')
         msg['To'] = os.getenv('FEEDBACK_RECIPIENT_EMAIL')
         
-        # Create email body
+        # Create message body
         body = f"""
         New Feedback Received:
         
@@ -172,6 +182,36 @@ async def send_feedback(
                 os.getenv('SMTP_PASSWORD', '')
             )
             smtp.send_message(msg)
+
+        # Send SMS notification to all recipients
+        sms_body = f"""[Freight Broker Project]
+New Feedback from {userName}
+Email: {userEmail}
+Type: {feedbackType}
+
+Message:
+{feedbackDescription[:200]}..."""
+
+        sms_errors = []
+        for phone_number in FEEDBACK_RECIPIENT_PHONES:
+            try:
+                twilio_client.messages.create(
+                    body=sms_body,
+                    from_=TWILIO_FROM_NUMBER.replace(' ', ''),  # Remove spaces from phone number
+                    to=phone_number.strip()  # Remove any whitespace
+                )
+                logger.info(f"SMS notification sent successfully to {phone_number}")
+            except Exception as sms_error:
+                error_msg = f"Failed to send SMS to {phone_number}: {str(sms_error)}"
+                logger.error(error_msg)
+                sms_errors.append(error_msg)
+        
+        # If some SMS failed but not all, log it but don't fail the request
+        if sms_errors and len(sms_errors) < len(FEEDBACK_RECIPIENT_PHONES):
+            logger.warning(f"Some SMS notifications failed: {', '.join(sms_errors)}")
+        # If all SMS failed, log it but still don't fail the request as email was sent
+        elif sms_errors and len(sms_errors) == len(FEEDBACK_RECIPIENT_PHONES):
+            logger.error("All SMS notifications failed to send")
         
         return {"success": True, "message": "Feedback sent successfully"}
     except Exception as e:
