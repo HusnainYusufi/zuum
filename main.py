@@ -20,6 +20,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from twilio.rest import Client
+from supabase import create_client
+from datetime import datetime
 
 load_dotenv()
 
@@ -79,6 +81,11 @@ TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')
 
 # Get recipient phone numbers from environment variable
 FEEDBACK_RECIPIENT_PHONES = os.getenv('FEEDBACK_RECIPIENT_PHONES', '').split(',')
+
+# Initialize Supabase client
+supabase_url = os.getenv('SUPABASE_URL')
+supabase_key = os.getenv('SUPABASE_KEY')
+supabase = create_client(supabase_url, supabase_key)
 
 class ChatRequest(BaseModel):
     message: str
@@ -148,44 +155,36 @@ async def send_feedback(
     feedbackImages: List[UploadFile] = File(None)
 ):
     try:
-        # Create message
-        msg = MIMEMultipart()
-        msg['Subject'] = f'Freight Broker: Feedback'
-        msg['From'] = os.getenv('FEEDBACK_SENDER_EMAIL')
-        msg['To'] = os.getenv('FEEDBACK_RECIPIENT_EMAIL')
+        image_links = []
         
-        # Create message body
-        body = f"""
-        New Feedback Received:
-        
-        Type: {feedbackType}
-        Name: {userName}
-        Email: {userEmail}
-        
-        Feedback:
-        {feedbackDescription}
-        """
-        
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Attach files if any
+        # Upload images to Supabase if any
         if feedbackImages:
             for file in feedbackImages:
                 if file.filename:
+                    # Generate unique filename
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    file_extension = os.path.splitext(file.filename)[1]
+                    unique_filename = f"{userName}_{timestamp}{file_extension}"
+                    
+                    # Read file contents
                     contents = await file.read()
-                    attachment = MIMEApplication(contents, _subtype=file.content_type.split('/')[1])
-                    attachment.add_header('Content-Disposition', 'attachment', filename=file.filename)
-                    msg.attach(attachment)
-        
-        # Send email
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(
-                os.getenv('SMTP_USERNAME', ''),
-                os.getenv('SMTP_PASSWORD', '')
-            )
-            smtp.send_message(msg)
-
-        # Send SMS notification to all recipients
+                    
+                    # Upload to Supabase
+                    try:
+                        result = supabase.storage.from_('feedback-images').upload(
+                            unique_filename,
+                            contents,
+                            {"content-type": file.content_type}
+                        )
+                        
+                        # Get public URL
+                        public_url = supabase.storage.from_('feedback-images').get_public_url(unique_filename)
+                        image_links.append(public_url)
+                    except Exception as upload_error:
+                        logger.error(f"Failed to upload image {file.filename}: {str(upload_error)}")
+                        continue
+        print(image_links)
+        # Create SMS body with image links
         sms_body = f"""[Freight Broker Project]
 New Feedback from {userName}
 Email: {userEmail}
@@ -193,6 +192,12 @@ Type: {feedbackType}
 
 Message:
 {feedbackDescription[:200]}..."""
+
+        # Add image links if any
+        if image_links:
+            sms_body += "\n\nImage/s:"
+            for link in image_links:
+                sms_body += f"\n{link}"
 
         sms_errors = []
         for phone_number in FEEDBACK_RECIPIENT_PHONES:
@@ -211,9 +216,10 @@ Message:
         # If some SMS failed but not all, log it but don't fail the request
         if sms_errors and len(sms_errors) < len(FEEDBACK_RECIPIENT_PHONES):
             logger.warning(f"Some SMS notifications failed: {', '.join(sms_errors)}")
-        # If all SMS failed, log it but still don't fail the request as email was sent
+        # If all SMS failed, log it but still don't fail the request
         elif sms_errors and len(sms_errors) == len(FEEDBACK_RECIPIENT_PHONES):
             logger.error("All SMS notifications failed to send")
+            raise HTTPException(status_code=500, detail="Failed to send SMS notifications")
         
         return {"success": True, "message": "Feedback sent successfully"}
     except Exception as e:
