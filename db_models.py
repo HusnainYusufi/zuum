@@ -102,7 +102,33 @@ class RetellCall(Base):
     recording_url = Column(String)
     check_in = relationship("CheckIn", backref="retell_calls")
     check_in_metadata = Column(String)
+
+class Feedback(Base):
+    __tablename__ = "feedback"
     
+    id = Column(Integer, primary_key=True, index=True)
+    feedback_type = Column(String, nullable=False)
+    user_name = Column(String, nullable=False)
+    user_email = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    created_at = Column(String, default=lambda: datetime.now().isoformat())
+    
+    # Relationship to feedback images
+    images = relationship("FeedbackImage", back_populates="feedback", cascade="all, delete-orphan")
+
+class FeedbackImage(Base):
+    __tablename__ = "feedback_images"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    feedback_id = Column(Integer, ForeignKey('feedback.id'), index=True)
+    filename = Column(String, nullable=False)
+    original_filename = Column(String)
+    file_path = Column(String, nullable=False)
+    uploaded_at = Column(String, default=lambda: datetime.now().isoformat())
+    
+    # Relationship back to feedback
+    feedback = relationship("Feedback", back_populates="images")
+
 # Create all tables
 def create_tables():
     Base.metadata.create_all(bind=engine)

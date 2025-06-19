@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: jimc047/voice_freight_broker:latest  # Add this line
+    image: jimc047/voice_freight_broker:latest
     container_name: voice-freight-broker
     ports:
       - "8000:8000"
@@ -16,14 +16,24 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NGROK_AUTH_TOKEN=${NGROK_AUTH_TOKEN}
       - RETELL_API_KEY=${RETELL_API_KEY}
-      - DATABASE_URL=sqlite:///./data/transit.db
+      - DATABASE_URL=${DATABASE_URL}
       - WORKFLOW_RETELL_AGENT_ID=${WORKFLOW_RETELL_AGENT_ID}
       - CHECKIN_RETELL_AGENT_ID=${CHECKIN_RETELL_AGENT_ID}
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - BACKEND_ngrok_LINK=${BACKEND_ngrok_LINK}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - API_RATE_LIMIT=${API_RATE_LIMIT:-100}
+      - RETELL_FROM_NUMBER=${RETELL_FROM_NUMBER}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - FEEDBACK_RECIPIENT_PHONES=${FEEDBACK_RECIPIENT_PHONES}
+      - BASE_URL=
     volumes:
       - .:/app
       - ./transit.db:/app/data/transit.db
+      - ./static/feedback-images:/app/static/feedback-images
       - backend_data:/app/data
     networks:
       - voice-freight-network
