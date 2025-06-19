@@ -41,9 +41,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 # Copy application code
 COPY --chown=appuser:appuser . .
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs /app/backups && \
-    chown -R appuser:appuser /app
+
 
 # Switch to non-root user
 USER appuser

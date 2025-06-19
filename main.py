@@ -9,21 +9,22 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from init_db import init_db
-from routes import conversation_router, ui_router, retell_router, notifications_router
+from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router
 from routes.test_froms import router as test_forms_router
 from dotenv import load_dotenv
-from db_models import CheckIn, Stop as StopModel, get_db, RetellCall
+from db_models import CheckIn, Stop as StopModel, get_db, RetellCall, Feedback, FeedbackImage
 from sqlalchemy.orm import Session
 from services.db_service import get_all_stops, get_all_stops_with_details
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
 from twilio.rest import Client
-from supabase import create_client
 from datetime import datetime
+import shutil
+from pathlib import Path
 
 load_dotenv()
+
+# Create feedback images directory if it doesn't exist
+FEEDBACK_IMAGES_DIR = Path("static/feedback-images")
+FEEDBACK_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize the database only if it's empty
 def init_db_if_empty():
@@ -71,6 +72,7 @@ app.include_router(retell_router)
 # app.include_router(tests_router)
 app.include_router(notifications_router)
 app.include_router(test_forms_router)
+app.include_router(checkin_router)
 
 # Initialize Twilio client
 twilio_client = Client(
@@ -81,11 +83,6 @@ TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')
 
 # Get recipient phone numbers from environment variable
 FEEDBACK_RECIPIENT_PHONES = os.getenv('FEEDBACK_RECIPIENT_PHONES', '').split(',')
-
-# Initialize Supabase client
-supabase_url = os.getenv('SUPABASE_URL')
-supabase_key = os.getenv('SUPABASE_KEY')
-supabase = create_client(supabase_url, supabase_key)
 
 class ChatRequest(BaseModel):
     message: str
@@ -146,44 +143,108 @@ class FeedbackRequest(BaseModel):
     userEmail: str
     feedbackDescription: str
 
+class FeedbackImageResponse(BaseModel):
+    id: int
+    filename: str
+    original_filename: Optional[str]
+    url: str
+    uploaded_at: str
+
+class FeedbackResponse(BaseModel):
+    id: int
+    feedback_type: str
+    user_name: str
+    user_email: str
+    description: str
+    created_at: str
+    images: List[FeedbackImageResponse]
+
 @app.post("/send-feedback")
 async def send_feedback(
     feedbackType: str = Form(...),
     userName: str = Form(...),
     userEmail: str = Form(...),
     feedbackDescription: str = Form(...),
-    feedbackImages: List[UploadFile] = File(None)
+    feedbackImages: List[UploadFile] = File(None),
+    db: Session = Depends(get_db)
 ):
     try:
+        logger.info(f"Received feedback from {userName} ({userEmail}) - Type: {feedbackType}")
+        
+        # Check required environment variables for Twilio
+        required_env_vars = {
+            'TWILIO_ACCOUNT_SID': os.getenv('TWILIO_ACCOUNT_SID'),
+            'TWILIO_AUTH_TOKEN': os.getenv('TWILIO_AUTH_TOKEN'),
+            'TWILIO_FROM_NUMBER': os.getenv('TWILIO_FROM_NUMBER'),
+            'FEEDBACK_RECIPIENT_PHONES': os.getenv('FEEDBACK_RECIPIENT_PHONES'),
+        }
+        
+        missing_vars = [var for var, val in required_env_vars.items() if not val]
+        if missing_vars:
+            error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+            logger.error(error_msg)
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        logger.info("All required environment variables are present")
+        
+        # Create feedback record in database
+        feedback = Feedback(
+            feedback_type=feedbackType,
+            user_name=userName,
+            user_email=userEmail,
+            description=feedbackDescription
+        )
+        db.add(feedback)
+        db.flush()  # Flush to get the feedback ID
+        
         image_links = []
         
-        # Upload images to Supabase if any
+        # Process and save images locally
         if feedbackImages:
-            for file in feedbackImages:
+            logger.info(f"Processing {len(feedbackImages)} image files")
+            for i, file in enumerate(feedbackImages):
                 if file.filename:
+                    logger.info(f"Processing image {i+1}: {file.filename}")
                     # Generate unique filename
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     file_extension = os.path.splitext(file.filename)[1]
-                    unique_filename = f"{userName}_{timestamp}{file_extension}"
+                    unique_filename = f"feedback_{feedback.id}_{userName}_{timestamp}_{i}{file_extension}"
                     
                     # Read file contents
                     contents = await file.read()
+                    logger.info(f"Read {len(contents)} bytes from {file.filename}")
                     
-                    # Upload to Supabase
+                    # Save to local storage
                     try:
-                        result = supabase.storage.from_('feedback-images').upload(
-                            unique_filename,
-                            contents,
-                            {"content-type": file.content_type}
-                        )
+                        file_path = FEEDBACK_IMAGES_DIR / unique_filename
+                        logger.info(f"Saving to local storage: {file_path}")
                         
-                        # Get public URL
-                        public_url = supabase.storage.from_('feedback-images').get_public_url(unique_filename)
-                        image_links.append(public_url)
-                    except Exception as upload_error:
-                        logger.error(f"Failed to upload image {file.filename}: {str(upload_error)}")
+                        with open(file_path, "wb") as f:
+                            f.write(contents)
+                        
+                        # Create relative URL for accessing the image
+                        relative_url = f"/static/feedback-images/{unique_filename}"
+                        image_links.append(relative_url)
+                        
+                        # Save image record to database
+                        feedback_image = FeedbackImage(
+                            feedback_id=feedback.id,
+                            filename=unique_filename,
+                            original_filename=file.filename,
+                            file_path=str(file_path)
+                        )
+                        db.add(feedback_image)
+                        
+                        logger.info(f"Generated local URL: {relative_url}")
+                    except Exception as save_error:
+                        logger.error(f"Failed to save image {file.filename}: {str(save_error)}")
+                        logger.error(f"Save error type: {type(save_error).__name__}")
                         continue
-        print(image_links)
+        
+        # Commit all database changes
+        db.commit()
+        logger.info(f"Successfully saved feedback {feedback.id} with {len(image_links)} images")
+        
         # Create SMS body with image links
         sms_body = f"""[Freight Broker Project]
 New Feedback from {userName}
@@ -191,40 +252,76 @@ Email: {userEmail}
 Type: {feedbackType}
 
 Message:
-{feedbackDescription[:200]}..."""
+{feedbackDescription[:200]}{"..." if len(feedbackDescription) > 200 else ""}"""
 
-        # Add image links if any
+        # Add image links if any (using the host URL if available)
         if image_links:
             sms_body += "\n\nImage/s:"
+            # Get the base URL from request or environment
+            base_url = os.getenv('BASE_URL', 'http://localhost:8000')
             for link in image_links:
-                sms_body += f"\n{link}"
+                full_url = f"{base_url}{link}"
+                sms_body += f"\n{full_url}"
 
+        logger.info(f"SMS body length: {len(sms_body)} characters")
+        
+        # Check if recipient phones are configured
+        recipient_phones = [phone.strip() for phone in FEEDBACK_RECIPIENT_PHONES if phone.strip()]
+        if not recipient_phones:
+            error_msg = "No recipient phone numbers configured in FEEDBACK_RECIPIENT_PHONES"
+            logger.error(error_msg)
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        logger.info(f"Sending SMS to {len(recipient_phones)} recipients")
+        
         sms_errors = []
-        for phone_number in FEEDBACK_RECIPIENT_PHONES:
+        for i, phone_number in enumerate(recipient_phones):
             try:
-                twilio_client.messages.create(
+                logger.info(f"Sending SMS {i+1}/{len(recipient_phones)} to {phone_number}")
+                
+                # Validate phone number format
+                clean_from_number = TWILIO_FROM_NUMBER.replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
+                clean_to_number = phone_number.strip().replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
+                
+                logger.info(f"Cleaned numbers - From: {clean_from_number}, To: {clean_to_number}")
+                
+                message = twilio_client.messages.create(
                     body=sms_body,
-                    from_=TWILIO_FROM_NUMBER.replace(' ', ''),  # Remove spaces from phone number
-                    to=phone_number.strip()  # Remove any whitespace
+                    from_=clean_from_number,
+                    to=clean_to_number
                 )
-                logger.info(f"SMS notification sent successfully to {phone_number}")
+                logger.info(f"SMS sent successfully to {phone_number}. Message SID: {message.sid}")
             except Exception as sms_error:
                 error_msg = f"Failed to send SMS to {phone_number}: {str(sms_error)}"
                 logger.error(error_msg)
+                logger.error(f"SMS error type: {type(sms_error).__name__}")
+                logger.error(f"SMS error details: {sms_error}")
                 sms_errors.append(error_msg)
         
-        # If some SMS failed but not all, log it but don't fail the request
-        if sms_errors and len(sms_errors) < len(FEEDBACK_RECIPIENT_PHONES):
+        # Handle SMS sending results
+        if sms_errors and len(sms_errors) < len(recipient_phones):
             logger.warning(f"Some SMS notifications failed: {', '.join(sms_errors)}")
-        # If all SMS failed, log it but still don't fail the request
-        elif sms_errors and len(sms_errors) == len(FEEDBACK_RECIPIENT_PHONES):
+        elif sms_errors and len(sms_errors) == len(recipient_phones):
             logger.error("All SMS notifications failed to send")
-            raise HTTPException(status_code=500, detail="Failed to send SMS notifications")
+            raise HTTPException(status_code=500, detail=f"Failed to send SMS notifications: {'; '.join(sms_errors)}")
         
-        return {"success": True, "message": "Feedback sent successfully"}
+        logger.info("Feedback processed successfully")
+        return {
+            "success": True, 
+            "message": "Feedback sent successfully",
+            "feedback_id": feedback.id,
+            "images_saved": len(image_links)
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        logger.error(f"Error sending feedback: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error in send_feedback: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error traceback: {traceback.format_exc()}")
+        db.rollback()  # Rollback database changes on error
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Get all stops (basic info)
 @app.get("/stops", response_model=List[Stop])
@@ -294,6 +391,111 @@ state_dict = {}
 async def root():
     """Redirect root to dashboard"""
     return RedirectResponse(url="/dashboard")
+
+@app.get("/health-check")
+async def health_check():
+    """Health check endpoint to verify all services are working"""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "services": {},
+        "environment": {}
+    }
+    
+    # Check environment variables
+    env_vars_to_check = [
+        'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER',
+        'FEEDBACK_RECIPIENT_PHONES',
+    ]
+    
+    for var in env_vars_to_check:
+        value = os.getenv(var)
+        health_status["environment"][var] = {
+            "configured": bool(value),
+            "length": len(value) if value else 0
+        }
+    
+    # Test Twilio connection
+    try:
+        # Simple test to verify Twilio client works
+        twilio_client.api.accounts(os.getenv('TWILIO_ACCOUNT_SID')).fetch()
+        health_status["services"]["twilio"] = {"status": "connected", "error": None}
+    except Exception as e:
+        health_status["services"]["twilio"] = {"status": "failed", "error": str(e)}
+        health_status["status"] = "degraded"
+    
+    return health_status
+
+# Get all feedback entries
+@app.get("/feedback", response_model=List[FeedbackResponse])
+async def get_feedback(db: Session = Depends(get_db)):
+    """Retrieve all feedback entries with their associated images"""
+    try:
+        feedbacks = db.query(Feedback).order_by(Feedback.created_at.desc()).all()
+        
+        result = []
+        base_url = os.getenv('BASE_URL', 'http://localhost:8000')
+        
+        for feedback in feedbacks:
+            images = []
+            for img in feedback.images:
+                images.append(FeedbackImageResponse(
+                    id=img.id,
+                    filename=img.filename,
+                    original_filename=img.original_filename,
+                    url=f"{base_url}/static/feedback-images/{img.filename}",
+                    uploaded_at=img.uploaded_at
+                ))
+            
+            result.append(FeedbackResponse(
+                id=feedback.id,
+                feedback_type=feedback.feedback_type,
+                user_name=feedback.user_name,
+                user_email=feedback.user_email,
+                description=feedback.description,
+                created_at=feedback.created_at,
+                images=images
+            ))
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error retrieving feedback: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Get specific feedback by ID
+@app.get("/feedback/{feedback_id}", response_model=FeedbackResponse)
+async def get_feedback_by_id(feedback_id: int, db: Session = Depends(get_db)):
+    """Retrieve a specific feedback entry by ID"""
+    try:
+        feedback = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+        if not feedback:
+            raise HTTPException(status_code=404, detail="Feedback not found")
+        
+        base_url = os.getenv('BASE_URL', 'http://localhost:8000')
+        images = []
+        for img in feedback.images:
+            images.append(FeedbackImageResponse(
+                id=img.id,
+                filename=img.filename,
+                original_filename=img.original_filename,
+                url=f"{base_url}/static/feedback-images/{img.filename}",
+                uploaded_at=img.uploaded_at
+            ))
+        
+        return FeedbackResponse(
+            id=feedback.id,
+            feedback_type=feedback.feedback_type,
+            user_name=feedback.user_name,
+            user_email=feedback.user_email,
+            description=feedback.description,
+            created_at=feedback.created_at,
+            images=images
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving feedback {feedback_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
