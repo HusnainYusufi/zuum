@@ -119,7 +119,7 @@ class StopDetail(BaseModel):
 
 class CheckInResponse(BaseModel):
     id: int
-    stop_id: int
+    stop_id: Optional[int] = None
     load_id: Optional[str] = None
     query: Optional[str] = None
     AI_Response_Summary: Optional[str] = None
@@ -348,14 +348,25 @@ async def stops_details():
 @app.get("/check-ins", response_model=List[CheckInResponse])
 async def get_check_ins(db: Session = Depends(get_db)):
     try:
-        # Query check-ins with stop information and retell calls, ordered by newest first
-        check_ins = db.query(CheckIn).join(StopModel, CheckIn.stop_id == StopModel.id).order_by(CheckIn.AI_Timestamp.desc()).all()
+        # Query all check-ins ordered by newest first (no stop dependency)
+        check_ins = db.query(CheckIn).order_by(CheckIn.AI_Timestamp.desc()).all()
         
         # Transform to response model
         result = []
         for check_in in check_ins:
             # Get the first retell call for this check-in (if any)
             retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in.id).first()
+            
+            # Get stop information if stop_id exists
+            stop_name = None
+            stop_location = None
+            stop_eta = None
+            if check_in.stop_id:
+                stop = db.query(StopModel).filter(StopModel.id == check_in.stop_id).first()
+                if stop:
+                    stop_name = stop.name
+                    stop_location = stop.location
+                    stop_eta = stop.eta
             
             result.append(CheckInResponse(
                 id=check_in.id,
@@ -369,9 +380,9 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 Call_confidence_score=check_in.Call_confidence_score,
                 Requires_Human_Review=check_in.Requires_Human_Review,
                 Tags=check_in.Tags,
-                stop_name=check_in.stop.name if check_in.stop else None,
-                stop_location=check_in.stop.location if check_in.stop else None,
-                stop_eta=check_in.stop.eta if check_in.stop else None,
+                stop_name=stop_name,
+                stop_location=stop_location,
+                stop_eta=stop_eta,
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
                 recording_url=retell_call.recording_url if retell_call else None,

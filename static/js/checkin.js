@@ -19,11 +19,21 @@ class CheckInPage {
         // Show loading spinner
         this.showLoading();
 
-        // Fetch check-in data
-        await this.fetchCheckIn();
+        // Check call status first
+        const callStatus = await this.checkCallStatus();
+        
+        if (callStatus === 'in_progress') {
+            // Show call progress overlay and start polling
+            this.showCallProgress();
+            await this.pollCallStatus();
+        } else {
+            // Fetch check-in data directly
+            await this.fetchCheckIn();
+        }
 
-        // Hide loading spinner
+        // Hide loading spinner and call progress overlay
         this.hideLoading();
+        this.hideCallProgress();
 
         // Render the page
         if (this.checkIn) {
@@ -53,6 +63,72 @@ class CheckInPage {
         }
         if (mainContent) {
             mainContent.style.display = 'block';
+        }
+    }
+
+    showCallProgress() {
+        const callProgressOverlay = document.getElementById('call-progress-overlay');
+        if (callProgressOverlay) {
+            callProgressOverlay.style.display = 'flex';
+        }
+    }
+
+    hideCallProgress() {
+        const callProgressOverlay = document.getElementById('call-progress-overlay');
+        if (callProgressOverlay) {
+            callProgressOverlay.style.display = 'none';
+        }
+    }
+
+    async checkCallStatus() {
+        if (!this.checkInId) {
+            return 'no_call';
+        }
+
+        try {
+            const response = await fetch(`/retell/check-in/${this.checkInId}/status`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to check call status');
+            }
+
+            const statusData = await response.json();
+            return statusData.status;
+        } catch (error) {
+            console.error('Error checking call status:', error);
+            return 'error';
+        }
+    }
+
+    async pollCallStatus() {
+        const maxAttempts = 60; // Poll for up to 5 minutes (60 attempts * 5 seconds)
+        let attempts = 0;
+
+        while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+            attempts++;
+
+            const status = await this.checkCallStatus();
+            
+            if (status === 'completed') {
+                // Call completed, fetch the check-in data
+                await this.fetchCheckIn();
+                break;
+            } else if (status === 'error' || status === 'no_call') {
+                // Error or no call found, stop polling
+                break;
+            }
+            
+            // Continue polling if status is still 'in_progress'
+        }
+
+        // If we've exhausted all attempts, still try to fetch data
+        if (attempts >= maxAttempts) {
+            await this.fetchCheckIn();
         }
     }
 
@@ -105,9 +181,9 @@ class CheckInPage {
             this.renderAISummary();
         }
 
-        // Render metadata if available
+        // Render output data if available
         if (this.checkIn.check_in_metadata) {
-            this.renderMetadata();
+            this.renderOutputData();
         }
     }
 
@@ -286,30 +362,224 @@ class CheckInPage {
         }
     }
 
+    renderFormData() {
+        const formCard = document.getElementById('form-card');
+        const formContent = document.getElementById('form-content');
+        
+        if (formCard && formContent) {
+            try {
+                const metadata = JSON.parse(this.checkIn.check_in_metadata);
+                
+                if (metadata.form) {
+                    formCard.style.display = 'block';
+                    
+                    // Parse the form data (it's a JSON string within the metadata)
+                    const formData = JSON.parse(metadata.form);
+                    let formHTML = '<div class="form-grid">';
+                    
+                    // Define a mapping for better display names
+                    const fieldMapping = {
+                        'load_id': 'Load ID',
+                        'trucker_name': 'Driver Name',
+                        'contact_phone': 'Contact Phone',
+                        'pickup_address': 'Pickup Address',
+                        'driver_type': 'Driver Type',
+                        'tractor_number': 'Tractor Number',
+                        'trailer_number': 'Trailer Number',
+                        'required_equipment': 'Required Equipment',
+                        'preferred_comms': 'Preferred Communication',
+                        'tracking_on': 'Tracking Enabled'
+                    };
+                    
+                    Object.entries(formData).forEach(([key, value]) => {
+                        // Use mapping if available, otherwise format the key
+                        const displayKey = fieldMapping[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        
+                        // Format specific values
+                        let displayValue = String(value);
+                        if (key === 'tracking_on') {
+                            displayValue = value === 'Y' ? 'Yes' : 'No';
+                        }
+                        
+                        formHTML += `
+                            <div class="form-item">
+                                <span class="form-label">${displayKey}</span>
+                                <span class="form-value">${this.escapeHtml(displayValue)}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    formHTML += '</div>';
+                    formContent.innerHTML = formHTML;
+                }
+            } catch (error) {
+                console.error('Error parsing form data:', error);
+            }
+        }
+    }
+
+    renderOutputData() {
+        const outputCard = document.getElementById('output-card');
+        const outputContent = document.getElementById('output-content');
+        
+        if (outputCard && outputContent) {
+            try {
+                const metadata = JSON.parse(this.checkIn.check_in_metadata);
+                
+                if (metadata.output) {
+                    outputCard.style.display = 'block';
+                    
+                    // Parse the output data (it's a JSON string within the metadata)
+                    const outputData = JSON.parse(metadata.output);
+                    let outputHTML = '<div class="output-grid">';
+                    
+                    // Define better display names and order
+                    const fieldMapping = {
+                        'Is_assigned_driver': 'Correct Driver',
+                        'Driver_empty': 'Driver Empty',
+                        'Current_location': 'Current Location',
+                        'ETA_to_shipper': 'ETA to Shipper',
+                        'Confirmed_equipment': 'Equipment Confirmed',
+                        'Tracking_started': 'Tracking Started',
+                        'door number': 'Door Number'
+                    };
+                    
+                    // Define field order for better presentation
+                    const fieldOrder = [
+                        'Is_assigned_driver',
+                        'Current_location', 
+                        'Driver_empty',
+                        'ETA_to_shipper',
+                        'Confirmed_equipment',
+                        'Tracking_started',
+                        'door number'
+                    ];
+                    
+                    // Render fields in order
+                    fieldOrder.forEach(key => {
+                        if (outputData.hasOwnProperty(key)) {
+                            const value = outputData[key];
+                            const displayKey = fieldMapping[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            
+                            // Format values
+                            let displayValue = value;
+                            let statusClass = '';
+                            
+                            if (typeof value === 'boolean') {
+                                displayValue = value ? 'Yes' : 'No';
+                                statusClass = value ? 'status-success' : 'status-warning';
+                            } else if (key === 'door number' && (value === 'None' || value === null || value === '')) {
+                                displayValue = 'Not provided';
+                                statusClass = 'status-warning';
+                            }
+                            
+                            outputHTML += `
+                                <div class="output-item ${statusClass}">
+                                    <span class="output-label">${displayKey}</span>
+                                    <span class="output-value">${this.escapeHtml(String(displayValue))}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    // Add any remaining fields not in the order list
+                    Object.entries(outputData).forEach(([key, value]) => {
+                        if (!fieldOrder.includes(key)) {
+                            const displayKey = fieldMapping[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            let displayValue = value;
+                            let statusClass = '';
+                            
+                            if (typeof value === 'boolean') {
+                                displayValue = value ? 'Yes' : 'No';
+                                statusClass = value ? 'status-success' : 'status-warning';
+                            }
+                            
+                            outputHTML += `
+                                <div class="output-item ${statusClass}">
+                                    <span class="output-label">${displayKey}</span>
+                                    <span class="output-value">${this.escapeHtml(String(displayValue))}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    outputHTML += '</div>';
+                    outputContent.innerHTML = outputHTML;
+                }
+            } catch (error) {
+                console.error('Error parsing output data:', error);
+            }
+        }
+    }
+
     renderMetadata() {
         const metadataCard = document.getElementById('metadata-card');
         const metadataContent = document.getElementById('metadata-content');
         
         if (metadataCard && metadataContent) {
-            metadataCard.style.display = 'block';
-            
             try {
                 const metadata = JSON.parse(this.checkIn.check_in_metadata);
-                let metadataHTML = '<div class="metadata-grid">';
                 
+                // Only show technical metadata that's not form or output data
+                const filteredMetadata = {};
                 Object.entries(metadata).forEach(([key, value]) => {
-                    metadataHTML += `
-                        <div class="metadata-item">
-                            <span class="metadata-label">${key.replace(/_/g, ' ')}:</span>
-                            <span class="metadata-value">${this.escapeHtml(String(value))}</span>
-                        </div>
-                    `;
+                    if (key !== 'form' && key !== 'output') {
+                        // Only include relevant technical fields
+                        if (key === 'purpose' || key === 'output_schema') {
+                            filteredMetadata[key] = value;
+                        }
+                    }
                 });
                 
-                metadataHTML += '</div>';
-                metadataContent.innerHTML = metadataHTML;
-            } catch {
-                metadataContent.innerHTML = `<p>${this.escapeHtml(this.checkIn.check_in_metadata)}</p>`;
+                if (Object.keys(filteredMetadata).length > 0) {
+                    metadataCard.style.display = 'block';
+                    
+                    let metadataHTML = '<div class="metadata-grid">';
+                    
+                    Object.entries(filteredMetadata).forEach(([key, value]) => {
+                        let displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        let displayValue = value;
+                        
+                        // Format specific fields for better readability
+                        if (key === 'purpose') {
+                            displayKey = 'Call Purpose';
+                            try {
+                                // Parse and format the purpose array
+                                const purposes = JSON.parse(value);
+                                if (Array.isArray(purposes)) {
+                                    displayValue = purposes.map((p, i) => `${i + 1}. ${p}`).join('\n');
+                                }
+                            } catch (e) {
+                                // If not JSON, display as is
+                            }
+                        } else if (key === 'output_schema') {
+                            displayKey = 'Expected Data Fields';
+                            try {
+                                const schema = JSON.parse(value);
+                                if (schema.properties) {
+                                    const fields = Object.keys(schema.properties);
+                                    displayValue = fields.join(', ');
+                                }
+                            } catch (e) {
+                                displayValue = 'Schema definition';
+                            }
+                        }
+                        
+                        metadataHTML += `
+                            <div class="metadata-item">
+                                <span class="metadata-label">${displayKey}</span>
+                                <span class="metadata-value">${this.escapeHtml(String(displayValue))}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    metadataHTML += '</div>';
+                    metadataContent.innerHTML = metadataHTML;
+                }
+            } catch (error) {
+                console.error('Error parsing metadata:', error);
+                // Don't show raw JSON on error, just hide the card
+                metadataCard.style.display = 'none';
             }
         }
     }

@@ -51,6 +51,43 @@ router = APIRouter(
 # Get a database session from the generator
 db = next(get_db())
 
+
+
+def send_checkin_notification(check_in_record: CheckIn, stop_id: int):
+    """Send notification about new check-in"""
+    try:
+        # Get stop information
+        stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        
+        # Prepare notification data
+        check_in_data = {
+            'id': check_in_record.id,
+            'stop_id': check_in_record.stop_id,
+            'load_id': check_in_record.load_id,
+            'query': check_in_record.query,
+            'AI_Response_Summary': check_in_record.AI_Response_Summary,
+            'AI_Timestamp': check_in_record.AI_Timestamp,
+            'Issue_Flagged': check_in_record.Issue_Flagged,
+            'Exception_Type': check_in_record.Exception_Type,
+            'Call_confidence_score': check_in_record.Call_confidence_score,
+            'Requires_Human_Review': check_in_record.Requires_Human_Review,
+            'Tags': check_in_record.Tags,
+            'stop_name': stop.name if stop else None,
+            'stop_location': stop.location if stop else None,
+            'stop_eta': stop.eta if stop else None
+        }
+        
+        # Send notification
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(notify_check_in_update(check_in_data))
+        loop.close()
+    except Exception as e:
+        logger.warning(f"Could not send notification: {e}")
+        # Don't fail the request if notification fails
+
+
+
 @router.post("/change_transit_state")
 def change_transit_state(request: dict = Body(...)):
     """Change the transit state for the journey."""
@@ -358,167 +395,155 @@ def update_reported_location_eta(request: dict = Body(...)):
         logger.error(f"Unexpected error in update_reported_location_eta: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
 
-@router.post("/update_checkIn")
-def check_in(request: dict = Body(...)):
-    """Update the checkIn by extracting chat_summary and other fields from the request."""
+
+
+@router.post("/update_check_in")
+def update_check_in(request: dict = Body(...)):
+    """Update the check-in for a specific stop."""
     try:
-        logger.info(f"Received in update_checkIn: {request}")
+        logger.info(f"Received in update_check_in: {request}")
         
-        # Initialize variables with defaults
-        check_in_data = {
-            'stop_id': 1,  # Default to first stop
-            'chat_summary': None,
-            'query': None,
-            'issue_flagged': False,
-            'exception_type': None,
-            'call_confidence_score': None,
-            'requires_human_review': False,
-            'tags': None,
-            'load_id': None,
-            'miles': None,
-            'call_id': None
-        }
-        
-        # Extract call_id from the call object if present
+        # Extract call_id from the request
+        call_id = None
         if 'call' in request and 'call_id' in request['call']:
-            check_in_data['call_id'] = request['call']['call_id']
-            
-            # Extract dynamic variables if present
-            if 'retell_llm_dynamic_variables' in request['call']:
-                dynamic_vars = request['call']['retell_llm_dynamic_variables']
-                
-                # Extract stop_id
-                if 'stop_id' in dynamic_vars:
-                    check_in_data['stop_id'] = int(dynamic_vars['stop_id'])
-                elif 'id' in dynamic_vars:
-                    check_in_data['stop_id'] = int(dynamic_vars['id'])
-                
-                # Extract other fields
-                if 'query' in dynamic_vars:
-                    check_in_data['query'] = dynamic_vars['query']
-                if 'load_number' in dynamic_vars:
-                    check_in_data['load_id'] = dynamic_vars['load_number']
-                elif 'load_id' in dynamic_vars:
-                    check_in_data['load_id'] = dynamic_vars['load_id']
-                if 'miles' in dynamic_vars:
-                    check_in_data['miles'] = dynamic_vars['miles']
+            call_id = request['call']['call_id']
         
-        # Extract args - this is the main source of check-in data
-        if 'args' in request and isinstance(request['args'], dict):
+        if not call_id:
+            raise HTTPException(status_code=400, detail="call_id is required")
+            
+        # Find RetellCall by call_id
+        retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+        check_in = None
+        
+        # If RetellCall exists, get associated check_in
+        if retell_call and retell_call.check_in_id:
+            check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
+        
+        # If no check_in exists, create a new one
+        if not check_in:
+            check_in = CheckIn(
+                AI_Timestamp=datetime.now().isoformat(),
+                Issue_Flagged=False,
+                Requires_Human_Review=False
+            )
+            db.add(check_in)
+            db.flush()  # Get the check_in ID
+            
+            # Create new RetellCall if it doesn't exist
+            if not retell_call:
+                retell_call = RetellCall(
+                    check_in_id=check_in.id,
+                    call_id=call_id
+                )
+                db.add(retell_call)
+        
+        # Update RetellCall data
+        if 'transcript' in request['call']:
+            retell_call.call_transcript = request['call']['transcript']
+        if 'recording_url' in request['call']:
+            retell_call.recording_url = request['call']['recording_url']
+            
+        # Extract metadata from the call
+        if 'retell_llm_dynamic_variables' in request['call']:
+            retell_call.check_in_metadata = json.dumps(request['call']['retell_llm_dynamic_variables'])
+            
+            # Extract load_id from form if available
+            try:
+                form_data = json.loads(request['call']['retell_llm_dynamic_variables'].get('form', '{}'))
+                if 'load_id' in form_data:
+                    check_in.load_id = form_data['load_id']
+            except:
+                logger.warning("Could not parse form data from metadata")
+        
+        # Update CheckIn data from the transcript_object
+        check_in_metadata = {}
+        if 'transcript_with_tool_calls' in request['call']:
+            for item in request['call']['transcript_with_tool_calls']:
+                if item.get('name') == 'update_checkin' and 'arguments' in item:
+                    try:
+                        args = json.loads(item['arguments'])
+                        
+                        # Update CheckIn fields
+                        if 'AI_Response_Summary' in args:
+                            check_in.AI_Response_Summary = args['AI_Response_Summary']
+                        if 'issue_flagged' in args:
+                            check_in.Issue_Flagged = args['issue_flagged']
+                        if 'requires_human_review' in args:
+                            check_in.Requires_Human_Review = args['requires_human_review']
+                        if 'call_confidence_score' in args:
+                            check_in.Call_confidence_score = args['call_confidence_score']
+                        if 'exception_type' in args:
+                            check_in.Exception_Type = args['exception_type']
+                        if 'tags' in args:
+                            check_in.Tags = args['tags']
+                        
+                        # Store the output field in metadata
+                        if 'output' in args:
+                            check_in_metadata['output'] = args['output']
+                            
+                    except json.JSONDecodeError:
+                        logger.warning("Could not parse update_checkin arguments")
+        
+        # Also check for update_checkin data in the main request structure
+        if 'name' in request and request['name'] == 'update_checkin' and 'args' in request:
             args = request['args']
             
-            # Map the args to our check_in_data
-            check_in_data['chat_summary'] = args.get('chat_summary') or args.get('AI_Response_Summary')
-            check_in_data['query'] = args.get('query', check_in_data['query'])
-            check_in_data['stop_id'] = args.get('stop_id', check_in_data['stop_id'])
-            check_in_data['issue_flagged'] = args.get('issue_flagged', False)
-            check_in_data['exception_type'] = args.get('exception_type')
-            check_in_data['call_confidence_score'] = args.get('call_confidence_score')
-            check_in_data['requires_human_review'] = args.get('requires_human_review', False)
-            check_in_data['tags'] = args.get('tags')
-            check_in_data['load_id'] = args.get('load_id') or args.get('load_number', check_in_data['load_id'])
-            check_in_data['miles'] = args.get('miles', check_in_data['miles'])
+            # Update CheckIn fields
+            if 'AI_Response_Summary' in args:
+                check_in.AI_Response_Summary = args['AI_Response_Summary']
+            if 'issue_flagged' in args:
+                check_in.Issue_Flagged = args['issue_flagged']
+            if 'requires_human_review' in args:
+                check_in.Requires_Human_Review = args['requires_human_review']
+            if 'call_confidence_score' in args:
+                check_in.Call_confidence_score = args['call_confidence_score']
+            if 'exception_type' in args:
+                check_in.Exception_Type = args['exception_type']
+            if 'tags' in args:
+                check_in.Tags = args['tags']
+            
+            # Store the output field in metadata
+            if 'output' in args:
+                check_in_metadata['output'] = args['output']
         
-        # Create timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        # Update RetellCall metadata with check-in specific data
+        if check_in_metadata:
+            existing_metadata = {}
+            if retell_call.check_in_metadata:
+                try:
+                    existing_metadata = json.loads(retell_call.check_in_metadata)
+                except json.JSONDecodeError:
+                    pass
+            
+            existing_metadata.update(check_in_metadata)
+            retell_call.check_in_metadata = json.dumps(existing_metadata)
         
-        # Create new CheckIn record
-        check_in_record = CheckIn(
-            stop_id=check_in_data['stop_id'],
-            load_id=check_in_data['load_id'],
-            query=check_in_data['query'],
-            AI_Response_Summary=check_in_data['chat_summary'],
-            AI_Timestamp=timestamp,
-            Issue_Flagged=check_in_data['issue_flagged'],
-            Exception_Type=check_in_data['exception_type'],
-            Call_confidence_score=check_in_data['call_confidence_score'],
-            Requires_Human_Review=check_in_data['requires_human_review'],
-            Tags=check_in_data['tags'],
-            miles=check_in_data['miles']
-        )
         
-        db.add(check_in_record)
+        
+        # Mark call as completed
+        retell_call.call_status = "completed"
+        
         db.commit()
-        db.refresh(check_in_record)
         
-        # Link with RetellCall if call_id exists
-        if check_in_data['call_id']:
-            link_checkin_to_retell_call(check_in_record.id, check_in_data['call_id'])
-        
-        # Send notification
-        send_checkin_notification(check_in_record, check_in_data['stop_id'])
-        
-        logger.info(f"Stored check-in #{check_in_record.id} for stop {check_in_data['stop_id']}")
+        # Send notification about the check-in update
+        if check_in.stop_id:
+            send_checkin_notification(check_in, check_in.stop_id)
         
         return {
-            'message': 'Check-in stored successfully',
-            'check_in_id': check_in_record.id
+            "status": "success",
+            "message": "Check-in updated successfully",
+            "check_in_id": check_in.id
         }
-    
-    except SQLAlchemyError as e:
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in update_check_in: {str(e)}")
         db.rollback()
-        logger.error(f"Database error in update_checkIn: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
-    
-    except Exception as e:
-        logger.error(f"Unexpected error in update_checkIn: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-def link_checkin_to_retell_call(check_in_id: int, call_id: str):
-    """Link a check-in to a RetellCall record"""
-    try:
-        existing_retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-        
-        if existing_retell_call:
-            existing_retell_call.check_in_id = check_in_id
-            db.commit()
-            logger.info(f"Updated RetellCall with check_in_id: {check_in_id}")
-        else:
-            # Create new RetellCall record
-            retell_call_record = RetellCall(
-                check_in_id=check_in_id,
-                call_id=call_id
-            )
-            db.add(retell_call_record)
-            db.commit()
-            logger.info(f"Created new RetellCall for check_in_id: {check_in_id}, call_id: {call_id}")
-    except Exception as e:
-        logger.error(f"Error linking check-in to RetellCall: {e}")
 
-
-def send_checkin_notification(check_in_record: CheckIn, stop_id: int):
-    """Send notification about new check-in"""
-    try:
-        # Get stop information
-        stop = db.query(Stop).filter(Stop.id == stop_id).first()
-        
-        # Prepare notification data
-        check_in_data = {
-            'id': check_in_record.id,
-            'stop_id': check_in_record.stop_id,
-            'load_id': check_in_record.load_id,
-            'query': check_in_record.query,
-            'AI_Response_Summary': check_in_record.AI_Response_Summary,
-            'AI_Timestamp': check_in_record.AI_Timestamp,
-            'Issue_Flagged': check_in_record.Issue_Flagged,
-            'Exception_Type': check_in_record.Exception_Type,
-            'Call_confidence_score': check_in_record.Call_confidence_score,
-            'Requires_Human_Review': check_in_record.Requires_Human_Review,
-            'Tags': check_in_record.Tags,
-            'stop_name': stop.name if stop else None,
-            'stop_location': stop.location if stop else None,
-            'stop_eta': stop.eta if stop else None
-        }
-        
-        # Send notification
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(notify_check_in_update(check_in_data))
-        loop.close()
-    except Exception as e:
-        logger.warning(f"Could not send notification: {e}")
-        # Don't fail the request if notification fails
 
 @router.post("/webhook/call-ended")
 async def retell_recording_webhook(request: dict = Body(...)):
@@ -545,6 +570,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     retell_call.recording_url = recording_url
                     if transcript:
                         retell_call.call_transcript = transcript
+                    retell_call.call_status = "completed"
                     db.commit()
                     logger.info(f"Updated RetellCall with recording_url and transcript")
                 else:
@@ -552,7 +578,8 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     new_retell_call = RetellCall(
                         call_id=call_id,
                         recording_url=recording_url,
-                        call_transcript=transcript
+                        call_transcript=transcript,
+                        call_status="completed"
                     )
                     db.add(new_retell_call)
                     db.commit()
@@ -580,6 +607,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                         retell_call.recording_url = recording_url
                     if transcript:
                         retell_call.call_transcript = transcript
+                    retell_call.call_status = "completed"
                     db.commit()
                     logger.info(f"Updated RetellCall with recording_url and transcript from call_analyzed")
                 else:
@@ -587,7 +615,8 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     new_retell_call = RetellCall(
                         call_id=call_id,
                         recording_url=recording_url,
-                        call_transcript=transcript
+                        call_transcript=transcript,
+                        call_status="completed"
                     )
                     db.add(new_retell_call)
                     db.commit()
@@ -601,49 +630,207 @@ async def retell_recording_webhook(request: dict = Body(...)):
         logger.error(f"Error processing Retell webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.post('/check_in/set_metadata')
-def set_metadata(request: dict = Body(...)):
-    """Set the metadata for the check-in."""
+@router.get("/check-in/{check_in_id}/status")
+def get_check_in_status(check_in_id: int):
+    """Get the status of a check-in call."""
     try:
-        logger.info(f"Received in set_metadata: \n {request}")
+        # Get the check-in
+        check_in = db.query(CheckIn).filter(CheckIn.id == check_in_id).first()
+        if not check_in:
+            raise HTTPException(status_code=404, detail="Check-in not found")
         
-        # Extract call_id and args from the request
-        call_id = None
-        args = None
+        # Get the associated retell call
+        retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in_id).first()
         
-        if isinstance(request, dict):
-            # Extract call_id from the call object
-            if 'call' in request and 'call_id' in request['call']:
-                call_id = request['call']['call_id']
-            
-            # Extract args
-            if 'args' in request:
-                args = request['args']
+        if not retell_call:
+            return {
+                "status": "no_call",
+                "message": "No call associated with this check-in"
+            }
         
-        # If we have both call_id and args, update or create RetellCall record
-        if call_id and args:
-            retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-            if retell_call:
-                # Update existing RetellCall with metadata
-                retell_call.check_in_metadata = json.dumps(args)
-                db.commit()
-                logger.info(f"Updated existing RetellCall with metadata for call_id: {call_id}")
-                return {"status": "success", "message": "Metadata updated in existing RetellCall record"}
-            else:
-                # Create new RetellCall record with metadata
-                new_retell_call = RetellCall(
-                    call_id=call_id,
-                    check_in_metadata=json.dumps(args)
-                )
-                db.add(new_retell_call)
-                db.commit()
-                logger.info(f"Created new RetellCall with metadata for call_id: {call_id}")
-                return {"status": "success", "message": "Metadata stored in new RetellCall record"}
+        # Check if call has data (transcript, recording, metadata)
+        has_data = bool(
+            retell_call.call_transcript or 
+            retell_call.recording_url or 
+            retell_call.check_in_metadata or
+            check_in.AI_Response_Summary
+        )
+        
+        if retell_call.call_status == "completed" or has_data:
+            return {
+                "status": "completed",
+                "message": "Call completed and data available",
+                "has_transcript": bool(retell_call.call_transcript),
+                "has_recording": bool(retell_call.recording_url),
+                "has_summary": bool(check_in.AI_Response_Summary),
+                "has_metadata": bool(retell_call.check_in_metadata)
+            }
         else:
-            logger.warning(f"Missing call_id or args in request")
-            return {"status": "warning", "message": "Missing call_id or args in request"}
+            return {
+                "status": "in_progress",
+                "message": "Call in progress, waiting for data"
+            }
             
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error in set_metadata: {str(e)}")
+        logger.error(f"Error getting check-in status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# @router.post("/update_checkIn")
+# def check_in(request: dict = Body(...)):
+#     """Update an existing checkIn by extracting chat_summary and other fields from the request."""
+#     try:
+#         logger.info(f"Received in update_checkIn: {request}")
+        
+#         # Initialize variables with defaults
+#         check_in_data = {
+#             'chat_summary': None,
+#             'query': None,
+#             'issue_flagged': False,
+#             'exception_type': None,
+#             'call_confidence_score': None,
+#             'requires_human_review': False,
+#             'tags': None,
+#             'miles': None,
+#             'call_id': None
+#         }
+        
+#         # Extract call_id from the call object if present
+#         if 'call' in request and 'call_id' in request['call']:
+#             check_in_data['call_id'] = request['call']['call_id']
+            
+#             # Extract dynamic variables if present
+#             if 'retell_llm_dynamic_variables' in request['call']:
+#                 dynamic_vars = request['call']['retell_llm_dynamic_variables']
+                
+#                 # Extract other fields
+#                 if 'query' in dynamic_vars:
+#                     check_in_data['query'] = dynamic_vars['query']
+#                 if 'miles' in dynamic_vars:
+#                     check_in_data['miles'] = dynamic_vars['miles']
+        
+#         # Extract args - this is the main source of check-in data
+#         if 'args' in request and isinstance(request['args'], dict):
+#             args = request['args']
+            
+#             # Map the args to our check_in_data
+#             check_in_data['chat_summary'] = args.get('chat_summary') or args.get('AI_Response_Summary')
+#             check_in_data['query'] = args.get('query', check_in_data['query'])
+#             check_in_data['issue_flagged'] = args.get('issue_flagged', False)
+#             check_in_data['exception_type'] = args.get('exception_type')
+#             check_in_data['call_confidence_score'] = args.get('call_confidence_score')
+#             check_in_data['requires_human_review'] = args.get('requires_human_review', False)
+#             check_in_data['tags'] = args.get('tags')
+#             check_in_data['miles'] = args.get('miles', check_in_data['miles'])
+        
+#         # Find existing CheckIn record by call_id
+#         if not check_in_data['call_id']:
+#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="call_id is required to update check-in")
+        
+#         # Find the RetellCall record to get the check_in_id
+#         retell_call = db.query(RetellCall).filter(RetellCall.call_id == check_in_data['call_id']).first()
+#         if not retell_call or not retell_call.check_in_id:
+#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No existing check-in found for this call_id")
+        
+#         # Find and update the existing CheckIn record
+#         check_in_record = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
+#         if not check_in_record:
+#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Check-in record not found")
+        
+#         # Create timestamp for AI response
+#         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        
+#         # Update the existing CheckIn record with non-null values
+#         if check_in_data['query'] is not None:
+#             check_in_record.query = check_in_data['query']
+#         if check_in_data['chat_summary'] is not None:
+#             check_in_record.AI_Response_Summary = check_in_data['chat_summary']
+#             check_in_record.AI_Timestamp = timestamp  # Update timestamp when AI response is provided
+#         if check_in_data['exception_type'] is not None:
+#             check_in_record.Exception_Type = check_in_data['exception_type']
+#         if check_in_data['call_confidence_score'] is not None:
+#             check_in_record.Call_confidence_score = check_in_data['call_confidence_score']
+#         if check_in_data['tags'] is not None:
+#             check_in_record.Tags = check_in_data['tags']
+#         if check_in_data['miles'] is not None:
+#             check_in_record.miles = check_in_data['miles']
+        
+#         # Always update these boolean fields
+#         check_in_record.Issue_Flagged = check_in_data['issue_flagged']
+#         check_in_record.Requires_Human_Review = check_in_data['requires_human_review']
+        
+#         db.commit()
+#         db.refresh(check_in_record)
+        
+#         # Send notification
+#         send_checkin_notification(check_in_record, check_in_record.stop_id)
+        
+#         logger.info(f"Updated check-in #{check_in_record.id} for call_id {check_in_data['call_id']}")
+        
+#         return {
+#             'message': 'Check-in updated successfully',
+#             'check_in_id': check_in_record.id
+#         }
+    
+#     except HTTPException:
+#         # Re-raise HTTPExceptions
+#         raise
+    
+#     except SQLAlchemyError as e:
+#         db.rollback()
+#         logger.error(f"Database error in update_checkIn: {str(e)}")
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
+    
+#     except Exception as e:
+#         logger.error(f"Unexpected error in update_checkIn: {str(e)}")
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
+
+
+# @router.post('/check_in/set_metadata')
+# def set_metadata(request: dict = Body(...)):
+#     """Set the metadata for the check-in."""
+#     try:
+#         logger.info(f"Received in set_metadata: \n {request}")
+        
+#         # Extract call_id and args from the request
+#         call_id = None
+#         args = None
+        
+#         if isinstance(request, dict):
+#             # Extract call_id from the call object
+#             if 'call' in request and 'call_id' in request['call']:
+#                 call_id = request['call']['call_id']
+            
+#             # Extract args
+#             if 'args' in request:
+#                 args = request['args']
+        
+#         # If we have both call_id and args, update or create RetellCall record
+#         if call_id and args:
+#             retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+#             if retell_call:
+#                 # Update existing RetellCall with metadata
+#                 retell_call.check_in_metadata = json.dumps(args)
+#                 db.commit()
+#                 logger.info(f"Updated existing RetellCall with metadata for call_id: {call_id}")
+#                 return {"status": "success", "message": "Metadata updated in existing RetellCall record"}
+#             else:
+#                 # Create new RetellCall record with metadata
+#                 new_retell_call = RetellCall(
+#                     call_id=call_id,
+#                     check_in_metadata=json.dumps(args)
+#                 )
+#                 db.add(new_retell_call)
+#                 db.commit()
+#                 logger.info(f"Created new RetellCall with metadata for call_id: {call_id}")
+#                 return {"status": "success", "message": "Metadata stored in new RetellCall record"}
+#         else:
+#             logger.warning(f"Missing call_id or args in request")
+#             return {"status": "warning", "message": "Missing call_id or args in request"}
+            
+#     except Exception as e:
+#         logger.error(f"Error in set_metadata: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))

@@ -23,59 +23,67 @@
                             <span id="page-title">Call Transcript - Check-in #00</span>
                         </h1>
                     </div>
+                    <div class="header-right">
+                        <button class="feedback-button header-feedback" id="feedback-button">
+                            <i class="fas fa-comment-alt"></i> Provide Feedback
+                        </button>
+                    </div>
                 </div>
 
                 <div class="transcript-container">
-                    <div class="transcript-info">
-                        <div class="info-card">
-                            <h3>Check-in Details</h3>
+                    <!-- Top Row: Overview with AI Summary -->
+                    <div class="overview-section">
+                        <div class="overview-card info-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-info-circle section-icon"></i> Check-in Details</h3>
+                            </div>
                             <div class="info-grid" id="checkin-details">
                                 <!-- Details will be populated by JavaScript -->
                             </div>
                         </div>
 
-                        <div class="status-card">
-                            <h3>Status Information</h3>
+                        <div class="overview-card status-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-flag section-icon"></i> Status Information</h3>
+                            </div>
                             <div class="status-grid" id="status-info">
                                 <!-- Status will be populated by JavaScript -->
                             </div>
                         </div>
 
-                        <button class="feedback-button" id="feedback-button">
-                            <i class="fas fa-comment-alt"></i> Provide Feedback
-                        </button>
-                    </div>
-
-                    <div class="transcript-main">
-                        <div class="transcript-card">
-                            <h3>
-                                <!-- <i class="fas fa-comment-dots section-icon"></i> -->
-                                Call Transcript
-                            </h3>
-                            <div class="transcript-content" id="transcript-content">
-                                <!-- Transcript will be populated by JavaScript -->
+                        <div class="overview-card summary-card" id="ai-summary-card" style="display: none;">
+                            <div class="card-header">
+                                <h3><i class="fas fa-robot section-icon"></i> AI Summary</h3>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="transcript-sidebar">
-                        <div class="summary-card" id="ai-summary-card" style="display: none;">
-                            <h3>
-                                <i class="fas fa-user section-icon"></i>
-                                AI Summary
-                            </h3>
                             <div class="summary-content" id="ai-summary-content">
                                 <!-- Summary will be populated by JavaScript -->
                             </div>
                         </div>
+                    </div>
 
-                        <div class="metadata-card" id="metadata-card" style="display: none;">
-                            <h3>
-                                <i class="fas fa-database section-icon"></i>
-                                Metadata
-                            </h3>
-                            <div class="metadata-content" id="metadata-content">
-                                <!-- Metadata will be populated by JavaScript -->
+                    <!-- Main Content Row -->
+                    <div class="main-content-section">
+                        <!-- Left: Transcript -->
+                        <div class="transcript-main">
+                            <div class="transcript-card">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-comment-dots section-icon"></i> Call Transcript</h3>
+                                </div>
+                                <div class="transcript-content" id="transcript-content">
+                                    <!-- Transcript will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Check-in Results & Feedback -->
+                        <div class="results-section">
+                            <div class="output-card" id="output-card" style="display: none;">
+                                <div class="card-header">
+                                    <h3><i class="fas fa-check-circle section-icon"></i> Check-in Results</h3>
+                                </div>
+                                <div class="output-content" id="output-content">
+                                    <!-- Output data will be populated by JavaScript -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -88,7 +96,23 @@
     <div id="loading-container" class="dashboard-container" style="display: none;">
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <p>Loading transcript...</p>
+            <p id="loading-message">Loading transcript...</p>
+        </div>
+    </div>
+
+    <!-- Call in progress overlay -->
+    <div id="call-progress-overlay" class="call-progress-overlay" style="display: none;">
+        <div class="call-progress-content">
+            <div class="call-progress-spinner">
+                <div class="spinner"></div>
+            </div>
+            <h2>Call in Progress</h2>
+            <p>Please wait while the call is being processed...</p>
+            <div class="progress-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
         </div>
     </div>
 
