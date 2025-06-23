@@ -102,6 +102,7 @@ class RetellCall(Base):
     recording_url = Column(String)
     check_in = relationship("CheckIn", backref="retell_calls")
     check_in_metadata = Column(String)
+    call_status = Column(String, default="in_progress")  # in_progress, completed, failed
 
 class Feedback(Base):
     __tablename__ = "feedback"
