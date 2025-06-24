@@ -51,7 +51,7 @@ async def test_forms_chat_page(request: Request):
     """Serve the test forms chat interface page"""
     return templates.TemplateResponse("test_forms_chat.html", {"request": request})
 
-@router.get("/checkin-dashboard", response_class=HTMLResponse)
+@router.get("/dashboard", response_class=HTMLResponse)
 async def checkin_dashboard_page(request: Request):
     """Serve the checkin dashboard page"""
     return templates.TemplateResponse("checkin_dashboard.html", {"request": request})
