@@ -7,8 +7,10 @@ from loguru import logger
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
+import asyncio
 
-from db_models import get_db, CheckIn, RetellCall
+from db_models import get_db, CheckIn, RetellCall, Stop
+from services.notification_service import notify_check_in_update
 
 router = APIRouter(prefix="/api/checkin", tags=["checkin"])
 
@@ -45,7 +47,7 @@ def create_checkin(
             Issue_Flagged=False,
             Exception_Type=None,
             Call_confidence_score=None,
-            Requires_Human_Review=False,
+            call_trasfered=False,
             Tags=None,
             miles=None,
             is_active=True  # Set to True when check-in is created
@@ -74,6 +76,9 @@ def create_checkin(
         # Generate the link to the checkin page
         checkin_page_link = f"/checkin/{new_checkin.id}"
         
+        # Send notification
+        send_checkin_notification(new_checkin, request.stop_id, db)
+        
         return {
             "status": "success",
             "message": "Check-in created successfully",
@@ -86,7 +91,7 @@ def create_checkin(
                 "load_id": new_checkin.load_id,
                 "AI_Timestamp": new_checkin.AI_Timestamp,
                 "Issue_Flagged": new_checkin.Issue_Flagged,
-                "Requires_Human_Review": new_checkin.Requires_Human_Review,
+                "call_trasfered": new_checkin.call_trasfered,
                 "is_active": new_checkin.is_active
             }
         }
@@ -114,8 +119,8 @@ def get_checkin_statistics(db: Session = Depends(get_db)):
         # Total issues flagged
         total_issues = db.query(CheckIn).filter(CheckIn.Issue_Flagged == True).count()
         
-        # Total requiring human review
-        human_reviews = db.query(CheckIn).filter(CheckIn.Requires_Human_Review == True).count()
+        # Total call transfers
+        call_transfers = db.query(CheckIn).filter(CheckIn.call_trasfered == True).count()
         
         # Today's check-ins
         today = datetime.now().date()
@@ -128,7 +133,7 @@ def get_checkin_statistics(db: Session = Depends(get_db)):
             "status": "success",
             "total_checkins": total_checkins,
             "total_issues": total_issues,
-            "human_reviews": human_reviews,
+            "call_transfers": call_transfers,
             "today_checkins": today_checkins
         }
         
@@ -180,12 +185,12 @@ def get_chart_data(db: Session = Depends(get_db)):
         issues_count = db.query(CheckIn).filter(CheckIn.Issue_Flagged == True).count()
         no_issues_count = total_checkins - issues_count
         
-        # Review status
-        review_count = db.query(CheckIn).filter(CheckIn.Requires_Human_Review == True).count()
-        no_review_count = total_checkins - review_count
+        # Transfer status
+        transfer_count = db.query(CheckIn).filter(CheckIn.call_trasfered == True).count()
+        no_transfer_count = total_checkins - transfer_count
         
         # Weekly trends (last 4 weeks) - we'll use the same checkins data
-        weekly_data = defaultdict(lambda: {"issues": 0, "reviews": 0})
+        weekly_data = defaultdict(lambda: {"issues": 0, "transfers": 0})
         four_weeks_ago = datetime.now() - timedelta(weeks=4)
         
         for checkin in checkins:
@@ -197,8 +202,8 @@ def get_chart_data(db: Session = Depends(get_db)):
                     
                     if checkin.Issue_Flagged:
                         weekly_data[week_key]["issues"] += 1
-                    if checkin.Requires_Human_Review:
-                        weekly_data[week_key]["reviews"] += 1
+                    if checkin.call_trasfered:
+                        weekly_data[week_key]["transfers"] += 1
             except:
                 continue
         
@@ -215,14 +220,14 @@ def get_chart_data(db: Session = Depends(get_db)):
                 "no_issues": no_issues_count,
                 "issues": issues_count
             },
-            "review_status": {
-                "no_review": no_review_count,
-                "requires_review": review_count
+            "transfer_status": {
+                "no_transfer": no_transfer_count,
+                "transfers": transfer_count
             },
             "weekly_trends": {
                 "labels": sorted_weeks,
                 "issues": [weekly_data[week]["issues"] for week in sorted_weeks],
-                "reviews": [weekly_data[week]["reviews"] for week in sorted_weeks]
+                "transfers": [weekly_data[week]["transfers"] for week in sorted_weeks]
             }
         }
         
@@ -261,7 +266,7 @@ def get_latest_checkin(db: Session = Depends(get_db)):
                 "Issue_Flagged": latest_checkin.Issue_Flagged,
                 "Exception_Type": latest_checkin.Exception_Type,
                 "Call_confidence_score": latest_checkin.Call_confidence_score,
-                "Requires_Human_Review": latest_checkin.Requires_Human_Review,
+                "call_trasfered": latest_checkin.call_trasfered,
                 "Tags": latest_checkin.Tags,
                 "miles": latest_checkin.miles,
                 "is_active": latest_checkin.is_active
@@ -308,9 +313,9 @@ def get_checkins_list(
         
         if requires_review is not None:
             if requires_review.lower() == 'true':
-                query = query.filter(CheckIn.Requires_Human_Review == True)
+                query = query.filter(CheckIn.call_trasfered == True)
             elif requires_review.lower() == 'false':
-                query = query.filter(CheckIn.Requires_Human_Review == False)
+                query = query.filter(CheckIn.call_trasfered == False)
         
         if tags:
             query = query.filter(CheckIn.Tags.like(f"%{tags}%"))
@@ -338,7 +343,7 @@ def get_checkins_list(
                 "Issue_Flagged": checkin.Issue_Flagged,
                 "Exception_Type": checkin.Exception_Type,
                 "Call_confidence_score": checkin.Call_confidence_score,
-                "Requires_Human_Review": checkin.Requires_Human_Review,
+                "call_trasfered": checkin.call_trasfered,
                 "Tags": checkin.Tags,
                 "miles": checkin.miles,
                 "is_active": checkin.is_active
@@ -395,13 +400,14 @@ def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
                 "Issue_Flagged": checkin.Issue_Flagged,
                 "Exception_Type": checkin.Exception_Type,
                 "Call_confidence_score": checkin.Call_confidence_score,
-                "Requires_Human_Review": checkin.Requires_Human_Review,
+                "call_trasfered": checkin.call_trasfered,
                 "Tags": checkin.Tags,
                 "miles": checkin.miles,
                 "is_active": checkin.is_active,
                 "call_id": retell_call.call_id if retell_call else None,
                 "call_transcript": retell_call.call_transcript if retell_call else None,
-                "recording_url": retell_call.recording_url if retell_call else None
+                "recording_url": retell_call.recording_url if retell_call else None,
+                "check_in_metadata": retell_call.check_in_metadata if retell_call else None
             }
         }
         
@@ -410,3 +416,40 @@ def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error retrieving check-in: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve check-in: {str(e)}")
+
+
+def send_checkin_notification(check_in_record: CheckIn, stop_id: int = None, db_session: Session = None):
+    """Send notification about new or updated check-in"""
+    try:
+        # Get stop information if stop_id is provided
+        stop = None
+        if stop_id and db_session:
+            stop = db_session.query(Stop).filter(Stop.id == stop_id).first()
+        
+        # Prepare notification data
+        check_in_data = {
+            'id': check_in_record.id,
+            'stop_id': check_in_record.stop_id,
+            'load_id': check_in_record.load_id,
+            'query': check_in_record.query,
+            'AI_Response_Summary': check_in_record.AI_Response_Summary,
+            'AI_Timestamp': check_in_record.AI_Timestamp,
+            'Issue_Flagged': check_in_record.Issue_Flagged,
+            'Exception_Type': check_in_record.Exception_Type,
+            'Call_confidence_score': check_in_record.Call_confidence_score,
+            'call_trasfered': check_in_record.call_trasfered,
+            'is_active': check_in_record.is_active,
+            'Tags': check_in_record.Tags,
+            'stop_name': stop.name if stop else None,
+            'stop_location': stop.location if stop else None,
+            'stop_eta': stop.eta if stop else None
+        }
+        
+        # Send notification
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(notify_check_in_update(check_in_data))
+        loop.close()
+    except Exception as e:
+        logger.warning(f"Could not send notification: {e}")
+        # Don't fail the request if notification fails

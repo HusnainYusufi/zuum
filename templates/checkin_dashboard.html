@@ -121,10 +121,10 @@
         .chart-card {
             background: rgba(26, 32, 44, 0.4);
             border-radius: var(--border-radius);
-            padding: 12px;
+            padding: 16px;
             box-shadow: var(--box-shadow-dark);
-            min-height: 200px;
-            max-height: 200px;
+            min-height: 250px;
+            max-height: 250px;
             border: 1px solid rgba(74, 85, 104, 0.3);
             position: relative;
             display: flex;
@@ -132,7 +132,7 @@
         }
 
         .chart-card canvas {
-            max-height: 150px !important;
+            max-height: 200px !important;
             width: 100% !important;
             flex: 1;
         }
@@ -323,6 +323,12 @@
             background: rgba(160, 174, 192, 0.15);
             color: #a0aec0;
             border: 1px solid rgba(160, 174, 192, 0.3);
+        }
+
+        .status-indicator.transfer {
+            background: rgba(72, 187, 120, 0.15);
+            color: #68d391;
+            border: 1px solid rgba(72, 187, 120, 0.3);
         }
 
         .check-ins-section {
@@ -580,6 +586,10 @@
 
         .status-icon.review {
             color: #a0aec0;
+        }
+
+        .status-icon.transfer {
+            color: #68d391;
         }
 
 
@@ -1355,6 +1365,396 @@
             }
         }
 
+        /* Modal Mobile Responsive Styles */
+        @media (max-width: 1024px) {
+            .modal-content {
+                width: 95%;
+                height: 95vh;
+                margin: 2.5vh auto;
+            }
+            
+            .modal-filters {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                padding: 15px;
+            }
+            
+            .modal-check-in-card {
+                padding: 15px;
+            }
+            
+            .modal-check-in-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .modal-overlay {
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+            
+            .modal-content {
+                width: 100%;
+                height: calc(100vh - 40px);
+                max-height: none;
+                margin: 0;
+                border-radius: 12px;
+            }
+            
+            .modal-header {
+                padding: 15px 20px;
+                flex-wrap: wrap;
+            }
+            
+            .modal-title {
+                font-size: 18px;
+                flex: 1;
+                min-width: 200px;
+            }
+            
+            .modal-close {
+                order: 2;
+            }
+            
+            .modal-body {
+                padding: 20px 15px;
+                gap: 15px;
+            }
+            
+            .modal-filters {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 12px;
+            }
+            
+            .filter-group {
+                gap: 4px;
+            }
+            
+            .filter-label {
+                font-size: 0.7rem;
+            }
+            
+            .filter-input {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .modal-checkins-container {
+                border-radius: 8px;
+            }
+            
+            .modal-checkins-list {
+                padding: 15px;
+            }
+            
+            .modal-check-in-card {
+                padding: 12px;
+                margin-bottom: 12px;
+                border-radius: 8px;
+            }
+            
+            .modal-check-in-header {
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 16px;
+                margin-right: 8px;
+            }
+            
+            .modal-check-in-timestamp {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+            
+            .modal-check-in-content {
+                gap: 10px;
+            }
+            
+            .modal-check-in-field {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 6px 0;
+            }
+            
+            .modal-field-label {
+                font-size: 10px;
+                min-width: auto;
+                margin-bottom: 2px;
+            }
+            
+            .modal-field-value {
+                font-size: 13px;
+                width: 100%;
+            }
+            
+            .modal-summary-field {
+                padding: 10px;
+                margin-top: 6px;
+            }
+            
+            .modal-summary-field .modal-field-label {
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+            
+            .modal-summary-field .modal-field-value {
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            
+            .modal-pagination {
+                padding: 15px;
+            }
+            
+            .pagination {
+                flex-wrap: wrap;
+                gap: 6px;
+                justify-content: center;
+            }
+            
+            .pagination button {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+                min-width: 44px;
+                border-radius: 6px;
+            }
+            
+            .modal-active-indicator {
+                padding: 4px 10px;
+                font-size: 11px;
+            }
+            
+            .modal-active-spinner {
+                width: 12px;
+                height: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .modal-overlay {
+                padding: 5px;
+                padding-top: 10px;
+            }
+            
+            .modal-content {
+                width: 100%;
+                height: calc(100vh - 20px);
+                border-radius: 8px;
+            }
+            
+            .modal-header {
+                padding: 12px 15px;
+            }
+            
+            .modal-title {
+                font-size: 16px;
+                gap: 8px;
+            }
+            
+            .modal-title i {
+                font-size: 16px;
+            }
+            
+            .modal-close {
+                font-size: 20px;
+                padding: 4px;
+            }
+            
+            .modal-body {
+                padding: 15px 12px;
+                gap: 12px;
+            }
+            
+            .modal-filters {
+                padding: 10px;
+                gap: 8px;
+            }
+            
+            .filter-label {
+                font-size: 0.65rem;
+                margin-bottom: 3px;
+            }
+            
+            .filter-input {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+            
+            .modal-checkins-list {
+                padding: 12px;
+            }
+            
+            .modal-check-in-card {
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+            
+            .modal-check-in-header {
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                gap: 8px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 14px;
+                margin-right: 6px;
+            }
+            
+            .modal-check-in-timestamp {
+                font-size: 11px;
+                padding: 3px 6px;
+            }
+            
+            .modal-check-in-timestamp i {
+                font-size: 10px;
+            }
+            
+            .modal-check-in-status {
+                gap: 4px;
+            }
+            
+            .modal-check-in-status .status-icon {
+                font-size: 16px;
+            }
+            
+            .modal-check-in-content {
+                gap: 8px;
+            }
+            
+            .modal-check-in-field {
+                padding: 4px 0;
+                gap: 3px;
+            }
+            
+            .modal-field-label {
+                font-size: 9px;
+            }
+            
+            .modal-field-value {
+                font-size: 12px;
+            }
+            
+            .modal-summary-field {
+                padding: 8px;
+                margin-top: 4px;
+            }
+            
+            .modal-summary-field .modal-field-label {
+                font-size: 10px;
+                margin-bottom: 4px;
+            }
+            
+            .modal-summary-field .modal-field-value {
+                font-size: 11px;
+                line-height: 1.4;
+            }
+            
+            .modal-pagination {
+                padding: 12px;
+            }
+            
+            .pagination {
+                gap: 4px;
+            }
+            
+            .pagination button {
+                padding: 6px 8px;
+                font-size: 0.7rem;
+                min-width: 36px;
+            }
+            
+            .pagination span {
+                font-size: 0.7rem;
+                padding: 0 4px;
+            }
+            
+            .modal-active-indicator {
+                padding: 3px 8px;
+                font-size: 10px;
+            }
+            
+            .modal-active-spinner {
+                width: 10px;
+                height: 10px;
+                border-width: 1.5px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .modal-content {
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .modal-header {
+                padding: 10px 12px;
+            }
+            
+            .modal-title {
+                font-size: 14px;
+                gap: 6px;
+            }
+            
+            .modal-body {
+                padding: 12px 10px;
+                gap: 10px;
+            }
+            
+            .modal-filters {
+                padding: 8px;
+                gap: 6px;
+            }
+            
+            .filter-input {
+                padding: 5px 8px;
+                font-size: 0.7rem;
+            }
+            
+            .modal-checkins-list {
+                padding: 10px;
+            }
+            
+            .modal-check-in-card {
+                padding: 8px;
+                margin-bottom: 8px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 13px;
+            }
+            
+            .modal-check-in-timestamp {
+                font-size: 10px;
+                padding: 2px 5px;
+            }
+            
+            .modal-field-value {
+                font-size: 11px;
+            }
+            
+            .modal-summary-field .modal-field-value {
+                font-size: 10px;
+            }
+            
+            .pagination button {
+                padding: 5px 6px;
+                font-size: 0.65rem;
+                min-width: 32px;
+            }
+        }
+
         /* Very small devices */
         @media (max-width: 360px) {
             .dashboard-header h1 {
@@ -1557,10 +1957,10 @@
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
-                    <i class="fas fa-user-check" style="color: #48bb78;"></i>
+                    <i class="fas fa-phone-alt" style="color: #48bb78;"></i>
                 </div>
-                <div class="stat-number" id="human-reviews">0</div>
-                <div class="stat-label">Human Reviews</div>
+                <div class="stat-number" id="call-transfers">0</div>
+                <div class="stat-label">Call Transfers</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
@@ -1659,11 +2059,11 @@
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label class="filter-label">Filter by Review Status</label>
+                        <label class="filter-label">Filter by Transfer Status</label>
                         <select class="filter-input" id="modal-review-filter">
                             <option value="">All</option>
-                            <option value="true">Requires Review</option>
-                            <option value="false">No Review Needed</option>
+                            <option value="true">Call Transferred</option>
+                            <option value="false">Not Transferred</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -1703,12 +2103,251 @@
         let modalCheckins = [];
         let charts = {};
         let autoRefreshInterval = null;
+        let websocket = null;
+        
+        // WebSocket connection for real-time updates
+        function connectWebSocket() {
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+                
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connected for real-time updates');
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const notification = JSON.parse(event.data);
+                        console.log('Received notification:', notification);
+                        
+                        // Handle different types of notifications
+                        if (notification.type === 'check_in_update') {
+                            handleCheckInUpdate(notification.data);
+                        } else if (notification.type === 'stop_update') {
+                            // Optional: handle stop updates if needed
+                            console.log('Stop update received:', notification.data);
+                        } else if (notification.type === 'journey_state_update') {
+                            // Optional: handle journey state updates if needed
+                            console.log('Journey state update received:', notification.data);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket connection closed. Attempting to reconnect...');
+                    // Attempt to reconnect after 3 seconds
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+                
+                // Send periodic ping to keep connection alive
+                setInterval(() => {
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send('ping');
+                    }
+                }, 30000); // Send ping every 30 seconds
+                
+            } catch (error) {
+                console.error('Error connecting to WebSocket:', error);
+                // Retry connection after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            }
+        }
+        
+        function handleCheckInUpdate(checkInData) {
+            console.log('Check-in update received:', checkInData);
+            
+            // Refresh dashboard data to reflect the update
+            refreshDashboardSilently();
+            
+            // Show appropriate notification based on the update type
+            if (checkInData.call_trasfered) {
+                showTransferNotification(checkInData);
+            } else if (!checkInData.is_active) {
+                showCallEndedNotification(checkInData);
+            } else {
+                showUpdateNotification(checkInData);
+            }
+        }
+        
+        function showUpdateNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-bell',
+                title: `Check-in #${checkInData.id} updated`,
+                background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
+                shadowColor: 'rgba(66, 153, 225, 0.3)'
+            });
+        }
+        
+        function showTransferNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-phone-alt',
+                title: `Check-in #${checkInData.id} call transferred`,
+                subtitle: 'Call successfully transferred to broker',
+                background: 'linear-gradient(135deg, #48bb78, #68d391)',
+                shadowColor: 'rgba(72, 187, 120, 0.3)'
+            });
+        }
+        
+        function showCallEndedNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-phone-slash',
+                title: `Check-in #${checkInData.id} call ended`,
+                subtitle: 'Call completed and data saved',
+                background: 'linear-gradient(135deg, #ed8936, #f6ad55)',
+                shadowColor: 'rgba(237, 137, 54, 0.3)'
+            });
+        }
+        
+        function showNotification({ icon, title, subtitle, background, shadowColor }) {
+            // Create a notification
+            const notification = document.createElement('div');
+            notification.className = 'update-notification';
+            notification.innerHTML = `
+                <i class="${icon}"></i>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    ${subtitle ? `<div class="notification-subtitle">${subtitle}</div>` : ''}
+                </div>
+            `;
+            
+            // Add styling for the notification
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${background};
+                color: white;
+                padding: 16px 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px ${shadowColor}, 0 4px 12px rgba(0, 0, 0, 0.2);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 14px;
+                font-weight: 500;
+                animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                cursor: pointer;
+                min-width: 280px;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            `;
+            
+            // Add CSS animation if not already added
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOutRight {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                    }
+                    @keyframes pulse {
+                        0%, 100% { transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                    }
+                    .notification-content {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 2px;
+                    }
+                    .notification-title {
+                        font-weight: 600;
+                        font-size: 14px;
+                    }
+                    .notification-subtitle {
+                        font-weight: 400;
+                        font-size: 12px;
+                        opacity: 0.9;
+                    }
+                    .update-notification i {
+                        font-size: 18px;
+                        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+                        animation: pulse 2s ease-in-out infinite;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 400);
+            }, 5000);
+            
+            // Allow clicking to dismiss
+            notification.addEventListener('click', () => {
+                notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 400);
+            });
+        }
+        
+        async function refreshDashboardSilently() {
+            try {
+                // Refresh all dashboard data without showing loading indicators
+                await Promise.all([
+                    loadStatistics(),
+                    loadLatestCheckin(),
+                    loadRecentCheckins()
+                ]);
+                
+                // If modal is open, refresh it too
+                if (document.getElementById('checkins-modal').classList.contains('active')) {
+                    await loadModalCheckins(modalCurrentPage);
+                }
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+            }
+        }
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
+            connectWebSocket(); // Connect to WebSocket for real-time updates
+        });
+
+        // Clean up WebSocket connection when page unloads
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+            if (websocket) {
+                websocket.close();
+            }
         });
 
         function setupEventListeners() {
@@ -1773,7 +2412,7 @@
                 
                 document.getElementById('total-checkins').textContent = data.total_checkins || 0;
                 document.getElementById('total-issues').textContent = data.total_issues || 0;
-                document.getElementById('human-reviews').textContent = data.human_reviews || 0;
+                document.getElementById('call-transfers').textContent = data.call_transfers || 0;
                 document.getElementById('today-checkins').textContent = data.today_checkins || 0;
             } catch (error) {
                 console.error('Error loading statistics:', error);
@@ -1939,13 +2578,13 @@
                         </div>
                         <div class="latest-checkin-info-item">
                             <div class="latest-checkin-info-label">
-                                <i class="fas fa-user-check" style="color: #a0aec0; font-size: 10px;"></i>
-                                Review Status
+                                <i class="fas fa-phone-alt" style="color: #a0aec0; font-size: 10px;"></i>
+                                Call Status
                             </div>
                             <div class="latest-checkin-info-value">
-                                ${checkin.Requires_Human_Review ? 
-                                    '<span class="status-indicator review">Required</span>' : 
-                                    'Not Required'}
+                                ${checkin.call_trasfered ? 
+                                    '<span class="status-indicator transfer">Transferred</span>' : 
+                                    'Not Transferred'}
                             </div>
                         </div>
                         <div class="latest-checkin-info-item">
@@ -2006,8 +2645,8 @@
                                 ${checkin.Issue_Flagged ? 
                                     '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
                                     '<i class="fas fa-check-circle status-icon success"></i>'}
-                                ${checkin.Requires_Human_Review ? 
-                                    '<i class="fas fa-user-check status-icon review"></i>' : ''}
+                                ${checkin.call_trasfered ? 
+                                    '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
                             </div>
                         </div>
                     </div>
@@ -2061,8 +2700,8 @@
                                 ${checkin.Issue_Flagged ? 
                                     '<i class="fas fa-exclamation-triangle status-icon warning" style="font-size: 20px;"></i>' : 
                                     '<i class="fas fa-check-circle status-icon success" style="font-size: 20px;"></i>'}
-                                ${checkin.Requires_Human_Review ? 
-                                    '<i class="fas fa-user-check status-icon review" style="font-size: 20px;"></i>' : ''}
+                                ${checkin.call_trasfered ? 
+                                    '<i class="fas fa-phone-alt status-icon transfer" style="font-size: 20px;"></i>' : ''}
                             </div>
                         </div>
                         <div class="modal-check-in-content">
@@ -2191,10 +2830,7 @@
                                 drawBorder: false
                             },
                             ticks: {
-                                color: '#718096',
-                                font: {
-                                    size: 10
-                                }
+                                display: false // Hide x-axis labels
                             }
                         }
                     }
@@ -2223,10 +2859,10 @@
                         tension: 0.4,
                         borderWidth: 2
                     }, {
-                        label: 'Reviews',
-                        data: data.reviews || [],
-                        borderColor: '#f56565',
-                        backgroundColor: 'rgba(245, 101, 101, 0.1)',
+                        label: 'Call Transfers',
+                        data: data.transfers || [],
+                        borderColor: '#48bb78',
+                        backgroundColor: 'rgba(72, 187, 120, 0.1)',
                         tension: 0.4,
                         borderWidth: 2
                     }]
@@ -2240,7 +2876,10 @@
                             position: 'bottom',
                             labels: {
                                 color: '#e2e8f0',
-                                padding: 15
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
                             }
                         }
                     },
@@ -2248,18 +2887,26 @@
                         y: {
                             beginAtZero: true,
                             grid: {
-                                color: 'rgba(74, 85, 104, 0.3)'
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
                             },
                             ticks: {
-                                color: '#a0aec0'
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
                             }
                         },
                         x: {
                             grid: {
-                                color: 'rgba(74, 85, 104, 0.3)'
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
                             },
                             ticks: {
-                                color: '#a0aec0'
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
                             }
                         }
                     }

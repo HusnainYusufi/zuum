@@ -53,11 +53,13 @@ db = next(get_db())
 
 
 
-def send_checkin_notification(check_in_record: CheckIn, stop_id: int):
+def send_checkin_notification(check_in_record: CheckIn, stop_id: int, db_session: Session = None):
     """Send notification about new check-in"""
     try:
         # Get stop information
-        stop = db.query(Stop).filter(Stop.id == stop_id).first()
+        stop = None
+        if db_session:
+            stop = db_session.query(Stop).filter(Stop.id == stop_id).first()
         
         # Prepare notification data
         check_in_data = {
@@ -70,7 +72,8 @@ def send_checkin_notification(check_in_record: CheckIn, stop_id: int):
             'Issue_Flagged': check_in_record.Issue_Flagged,
             'Exception_Type': check_in_record.Exception_Type,
             'Call_confidence_score': check_in_record.Call_confidence_score,
-            'Requires_Human_Review': check_in_record.Requires_Human_Review,
+            'call_trasfered': check_in_record.call_trasfered,
+            'is_active': check_in_record.is_active,
             'Tags': check_in_record.Tags,
             'stop_name': stop.name if stop else None,
             'stop_location': stop.location if stop else None,
@@ -424,7 +427,7 @@ def update_check_in(request: dict = Body(...)):
             check_in = CheckIn(
                 AI_Timestamp=datetime.now().isoformat(),
                 Issue_Flagged=False,
-                Requires_Human_Review=False,
+                call_trasfered=False,
                 is_active=True  # Initially active
             )
             db.add(check_in)
@@ -469,8 +472,8 @@ def update_check_in(request: dict = Body(...)):
                             check_in.AI_Response_Summary = args['AI_Response_Summary']
                         if 'issue_flagged' in args:
                             check_in.Issue_Flagged = args['issue_flagged']
-                        if 'requires_human_review' in args:
-                            check_in.Requires_Human_Review = args['requires_human_review']
+                        if 'call_transferred' in args:
+                            check_in.call_trasfered = args['call_transferred']
                         if 'call_confidence_score' in args:
                             check_in.Call_confidence_score = args['call_confidence_score']
                         if 'exception_type' in args:
@@ -494,8 +497,8 @@ def update_check_in(request: dict = Body(...)):
                 check_in.AI_Response_Summary = args['AI_Response_Summary']
             if 'issue_flagged' in args:
                 check_in.Issue_Flagged = args['issue_flagged']
-            if 'requires_human_review' in args:
-                check_in.Requires_Human_Review = args['requires_human_review']
+            if 'call_transferred' in args:
+                check_in.call_trasfered = args['call_transferred']
             if 'call_confidence_score' in args:
                 check_in.Call_confidence_score = args['call_confidence_score']
             if 'exception_type' in args:
@@ -529,7 +532,7 @@ def update_check_in(request: dict = Body(...)):
         
         # Send notification about the check-in update
         if check_in.stop_id:
-            send_checkin_notification(check_in, check_in.stop_id)
+            send_checkin_notification(check_in, check_in.stop_id, db)
         
         return {
             "status": "success",
@@ -549,7 +552,7 @@ def update_check_in(request: dict = Body(...)):
 
 @router.post("/webhook/call-ended")
 async def retell_recording_webhook(request: dict = Body(...)):
-    """Handle Retell webhook events, specifically call_ended events."""
+    """Handle Retell webhook events, specifically call_ended and call_transferred events."""
     try:
         logger.info(f"Received Retell webhook: {request}")
         
@@ -557,14 +560,18 @@ async def retell_recording_webhook(request: dict = Body(...)):
         if request.get("event") == "call_ended":
             call_data = request.get("call", {})
             
-            # Extract call_id, recording_url, and transcript
+            # Extract call_id, recording_url, transcript, and disconnection_reason
             call_id = call_data.get("call_id")
             recording_url = call_data.get("recording_url")
             transcript = call_data.get("transcript")
+            disconnection_reason = call_data.get("disconnection_reason")
             
-            logger.info(f"Call ended - Call ID: {call_id}, Recording URL: {recording_url}")
+            logger.info(f"Call ended - Call ID: {call_id}, Recording URL: {recording_url}, Disconnection Reason: {disconnection_reason}")
             
             # Find the RetellCall record with this call_id and update it
+            retell_call = None
+            check_in = None
+            
             if call_id:
                 retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
                 if retell_call:
@@ -573,21 +580,66 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     if transcript:
                         retell_call.call_transcript = transcript
                     retell_call.call_status = "completed"
-                    db.commit()
+                    
+                    # Get associated check-in if it exists
+                    if retell_call.check_in_id:
+                        check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
+                    
                     logger.info(f"Updated RetellCall with recording_url and transcript")
                 else:
                     # Create new RetellCall record if it doesn't exist
-                    new_retell_call = RetellCall(
+                    retell_call = RetellCall(
                         call_id=call_id,
                         recording_url=recording_url,
                         call_transcript=transcript,
                         call_status="completed"
                     )
-                    db.add(new_retell_call)
-                    db.commit()
+                    db.add(retell_call)
                     logger.info(f"Created new RetellCall with call_id: {call_id}")
+                
+                # Check if call was transferred and update check-in accordingly
+                if disconnection_reason == "call_transfer" and check_in:
+                    check_in.call_trasfered = True
+                    logger.info(f"Marked check-in {check_in.id} as transferred due to call_transfer disconnection")
+                    
+                    # Send notification about the transfer
+                    send_checkin_notification(check_in, check_in.stop_id, db)
+                
+                # Mark check-in as inactive since call has ended
+                if check_in:
+                    check_in.is_active = False
+                    logger.info(f"Marked check-in {check_in.id} as inactive since call ended")
+                    
+                    # Send notification about the check-in update
+                    send_checkin_notification(check_in, check_in.stop_id, db)
+                
+                db.commit()
             
             return {"status": "success", "message": "Webhook processed successfully"}
+        
+        # Check if this is a call_transferred event
+        elif request.get("event") == "call_transferred":
+            call_data = request.get("call", {})
+            call_id = call_data.get("call_id")
+            
+            logger.info(f"Call transferred - Call ID: {call_id}")
+            
+            # Find the RetellCall and associated CheckIn
+            if call_id:
+                retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+                if retell_call and retell_call.check_in_id:
+                    check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
+                    if check_in:
+                        # Mark the check-in as transferred
+                        check_in.call_trasfered = True
+                        db.commit()
+                        logger.info(f"Marked check-in {check_in.id} as transferred")
+                        
+                        # Send notification about the transfer
+                        if check_in.stop_id:
+                            send_checkin_notification(check_in, check_in.stop_id, db)
+            
+            return {"status": "success", "message": "Call transfer webhook processed successfully"}
         
         # Check if this is a call_analyzed event
         elif request.get("event") == "call_analyzed":
@@ -626,7 +678,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
             
             return {"status": "success", "message": "Call analyzed webhook processed successfully"}
         
-        return {"status": "ignored", "message": "Not a call_ended or call_analyzed event"}
+        return {"status": "ignored", "message": "Not a supported webhook event"}
         
     except Exception as e:
         logger.error(f"Error processing Retell webhook: {str(e)}")

@@ -111,7 +111,7 @@ def init_db():
             Issue_Flagged=True,
             Exception_Type=None,
             Call_confidence_score="95",
-            Requires_Human_Review=False,
+            call_trasfered=True,
             Tags="Completed Delivery",
         )
         db.add(sample_check_in)

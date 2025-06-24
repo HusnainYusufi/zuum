@@ -154,7 +154,7 @@ def create_test_checkins():
                     Issue_Flagged=issue_flagged,
                     Exception_Type=exception_type,
                     Call_confidence_score=confidence_score,
-                    Requires_Human_Review=requires_review,
+                    call_trasfered=True,
                     Tags=tags,
                     miles=str(random.randint(50, 1200)),
                     is_active=False
