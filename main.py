@@ -401,7 +401,7 @@ state_dict = {}
 @app.get("/")
 async def root():
     """Redirect root to dashboard"""
-    return RedirectResponse(url="/dashboard")
+    return RedirectResponse(url="/checkin-dashboard")
 
 @app.get("/health-check")
 async def health_check():

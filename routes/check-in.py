@@ -20,7 +20,7 @@ class CreateCheckInRequest(BaseModel):
 
 
 @router.post("/create")
-async def create_checkin(
+def create_checkin(
     request: CreateCheckInRequest,
     db: Session = Depends(get_db)
 ):
@@ -47,7 +47,8 @@ async def create_checkin(
             Call_confidence_score=None,
             Requires_Human_Review=False,
             Tags=None,
-            miles=None
+            miles=None,
+            is_active=True  # Set to True when check-in is created
         )
         
         # Add to database session and commit to get the ID
@@ -85,7 +86,8 @@ async def create_checkin(
                 "load_id": new_checkin.load_id,
                 "AI_Timestamp": new_checkin.AI_Timestamp,
                 "Issue_Flagged": new_checkin.Issue_Flagged,
-                "Requires_Human_Review": new_checkin.Requires_Human_Review
+                "Requires_Human_Review": new_checkin.Requires_Human_Review,
+                "is_active": new_checkin.is_active
             }
         }
         
@@ -95,8 +97,273 @@ async def create_checkin(
         raise HTTPException(status_code=500, detail=f"Failed to create check-in: {str(e)}")
 
 
+@router.get("/statistics")
+def get_checkin_statistics(db: Session = Depends(get_db)):
+    """
+    Get dashboard statistics for check-ins.
+    
+    Returns:
+        Statistics including total check-ins, issues, human reviews, and today's check-ins
+    """
+    try:
+        from datetime import datetime, timedelta
+        
+        # Total check-ins
+        total_checkins = db.query(CheckIn).count()
+        
+        # Total issues flagged
+        total_issues = db.query(CheckIn).filter(CheckIn.Issue_Flagged == True).count()
+        
+        # Total requiring human review
+        human_reviews = db.query(CheckIn).filter(CheckIn.Requires_Human_Review == True).count()
+        
+        # Today's check-ins
+        today = datetime.now().date()
+        today_str = today.isoformat()
+        today_checkins = db.query(CheckIn).filter(
+            CheckIn.AI_Timestamp.like(f"{today_str}%")
+        ).count()
+        
+        return {
+            "status": "success",
+            "total_checkins": total_checkins,
+            "total_issues": total_issues,
+            "human_reviews": human_reviews,
+            "today_checkins": today_checkins
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting statistics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
+
+
+@router.get("/chart-data")
+def get_chart_data(db: Session = Depends(get_db)):
+    """
+    Get chart data for the dashboard.
+    
+    Returns:
+        Chart data for various visualizations
+    """
+    try:
+        from datetime import datetime, timedelta
+        from collections import defaultdict
+        import json
+        
+        # Get all check-ins (since AI_Timestamp is a string, we'll filter in Python)
+        checkins = db.query(CheckIn).all()
+        
+        # Check-ins per day (last 30 days)
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+        daily_counts = defaultdict(int)
+        for checkin in checkins:
+            try:
+                checkin_date = datetime.fromisoformat(checkin.AI_Timestamp)
+                if checkin_date >= thirty_days_ago:
+                    daily_counts[checkin_date.date()] += 1
+            except:
+                continue
+        
+        # Fill missing days with 0
+        current_date = thirty_days_ago.date()
+        end_date = datetime.now().date()
+        labels = []
+        values = []
+        
+        while current_date <= end_date:
+            labels.append(current_date.strftime("%m/%d"))
+            values.append(daily_counts.get(current_date, 0))
+            current_date += timedelta(days=1)
+        
+        # Issue distribution
+        total_checkins = db.query(CheckIn).count()
+        issues_count = db.query(CheckIn).filter(CheckIn.Issue_Flagged == True).count()
+        no_issues_count = total_checkins - issues_count
+        
+        # Review status
+        review_count = db.query(CheckIn).filter(CheckIn.Requires_Human_Review == True).count()
+        no_review_count = total_checkins - review_count
+        
+        # Weekly trends (last 4 weeks) - we'll use the same checkins data
+        weekly_data = defaultdict(lambda: {"issues": 0, "reviews": 0})
+        four_weeks_ago = datetime.now() - timedelta(weeks=4)
+        
+        for checkin in checkins:
+            try:
+                checkin_date = datetime.fromisoformat(checkin.AI_Timestamp)
+                if checkin_date >= four_weeks_ago:
+                    week_start = checkin_date - timedelta(days=checkin_date.weekday())
+                    week_key = week_start.strftime("Week of %m/%d")
+                    
+                    if checkin.Issue_Flagged:
+                        weekly_data[week_key]["issues"] += 1
+                    if checkin.Requires_Human_Review:
+                        weekly_data[week_key]["reviews"] += 1
+            except:
+                continue
+        
+        # Sort weekly data by date
+        sorted_weeks = sorted(weekly_data.keys(), key=lambda x: datetime.strptime(x.replace("Week of ", ""), "%m/%d"))
+        
+        return {
+            "status": "success",
+            "checkins_per_day": {
+                "labels": labels,
+                "values": values
+            },
+            "issue_distribution": {
+                "no_issues": no_issues_count,
+                "issues": issues_count
+            },
+            "review_status": {
+                "no_review": no_review_count,
+                "requires_review": review_count
+            },
+            "weekly_trends": {
+                "labels": sorted_weeks,
+                "issues": [weekly_data[week]["issues"] for week in sorted_weeks],
+                "reviews": [weekly_data[week]["reviews"] for week in sorted_weeks]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting chart data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get chart data: {str(e)}")
+
+
+@router.get("/latest")
+def get_latest_checkin(db: Session = Depends(get_db)):
+    """
+    Get the latest check-in.
+    
+    Returns:
+        The most recent check-in data
+    """
+    try:
+        latest_checkin = db.query(CheckIn).order_by(CheckIn.id.desc()).first()
+        
+        if not latest_checkin:
+            return {
+                "status": "success",
+                "data": None,
+                "message": "No check-ins found"
+            }
+        
+        return {
+            "status": "success",
+            "data": {
+                "id": latest_checkin.id,
+                "stop_id": latest_checkin.stop_id,
+                "load_id": latest_checkin.load_id,
+                "query": latest_checkin.query,
+                "AI_Response_Summary": latest_checkin.AI_Response_Summary,
+                "AI_Timestamp": latest_checkin.AI_Timestamp,
+                "Issue_Flagged": latest_checkin.Issue_Flagged,
+                "Exception_Type": latest_checkin.Exception_Type,
+                "Call_confidence_score": latest_checkin.Call_confidence_score,
+                "Requires_Human_Review": latest_checkin.Requires_Human_Review,
+                "Tags": latest_checkin.Tags,
+                "miles": latest_checkin.miles,
+                "is_active": latest_checkin.is_active
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting latest check-in: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get latest check-in: {str(e)}")
+
+
+@router.get("/list")
+def get_checkins_list(
+    page: int = 1,
+    per_page: int = 10,
+    issue_flagged: Optional[str] = None,
+    requires_review: Optional[str] = None,
+    tags: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get paginated list of check-ins with filtering.
+    
+    Args:
+        page: Page number (1-based)
+        per_page: Number of items per page
+        issue_flagged: Filter by issue status ('true', 'false', or None for all)
+        requires_review: Filter by review status ('true', 'false', or None for all)
+        tags: Filter by tag name (partial match)
+        db: Database session dependency
+        
+    Returns:
+        Paginated list of check-ins
+    """
+    try:
+        # Build query with filters
+        query = db.query(CheckIn)
+        
+        if issue_flagged is not None:
+            if issue_flagged.lower() == 'true':
+                query = query.filter(CheckIn.Issue_Flagged == True)
+            elif issue_flagged.lower() == 'false':
+                query = query.filter(CheckIn.Issue_Flagged == False)
+        
+        if requires_review is not None:
+            if requires_review.lower() == 'true':
+                query = query.filter(CheckIn.Requires_Human_Review == True)
+            elif requires_review.lower() == 'false':
+                query = query.filter(CheckIn.Requires_Human_Review == False)
+        
+        if tags:
+            query = query.filter(CheckIn.Tags.like(f"%{tags}%"))
+        
+        # Get total count
+        total_count = query.count()
+        
+        # Calculate pagination
+        total_pages = (total_count + per_page - 1) // per_page
+        offset = (page - 1) * per_page
+        
+        # Get paginated results, ordered by most recent first
+        checkins = query.order_by(CheckIn.id.desc()).offset(offset).limit(per_page).all()
+        
+        # Format results
+        checkins_data = []
+        for checkin in checkins:
+            checkins_data.append({
+                "id": checkin.id,
+                "stop_id": checkin.stop_id,
+                "load_id": checkin.load_id,
+                "query": checkin.query,
+                "AI_Response_Summary": checkin.AI_Response_Summary,
+                "AI_Timestamp": checkin.AI_Timestamp,
+                "Issue_Flagged": checkin.Issue_Flagged,
+                "Exception_Type": checkin.Exception_Type,
+                "Call_confidence_score": checkin.Call_confidence_score,
+                "Requires_Human_Review": checkin.Requires_Human_Review,
+                "Tags": checkin.Tags,
+                "miles": checkin.miles,
+                "is_active": checkin.is_active
+            })
+        
+        return {
+            "status": "success",
+            "data": {
+                "checkins": checkins_data,
+                "current_page": page,
+                "per_page": per_page,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting checkins list: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get checkins list: {str(e)}")
+
+
 @router.get("/{checkin_id}")
-async def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
+def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
     """
     Retrieve a check-in by its ID.
     
@@ -131,6 +398,7 @@ async def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
                 "Requires_Human_Review": checkin.Requires_Human_Review,
                 "Tags": checkin.Tags,
                 "miles": checkin.miles,
+                "is_active": checkin.is_active,
                 "call_id": retell_call.call_id if retell_call else None,
                 "call_transcript": retell_call.call_transcript if retell_call else None,
                 "recording_url": retell_call.recording_url if retell_call else None

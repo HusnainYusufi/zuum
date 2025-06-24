@@ -424,7 +424,8 @@ def update_check_in(request: dict = Body(...)):
             check_in = CheckIn(
                 AI_Timestamp=datetime.now().isoformat(),
                 Issue_Flagged=False,
-                Requires_Human_Review=False
+                Requires_Human_Review=False,
+                is_active=True  # Initially active
             )
             db.add(check_in)
             db.flush()  # Get the check_in ID
@@ -520,8 +521,9 @@ def update_check_in(request: dict = Body(...)):
         
         
         
-        # Mark call as completed
+        # Mark call as completed and check-in as inactive
         retell_call.call_status = "completed"
+        check_in.is_active = False  # Set to False when check-in is completed
         
         db.commit()
         
