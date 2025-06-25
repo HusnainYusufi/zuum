@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Configuration Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --border-color: #e5e7eb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Loading Overlay */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        /* Form Type Selector Section */
+        .form-selector-section {
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 120px;
+            z-index: 90;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .form-selector-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .form-selector-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .form-selector-label {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .form-selector-select {
+            flex: 1;
+            min-width: 300px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            background-color: white;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .form-selector-select:hover {
+            border-color: var(--primary-light);
+        }
+
+        .form-selector-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-info-inline {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--background);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-info-inline-icon {
+            color: var(--primary-color);
+        }
+
+        .form-info-inline-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--surface);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .panel-header {
+            background: linear-gradient(to right, #fafbfc, #f3f4f6);
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-body {
+            padding: 1.5rem;
+        }
+
+        /* Grid Positioning */
+        .json-config-panel {
+            grid-column: span 12;
+        }
+
+        .voice-questions-panel {
+            grid-column: span 12;
+        }
+
+        .output-schema-panel {
+            grid-column: span 12;
+        }
+
+        .payload-preview-panel {
+            grid-column: span 12;
+        }
+
+        /* Responsive Grid */
+        @media (min-width: 1024px) {
+            .json-config-panel {
+                grid-column: span 6;
+            }
+            
+            .voice-questions-panel {
+                grid-column: span 6;
+            }
+            
+            .output-schema-panel {
+                grid-column: span 12;
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .json-config-panel {
+                grid-column: span 5;
+            }
+            
+            .voice-questions-panel {
+                grid-column: span 7;
+            }
+        }
+
+        /* JSON Editor */
+        .json-editor {
+            width: 100%;
+            min-height: 400px;
+            max-height: 600px;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            resize: vertical;
+            background-color: #f9fafb;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .json-editor:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Questions Section */
+        .questions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .questions-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            background: var(--background);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+        }
+
+        .add-question-btn {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .add-question-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .questions-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 450px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .questions-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .questions-container::-webkit-scrollbar-track {
+            background: var(--background);
+            border-radius: 3px;
+        }
+
+        .questions-container::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .questions-container::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        .question-chip {
+            background: var(--background);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            cursor: move;
+            position: relative;
+        }
+
+        .question-chip:hover {
+            background: white;
+            border-color: var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .question-chip.editing {
+            background: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .question-chip.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+
+        .question-chip.drag-over {
+            border-color: var(--primary-color);
+            background: #eef2ff;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            margin-right: 0.75rem;
+            color: #9ca3af;
+            transition: color 0.2s;
+        }
+
+        .drag-handle:hover {
+            color: var(--text-secondary);
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+        }
+
+        .question-input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.9375rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .question-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .question-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: 0.75rem;
+        }
+
+        .chip-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.375rem;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chip-btn:hover {
+            background: var(--background);
+        }
+
+        .chip-btn.edit {
+            color: var(--primary-color);
+        }
+
+        .chip-btn.edit:hover {
+            background: #eef2ff;
+        }
+
+        .chip-btn.save {
+            color: var(--success-color);
+        }
+
+        .chip-btn.save:hover {
+            background: #d1fae5;
+        }
+
+        .chip-btn.cancel {
+            color: var(--warning-color);
+        }
+
+        .chip-btn.cancel:hover {
+            background: #fef3c7;
+        }
+
+        .chip-btn.delete {
+            color: var(--danger-color);
+        }
+
+        .chip-btn.delete:hover {
+            background: #fee2e2;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--background);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: white;
+            border-color: #d1d5db;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 1.5rem;
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        /* Output Schema */
+        .output-schema-display {
+            background: #f9fafb;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .output-schema-display pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: var(--text-primary);
+        }
+
+        #outputSchemaEditor {
+            width: 100%;
+            min-height: 300px;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            resize: vertical;
+            background-color: #f9fafb;
+            transition: all 0.2s;
+        }
+
+        #outputSchemaEditor:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Schema Table Styles */
+        .schema-table-header {
+            display: grid;
+            grid-template-columns: 200px 1fr 120px 100px 80px;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(to right, #f9fafb, #f3f4f6);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .schema-fields-container {
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .schema-field-row {
+            display: grid;
+            grid-template-columns: 200px 1fr 120px 100px 80px;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .schema-field-row:last-child {
+            border-bottom: none;
+        }
+
+        .schema-field-row:hover {
+            background: var(--background);
+        }
+
+        .schema-field-row.editing {
+            background: white;
+            box-shadow: 0 0 0 2px var(--primary-color) inset;
+        }
+
+        .schema-col {
+            overflow: hidden;
+        }
+
+        .schema-col-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .schema-col-desc {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .schema-field-input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-family: inherit;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .schema-field-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .schema-field-input.name {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+
+        .schema-field-select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .schema-field-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .schema-field-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+        }
+
+        .schema-col-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .schema-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.375rem;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .schema-action-btn:hover {
+            background: var(--background);
+            color: var(--text-primary);
+        }
+
+        .schema-action-btn.delete:hover {
+            background: #fee2e2;
+            color: var(--danger-color);
+        }
+
+        .add-schema-field-btn {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .add-schema-field-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .schema-info {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: var(--background);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .empty-schema-message {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-schema-message svg {
+            width: 3rem;
+            height: 3rem;
+            margin-bottom: 1rem;
+            color: #d1d5db;
+        }
+
+        /* Payload Preview */
+        .payload-info-box {
+            background: linear-gradient(to right, #eef2ff, #e0e7ff);
+            border: 1px solid #c7d2fe;
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .payload-info-box h3 {
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+            font-size: 1.125rem;
+        }
+
+        .payload-info-box p {
+            color: #4c1d95;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+
+        .payload-preview-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+            .payload-preview-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .payload-preview-section h3 {
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .payload-preview-section pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.25rem;
+            border-radius: var(--radius-md);
+            overflow-x: auto;
+            font-size: 0.8125rem;
+            line-height: 1.6;
+            box-shadow: var(--shadow-md);
+        }
+
+        .payload-details-list {
+            margin-top: 1rem;
+            padding-left: 1.25rem;
+            color: var(--text-secondary);
+        }
+
+        .payload-details-list li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+
+        .payload-details-list strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Responsive Schema Table */
+        @media (max-width: 1024px) {
+            .schema-table-header,
+            .schema-field-row {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .schema-table-header {
+                display: none;
+            }
+
+            .schema-field-row {
+                padding: 1rem;
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-md);
+                margin-bottom: 0.75rem;
+                background: white;
+            }
+
+            .schema-field-row:last-child {
+                margin-bottom: 0;
+            }
+
+            .schema-fields-container {
+                border: none;
+                padding: 0;
+            }
+
+            .schema-col::before {
+                content: attr(data-label);
+                font-weight: 600;
+                font-size: 0.75rem;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                display: block;
+                margin-bottom: 0.25rem;
+            }
+
+            .schema-col-actions {
+                margin-top: 0.75rem;
+                justify-content: flex-start;
+            }
+        }
+
+        /* Mobile Responsive Adjustments */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .form-selector-section {
+                top: 100px;
+            }
+
+            .form-selector-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+
+            .form-selector-select {
+                min-width: 100%;
+            }
+
+            .panel-title {
+                font-size: 1.125rem;
+            }
+
+            .btn {
+                padding: 0.625rem 1.25rem;
+                font-size: 0.875rem;
+            }
+
+            .questions-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .add-question-btn {
+                justify-content: center;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .main-grid {
+                gap: 1rem;
+            }
+
+            .panel-body {
+                padding: 1rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header {
+                padding: 1.5rem 0;
+            }
+
+            .form-selector-container {
+                padding: 1rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Utility Classes */
+        .icon-sm {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .icon-md {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        /* Custom Scrollbar for all scrollable areas */
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        *::-webkit-scrollbar-track {
+            background: var(--background);
+            border-radius: 4px;
+        }
+
+        *::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        *::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <h1>Prompt Configuration Manager</h1>
+            <p>Manage Prompt configurations and voice agent questions</p>
+        </div>
+    </div>
+
+    <!-- Form Type Selector -->
+    <div class="form-selector-section">
+        <div class="form-selector-container">
+            <div class="form-selector-wrapper">
+                <label class="form-selector-label" for="formTypeSelect">Form Type:</label>
+                <select id="formTypeSelect" class="form-selector-select" onchange="loadFormQuestions()">
+                    {% for form_type in form_types %}
+                    <option value="{{ form_type }}">{{ form_config[form_type].title }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-info-inline">
+                    <svg class="form-info-inline-icon icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="form-info-inline-text" id="formFieldCount">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Alerts -->
+        <div class="alert alert-success" id="successAlert">
+            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span id="successMessage">Configuration saved successfully!</span>
+        </div>
+
+        <div class="alert alert-error" id="errorAlert">
+            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <span id="errorMessage">An error occurred</span>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- JSON Configuration Panel -->
+            <div class="panel json-config-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg class="icon-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                        </svg>
+                        JSON Configuration
+                    </h2>
+                </div>
+                <div class="panel-body">
+                    <textarea id="jsonEditor" class="json-editor">{{ config_data }}</textarea>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="saveConfiguration()">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/>
+                            </svg>
+                            Save Configuration
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetConfiguration()">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                            </svg>
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Questions Panel -->
+            <div class="panel voice-questions-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg class="icon-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                        </svg>
+                        Voice Questions
+                    </h2>
+                </div>
+                <div class="panel-body">
+                    <div class="questions-header">
+                        <div class="questions-info">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                            Drag to reorder questions
+                        </div>
+                        <button class="add-question-btn" onclick="addNewQuestion()">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                            </svg>
+                            Add Question
+                        </button>
+                    </div>
+                    <div class="questions-container" id="questionsContainer">
+                        <!-- Questions will be loaded here -->
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="saveQuestions()">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/>
+                            </svg>
+                            Save Questions
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Schema Panel -->
+            <div class="panel output-schema-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg class="icon-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Output Schema
+                    </h2>
+                </div>
+                <div class="panel-body">
+                    <div style="margin-bottom: 1rem;">
+                        <p style="font-size: 0.9375rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Defines the expected structure of data returned by the voice agent after processing the call
+                        </p>
+                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                            <button class="add-schema-field-btn" onclick="addSchemaField()">
+                                <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                                </svg>
+                                Add Field
+                            </button>
+                            <button class="btn btn-secondary" onclick="toggleSchemaView()">
+                                <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                                View JSON
+                            </button>
+                            <div class="schema-info">
+                                <span id="schemaFieldCount">0 fields</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schema Fields Table View -->
+                    <div id="schemaTableView">
+                        <div class="schema-table-header">
+                            <div class="schema-col schema-col-name">Parameter Name</div>
+                            <div class="schema-col schema-col-desc">Description</div>
+                            <div class="schema-col schema-col-type">Type</div>
+                            <div class="schema-col schema-col-required">Required</div>
+                            <div class="schema-col schema-col-actions"></div>
+                        </div>
+                        <div id="schemaFieldsContainer" class="schema-fields-container">
+                            <!-- Schema fields will be rendered here -->
+                        </div>
+                    </div>
+                    
+                    <!-- JSON View (hidden by default) -->
+                    <div id="schemaJsonView" style="display: none;">
+                        <div id="outputSchemaDisplay" class="output-schema-display">
+                            <pre id="outputSchemaContent">
+                                <!-- Output schema will be displayed here -->
+                            </pre>
+                        </div>
+                        <textarea id="outputSchemaEditor" style="display: none;"></textarea>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="saveOutputSchema()">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/>
+                            </svg>
+                            Save Schema
+                        </button>
+                        <button class="btn btn-secondary" onclick="validateOutputSchema()">
+                            <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                            </svg>
+                            Validate
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Call Payload Preview Panel -->
+            <div class="panel payload-preview-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg class="icon-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        Agent Call Payload Preview
+                    </h2>
+                </div>
+                <div class="panel-body">
+                    <div class="payload-info-box">
+                        <h3>What gets sent to Agent</h3>
+                        <p>When a form is submitted, the following data structure is sent to the Agent voice service:</p>
+                    </div>
+                    
+                    <div class="payload-preview-grid">
+                        <div class="payload-preview-section">
+                            <h3>Metadata & Dynamic Variables</h3>
+                            <pre>{
+  "form_number": "1",  // Form type identifier
+  "form_title": "At Pickup Check-In",
+  "purpose": [         // Voice questions array
+    "Has the driver arrived at the pickup location?",
+    "Is the driver empty and ready to load?",
+    "What type of driver is this?"
+  ],
+  "form": {           // All form field values
+    "load_id": "LD123456",
+    "contact_phone": "+1234567890",
+    "trucker_name": "John Doe",
+    "pickup_address": "123 Main St",
+    // ... other form fields
+  },
+  "output_schema": {  // Expected response structure
+    "type": "object",
+    "properties": {
+      "Driver_empty": { "type": "boolean" },
+      "Current_location": { "type": "string" }
+      // ... other expected fields
+    },
+    "required": ["Driver_empty", "Current_location"]
+  }
+}</pre>
+                        </div>
+                        
+                        <div class="payload-preview-section">
+                            <h3>Complete API Payload</h3>
+                            <pre>{
+  "from_number": "+1XXXXXXXXXX",     // Your Agent phone
+  "to_number": "+1234567890",        // Driver's phone
+  "override_agent_id": "agent_xxx",  // Your agent ID
+  "metadata": {
+    // Same data as dynamic variables
+  },
+  "agent_variables": {
+    // Same data structure
+  }
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="payload-info-box" style="margin-top: 1.5rem;">
+                        <h3>How it works</h3>
+                        <ul class="payload-details-list">
+                            <li>The <strong>form_number</strong> helps the agent identify which form type is being processed</li>
+                            <li>The <strong>purpose</strong> array contains the voice questions that guide the conversation</li>
+                            <li>The <strong>form</strong> object contains all the submitted form data for reference</li>
+                            <li>The <strong>output_schema</strong> defines the expected structure of data the agent should return after the call</li>
+                            <li>Both <strong>metadata</strong> and <strong>agent_variables</strong> receive the same data</li>
+                        </ul>
+                    </div>
+                    
+                    <div id="payloadPreview" style="margin-top: 1.5rem; display: none;">
+                        <h3 style="margin-bottom: 0.75rem; color: var(--text-primary);">Live Preview for Selected Form</h3>
+                        <pre id="payloadPreviewContent" style="background: #1e293b; color: #e2e8f0; padding: 1.25rem; border-radius: var(--radius-md); overflow-x: auto; font-size: 0.8125rem; line-height: 1.6;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestions = [];
+        let originalConfig = {{ config_data|safe }};
+        let draggedElement = null;
+        let draggedIndex = null;
+
+        // Drag and drop handlers
+        function handleDragStart(e) {
+            draggedElement = this;
+            draggedIndex = parseInt(this.dataset.index);
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Remove all drag-over classes
+            const allChips = document.querySelectorAll('.question-chip');
+            allChips.forEach(chip => chip.classList.remove('drag-over'));
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            if (this !== draggedElement) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedElement !== this) {
+                const dropIndex = parseInt(this.dataset.index);
+                
+                // Reorder the questions array
+                const draggedQuestion = currentQuestions[draggedIndex];
+                currentQuestions.splice(draggedIndex, 1);
+                
+                // Adjust drop index if necessary
+                const adjustedDropIndex = draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
+                currentQuestions.splice(adjustedDropIndex, 0, draggedQuestion);
+                
+                // Re-render the questions
+                renderQuestions();
+            }
+            
+            return false;
+        }
+
+        // Load questions for the selected form type
+        function loadFormQuestions() {
+            const formType = document.getElementById('formTypeSelect').value;
+            const config = JSON.parse(document.getElementById('jsonEditor').value);
+            const formConfig = config.FORM_CONFIG[formType];
+            
+            // Update form field count
+            const fieldCount = Object.keys(formConfig.fields).length;
+            document.getElementById('formFieldCount').textContent = `${fieldCount} fields configured`;
+            
+            // Load questions
+            currentQuestions = formConfig.voice_questions || [];
+            renderQuestions();
+            
+            // Load output schema
+            loadOutputSchema(formConfig);
+            
+            // Update payload preview
+            updatePayloadPreview(formType, formConfig);
+        }
+
+        // Load and display output schema
+        function loadOutputSchema(formConfig) {
+            const outputSchema = formConfig.output_schema || { type: 'object', properties: {}, required: [] };
+            const schemaContent = document.getElementById('outputSchemaContent');
+            schemaContent.textContent = JSON.stringify(outputSchema, null, 2);
+            
+            // Load schema fields into table view
+            loadSchemaFields(outputSchema);
+        }
+
+        // Load schema fields into table view
+        function loadSchemaFields(schema) {
+            const container = document.getElementById('schemaFieldsContainer');
+            container.innerHTML = '';
+            
+            const properties = schema.properties || {};
+            const required = schema.required || [];
+            const fields = Object.entries(properties);
+            
+            // Update field count
+            document.getElementById('schemaFieldCount').textContent = `${fields.length} field${fields.length !== 1 ? 's' : ''}`;
+            
+            if (fields.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-schema-message">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 2h10v10H5V5z" clip-rule="evenodd"/>
+                        </svg>
+                        <p>No fields defined yet</p>
+                        <p style="font-size: 0.875rem; margin-top: 0.5rem;">Click "Add Field" to create your first schema field</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            fields.forEach(([fieldName, fieldConfig], index) => {
+                const isRequired = required.includes(fieldName);
+                const fieldRow = createSchemaFieldRow(fieldName, fieldConfig, isRequired, index);
+                container.appendChild(fieldRow);
+            });
+        }
+
+        // Create a schema field row
+        function createSchemaFieldRow(fieldName, fieldConfig, isRequired, index) {
+            const row = document.createElement('div');
+            row.className = 'schema-field-row';
+            row.dataset.fieldName = fieldName;
+            row.dataset.index = index;
+            
+            const fieldType = fieldConfig.type || 'string';
+            const fieldDescription = fieldConfig.description || '';
+            
+            row.innerHTML = `
+                <div class="schema-col schema-col-name" data-label="Parameter Name">
+                    <input type="text" class="schema-field-input name" value="${escapeHtml(fieldName)}" 
+                           placeholder="field_name" data-field="name" />
+                </div>
+                <div class="schema-col schema-col-desc" data-label="Description">
+                    <input type="text" class="schema-field-input" value="${escapeHtml(fieldDescription)}" 
+                           placeholder="Describe this field..." data-field="description" />
+                </div>
+                <div class="schema-col schema-col-type" data-label="Type">
+                    <select class="schema-field-select" data-field="type">
+                        <option value="string" ${fieldType === 'string' ? 'selected' : ''}>String</option>
+                        <option value="boolean" ${fieldType === 'boolean' ? 'selected' : ''}>Boolean</option>
+                        <option value="number" ${fieldType === 'number' ? 'selected' : ''}>Number</option>
+                        <option value="integer" ${fieldType === 'integer' ? 'selected' : ''}>Integer</option>
+                        <option value="object" ${fieldType === 'object' ? 'selected' : ''}>Object</option>
+                        <option value="array" ${fieldType === 'array' ? 'selected' : ''}>Array</option>
+                    </select>
+                </div>
+                <div class="schema-col schema-col-required" data-label="Required">
+                    <input type="checkbox" class="schema-field-checkbox" data-field="required" 
+                           ${isRequired ? 'checked' : ''} />
+                </div>
+                <div class="schema-col schema-col-actions" data-label="">
+                    <button class="schema-action-btn delete" onclick="deleteSchemaField('${escapeHtml(fieldName)}')" title="Delete field">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            // Add change listeners to inputs
+            const inputs = row.querySelectorAll('input[type="text"], select');
+            inputs.forEach(input => {
+                input.addEventListener('change', () => updateSchemaFromTable());
+            });
+            
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', () => updateSchemaFromTable());
+            
+            return row;
+        }
+
+        // Add a new schema field
+        function addSchemaField() {
+            const container = document.getElementById('schemaFieldsContainer');
+            const existingFields = container.querySelectorAll('.schema-field-row');
+            
+            // Generate a unique field name
+            let newFieldName = 'new_field';
+            let counter = 1;
+            const existingNames = Array.from(existingFields).map(row => row.dataset.fieldName);
+            while (existingNames.includes(newFieldName)) {
+                newFieldName = `new_field_${counter}`;
+                counter++;
+            }
+            
+            const newFieldConfig = { type: 'string', description: '' };
+            const newRow = createSchemaFieldRow(newFieldName, newFieldConfig, false, existingFields.length);
+            
+            // Remove empty message if exists
+            const emptyMessage = container.querySelector('.empty-schema-message');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+            
+            container.appendChild(newRow);
+            
+            // Focus on the name input
+            const nameInput = newRow.querySelector('input[data-field="name"]');
+            nameInput.focus();
+            nameInput.select();
+            
+            // Update schema
+            updateSchemaFromTable();
+            
+            // Scroll to the new field
+            newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Delete a schema field
+        function deleteSchemaField(fieldName) {
+            if (confirm(`Are you sure you want to delete the field "${fieldName}"?`)) {
+                const rows = document.querySelectorAll('.schema-field-row');
+                rows.forEach(row => {
+                    if (row.dataset.fieldName === fieldName) {
+                        row.remove();
+                    }
+                });
+                updateSchemaFromTable();
+                showAlert('success', 'Field deleted');
+            }
+        }
+
+        // Update schema from table inputs
+        function updateSchemaFromTable() {
+            const rows = document.querySelectorAll('.schema-field-row');
+            const properties = {};
+            const required = [];
+            
+            rows.forEach(row => {
+                const nameInput = row.querySelector('input[data-field="name"]');
+                const descInput = row.querySelector('input[data-field="description"]');
+                const typeSelect = row.querySelector('select[data-field="type"]');
+                const requiredCheckbox = row.querySelector('input[data-field="required"]');
+                
+                const fieldName = nameInput.value.trim();
+                if (fieldName) {
+                    properties[fieldName] = {
+                        type: typeSelect.value,
+                        description: descInput.value.trim()
+                    };
+                    
+                    if (requiredCheckbox.checked) {
+                        required.push(fieldName);
+                    }
+                    
+                    // Update row's data attribute for delete function
+                    row.dataset.fieldName = fieldName;
+                }
+            });
+            
+            const schema = {
+                type: 'object',
+                properties: properties,
+                required: required
+            };
+            
+            // Update field count
+            const fieldCount = Object.keys(properties).length;
+            document.getElementById('schemaFieldCount').textContent = `${fieldCount} field${fieldCount !== 1 ? 's' : ''}`;
+            
+            // Update JSON view
+            document.getElementById('outputSchemaContent').textContent = JSON.stringify(schema, null, 2);
+            
+            // Update the current form's schema in memory
+            const formType = document.getElementById('formTypeSelect').value;
+            const config = JSON.parse(document.getElementById('jsonEditor').value);
+            config.FORM_CONFIG[formType].output_schema = schema;
+            document.getElementById('jsonEditor').value = JSON.stringify(config, null, 2);
+        }
+
+        // Toggle between table and JSON view
+        let isJsonView = false;
+        function toggleSchemaView() {
+            isJsonView = !isJsonView;
+            const tableView = document.getElementById('schemaTableView');
+            const jsonView = document.getElementById('schemaJsonView');
+            const toggleBtn = event.target.closest('button');
+            
+            if (isJsonView) {
+                tableView.style.display = 'none';
+                jsonView.style.display = 'block';
+                toggleBtn.innerHTML = `
+                    <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clip-rule="evenodd"/>
+                    </svg>
+                    View Table
+                `;
+            } else {
+                tableView.style.display = 'block';
+                jsonView.style.display = 'none';
+                toggleBtn.innerHTML = `
+                    <svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                    View JSON
+                `;
+            }
+        }
+
+
+
+        // Validate output schema
+        function validateOutputSchema() {
+            try {
+                const formType = document.getElementById('formTypeSelect').value;
+                const config = JSON.parse(document.getElementById('jsonEditor').value);
+                const outputSchema = config.FORM_CONFIG[formType].output_schema;
+                
+                // Basic validation checks
+                if (!outputSchema) {
+                    showAlert('error', 'No output schema found for this form type');
+                    return;
+                }
+                
+                if (outputSchema.type !== 'object') {
+                    showAlert('error', 'Output schema must be of type "object"');
+                    return;
+                }
+                
+                if (!outputSchema.properties || typeof outputSchema.properties !== 'object') {
+                    showAlert('error', 'Output schema must have a "properties" object');
+                    return;
+                }
+                
+                if (!outputSchema.required || !Array.isArray(outputSchema.required)) {
+                    showAlert('error', 'Output schema must have a "required" array');
+                    return;
+                }
+                
+                // Check that all required fields exist in properties
+                for (const requiredField of outputSchema.required) {
+                    if (!outputSchema.properties[requiredField]) {
+                        showAlert('error', `Required field "${requiredField}" not found in properties`);
+                        return;
+                    }
+                }
+                
+                showAlert('success', 'Output schema is valid!');
+            } catch (error) {
+                showAlert('error', 'Error validating schema: ' + error.message);
+            }
+        }
+
+        // Save output schema
+        async function saveOutputSchema() {
+            try {
+                const formType = document.getElementById('formTypeSelect').value;
+                const config = JSON.parse(document.getElementById('jsonEditor').value);
+                const newSchema = config.FORM_CONFIG[formType].output_schema;
+                
+                // Basic validation
+                if (!newSchema || newSchema.type !== 'object') {
+                    showAlert('error', 'Schema must be of type "object"');
+                    return;
+                }
+                
+                showLoading();
+                
+                const response = await fetch(`/prompt-config/update-output-schema/${formType}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ output_schema: newSchema })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('success', 'Output schema saved successfully! Reloading page...');
+                    
+                    // Update original config
+                    originalConfig = document.getElementById('jsonEditor').value;
+                    
+                    // Reload page after a short delay to show the success message
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showAlert('error', result.error || 'Failed to save output schema');
+                    hideLoading();
+                }
+            } catch (error) {
+                showAlert('error', 'Error: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        // Render questions as chips
+        function renderQuestions() {
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
+            
+            currentQuestions.forEach((question, index) => {
+                const chip = createQuestionChip(question, index);
+                container.appendChild(chip);
+            });
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Create a question chip element
+        function createQuestionChip(question, index) {
+            const chip = document.createElement('div');
+            chip.className = 'question-chip';
+            chip.id = `question-${index}`;
+            chip.draggable = true;
+            chip.dataset.index = index;
+            
+            chip.innerHTML = `
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <span class="drag-handle">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M7 2a2 2 0 11-4 0 2 2 0 014 0zM7 6a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 14a2 2 0 11-4 0 2 2 0 014 0zM7 18a2 2 0 11-4 0 2 2 0 014 0zM17 2a2 2 0 11-4 0 2 2 0 014 0zM17 6a2 2 0 11-4 0 2 2 0 014 0zM17 10a2 2 0 11-4 0 2 2 0 014 0zM17 14a2 2 0 11-4 0 2 2 0 014 0zM17 18a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </span>
+                    <span class="question-text">${escapeHtml(question)}</span>
+                </div>
+                <div class="question-actions">
+                    <button class="chip-btn edit" onclick="editQuestion(${index})" title="Edit">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+                        </svg>
+                    </button>
+                    <button class="chip-btn delete" onclick="deleteQuestion(${index})" title="Delete">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            // Add drag event listeners
+            chip.addEventListener('dragstart', handleDragStart);
+            chip.addEventListener('dragend', handleDragEnd);
+            chip.addEventListener('dragover', handleDragOver);
+            chip.addEventListener('drop', handleDrop);
+            chip.addEventListener('dragenter', handleDragEnter);
+            chip.addEventListener('dragleave', handleDragLeave);
+            
+            return chip;
+        }
+
+        // Edit a question
+        function editQuestion(index) {
+            const chip = document.getElementById(`question-${index}`);
+            const question = currentQuestions[index];
+            
+            chip.classList.add('editing');
+            chip.innerHTML = `
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <span class="drag-handle">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M7 2a2 2 0 11-4 0 2 2 0 014 0zM7 6a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 14a2 2 0 11-4 0 2 2 0 014 0zM7 18a2 2 0 11-4 0 2 2 0 014 0zM17 2a2 2 0 11-4 0 2 2 0 014 0zM17 6a2 2 0 11-4 0 2 2 0 014 0zM17 10a2 2 0 11-4 0 2 2 0 014 0zM17 14a2 2 0 11-4 0 2 2 0 014 0zM17 18a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </span>
+                    <input type="text" class="question-input" value="${escapeHtml(question).replace(/"/g, '&quot;')}" id="edit-input-${index}">
+                </div>
+                <div class="question-actions">
+                    <button class="chip-btn save" onclick="saveEdit(${index})" title="Save">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                    <button class="chip-btn cancel" onclick="cancelEdit(${index})" title="Cancel">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            // Focus on the input and handle Enter key
+            const input = document.getElementById(`edit-input-${index}`);
+            input.focus();
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    saveEdit(index);
+                } else if (e.key === 'Escape') {
+                    cancelEdit(index);
+                }
+            });
+        }
+
+        // Save edited question
+        function saveEdit(index) {
+            const input = document.getElementById(`edit-input-${index}`);
+            const newValue = input.value.trim();
+            
+            if (newValue) {
+                currentQuestions[index] = newValue;
+                renderQuestions();
+            } else {
+                showAlert('error', 'Question cannot be empty');
+            }
+        }
+
+        // Cancel editing
+        function cancelEdit(index) {
+            renderQuestions();
+        }
+
+        // Delete a question
+        function deleteQuestion(index) {
+            if (confirm('Are you sure you want to delete this question?')) {
+                currentQuestions.splice(index, 1);
+                renderQuestions();
+                showAlert('success', 'Question deleted');
+            }
+        }
+
+        // Add a new question
+        function addNewQuestion() {
+            const newQuestion = prompt('Enter the new question:');
+            if (newQuestion && newQuestion.trim()) {
+                currentQuestions.push(newQuestion.trim());
+                renderQuestions();
+                showAlert('success', 'Question added');
+                
+                // Scroll to bottom of questions container
+                const container = document.getElementById('questionsContainer');
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        // Save questions to the server
+        async function saveQuestions() {
+            const formType = document.getElementById('formTypeSelect').value;
+            showLoading();
+            
+            try {
+                const response = await fetch(`/prompt-config/update-questions/${formType}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ questions: currentQuestions })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('success', 'Questions saved successfully! Reloading page...');
+                    // Update the JSON editor
+                    const config = JSON.parse(document.getElementById('jsonEditor').value);
+                    config.FORM_CONFIG[formType].voice_questions = currentQuestions;
+                    document.getElementById('jsonEditor').value = JSON.stringify(config, null, 2);
+                    
+                    // Reload page after a short delay to show the success message
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showAlert('error', result.error || 'Failed to save questions');
+                    hideLoading();
+                }
+            } catch (error) {
+                showAlert('error', 'Network error: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        // Save the entire configuration
+        async function saveConfiguration() {
+            showLoading();
+            
+            try {
+                const configText = document.getElementById('jsonEditor').value;
+                const config = JSON.parse(configText);
+                
+                const response = await fetch('/prompt-config/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('success', 'Configuration saved successfully! Reloading page...');
+                    originalConfig = configText;
+                    
+                    // Reload page after a short delay to show the success message
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showAlert('error', result.error || 'Failed to save configuration');
+                    hideLoading();
+                }
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    showAlert('error', 'Invalid JSON format');
+                } else {
+                    showAlert('error', 'Network error: ' + error.message);
+                }
+                hideLoading();
+            }
+        }
+
+        // Reset configuration
+        function resetConfiguration() {
+            if (confirm('Are you sure you want to reset to the original configuration? This will discard all unsaved changes.')) {
+                document.getElementById('jsonEditor').value = originalConfig;
+                loadFormQuestions();
+                showAlert('success', 'Configuration reset to original');
+            }
+        }
+
+        // Show loading spinner
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        // Hide loading spinner
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Show alert message
+        function showAlert(type, message) {
+            const alertEl = document.getElementById(type + 'Alert');
+            const messageEl = document.getElementById(type + 'Message');
+            
+            messageEl.textContent = message;
+            alertEl.style.display = 'flex';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                alertEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update the payload preview
+        function updatePayloadPreview(formType, formConfig) {
+            const formTypeMapping = {
+                'default': 0,
+                'at_pickup': 1,
+                'pickup_complete': 2,
+                'in_transit': 3,
+                'at_drop': 4,
+                'delivered': 5,
+                'request_pod': 6
+            };
+            
+            const formNumber = formTypeMapping[formType] || 0;
+            
+            // Create example form data based on form fields
+            const exampleFormData = {};
+            Object.keys(formConfig.fields).forEach(field => {
+                const fieldConfig = formConfig.fields[field];
+                if (field === 'load_id') exampleFormData[field] = 'LD123456';
+                else if (field === 'contact_phone') exampleFormData[field] = '+1234567890';
+                else if (field === 'trucker_name' || field === 'contact_name') exampleFormData[field] = 'John Doe';
+                else if (field.includes('address')) exampleFormData[field] = '123 Main St, City, State';
+                else if (field.includes('time')) exampleFormData[field] = '2024-01-15 14:30';
+                else if (fieldConfig.type === 'select') exampleFormData[field] = fieldConfig.options ? fieldConfig.options[0] : 'option1';
+                else exampleFormData[field] = fieldConfig.required ? 'Example value' : null;
+            });
+            
+            // Create the payload structure
+            const payload = {
+                form_number: JSON.stringify(formNumber),
+                form_title: formConfig.title,
+                purpose: JSON.stringify(currentQuestions),
+                form: JSON.stringify(exampleFormData),
+                output_schema: JSON.stringify(formConfig.output_schema || {})
+            };
+            
+            // Show the preview
+            document.getElementById('payloadPreview').style.display = 'block';
+            document.getElementById('payloadPreviewContent').textContent = JSON.stringify({
+                from_number: "YOUR_AGENT_PHONE_NUMBER",
+                to_number: exampleFormData.contact_phone || "+1234567890",
+                override_agent_id: "YOUR_AGENT_ID",
+                metadata: payload,
+                agent_variables: payload
+            }, null, 2);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Restore previously selected form type from localStorage
+            const savedFormType = localStorage.getItem('selectedFormType');
+            if (savedFormType) {
+                const formTypeSelect = document.getElementById('formTypeSelect');
+                const options = Array.from(formTypeSelect.options);
+                const optionExists = options.some(option => option.value === savedFormType);
+                if (optionExists) {
+                    formTypeSelect.value = savedFormType;
+                }
+            }
+            
+            loadFormQuestions();
+            
+            // Save form type selection to localStorage when changed
+            document.getElementById('formTypeSelect').addEventListener('change', function() {
+                localStorage.setItem('selectedFormType', this.value);
+            });
+            
+            // Add smooth scrolling behavior
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+            
+            // Add keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Ctrl/Cmd + S to save
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    saveConfiguration();
+                }
+                // Ctrl/Cmd + R to reset
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r' && e.shiftKey) {
+                    e.preventDefault();
+                    resetConfiguration();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

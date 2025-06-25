@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Check-In Form</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/form.css">
+</head>
+<body>
+    <!-- Mobile menu toggle button -->
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+        <span class="material-icons">menu</span>
+    </button>
+
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" onclick="closeMobileMenu()"></div>
+
+    <div class="main-container">
+        <!-- Left Sidebar with Tabs -->
+        <div class="tabs-sidebar" id="tabsSidebar">
+            <div class="tabs-nav">
+                <button class="tab-button {% if active_tab == 'default' %}active{% endif %}" onclick="switchTab('default')">
+                    <span class="material-icons">description</span>
+                    Default Form
+                </button>
+                <button class="tab-button {% if active_tab == 'at-pickup' %}active{% endif %}" onclick="switchTab('at-pickup')">
+                    <span class="material-icons">local_shipping</span>
+                    At Pickup
+                </button>
+                <button class="tab-button {% if active_tab == 'pickup-complete' %}active{% endif %}" onclick="switchTab('pickup-complete')">
+                    <span class="material-icons">check_circle</span>
+                    Pickup Complete
+                </button>
+                <button class="tab-button {% if active_tab == 'in-transit' %}active{% endif %}" onclick="switchTab('in-transit')">
+                    <span class="material-icons">route</span>
+                    In Transit
+                </button>
+                <button class="tab-button {% if active_tab == 'at-drop' %}active{% endif %}" onclick="switchTab('at-drop')">
+                    <span class="material-icons">place</span>
+                    At Drop
+                </button>
+                <button class="tab-button {% if active_tab == 'delivered' %}active{% endif %}" onclick="switchTab('delivered')">
+                    <span class="material-icons">done_all</span>
+                    Delivered
+                </button>
+                <button class="tab-button {% if active_tab == 'request-pod' %}active{% endif %}" onclick="switchTab('request-pod')">
+                    <span class="material-icons">receipt_long</span>
+                    Request POD
+                </button>
+            </div>
+            <div class="test-data-container">
+                <button type="button" class="test-data-btn" onclick="fillTestData()">
+                    <span class="material-icons">science</span>
+                    Fill Test Data
+                </button>
+                <a href="http://137.184.75.190/dashboard" target="_blank" class="dashboard-btn">
+                    <span class="material-icons">dashboard</span>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Right Content Area -->
+        <div class="content-area">
+            
+
+            <!-- Success Alert -->
+            {% if success %}
+            <div class="alert alert-success" role="alert">
+                <div class="alert-content">
+                    <div class="alert-message">
+                        <span class="material-icons alert-icon">check_circle</span>
+                        {{ message }}
+                        {% if call_id %}
+                        <span class="call-id">Call ID: {{ call_id }}</span>
+                        {% endif %}
+                        {% if checkin_link %}
+                        <div style="margin-top: 12px;">
+                            <a href="{{ checkin_link }}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background-color: #28a745; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" 
+                               onmouseover="this.style.backgroundColor='#218838'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.15)';" 
+                               onmouseout="this.style.backgroundColor='#28a745'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';">
+                                <span class="material-icons" style="font-size: 18px;">assignment</span>
+                                View Check-in Details
+                                <span class="material-icons" style="font-size: 16px;">arrow_forward</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button type="button" class="alert-close" onclick="this.parentElement.parentElement.style.display='none'">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Error Alert -->
+            {% if error %}
+            <div class="alert alert-error" role="alert">
+                <div class="alert-content">
+                    <div class="alert-message">
+                        <span class="material-icons alert-icon">error</span>
+                        {{ error }}
+                    </div>
+                    <button type="button" class="alert-close" onclick="this.parentElement.parentElement.style.display='none'">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Default Form Tab Content -->
+            <div id="default-tab" class="tab-content {% if active_tab == 'default' %}active{% endif %}">
+                <form method="post" action="/API/submit-load">
+            <div class="form-section">
+                <h2 class="section-title">Load Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="load_id">
+                            Load ID
+                            <span class="label-hint">- Unique identifier</span>
+                        </label>
+                        <input type="text" id="load_id" name="load_id" required 
+                               value="{{ form_data.load_id if form_data else '' }}"
+                               placeholder="e.g., LD-2024-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="carrier_name">
+                            Carrier Name
+                            <span class="label-hint">- Who the AI will "call"</span>
+                        </label>
+                        <input type="text" id="carrier_name" name="carrier_name" required
+                               value="{{ form_data.carrier_name if form_data else '' }}"
+                               placeholder="e.g., ABC Transport Inc.">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="purpose">
+                            Purpose
+                            <span class="label-hint">- Reason for the check call</span>
+                        </label>
+                        <input type="text" id="purpose" name="purpose" required
+                               value="{{ form_data.purpose if form_data else '' }}"
+                               placeholder="e.g., Ask driver the name, confirm load id and confirm phone number">
+                        <div class="purpose-instructions">
+                            <p class="instruction-title">Purpose Format Instructions:</p>
+                            <p class="instruction-description">Write your purpose as specific tasks for the AI to perform. Use clear, action-oriented language starting with verbs like "ask," "confirm," "verify," or "check." For multiple tasks, separate them with commas.</p>
+                            <ul class="instruction-list">
+                                <li><strong>For Single Task:</strong> 
+                                    <span class="example">Ask driver the name</span>
+                                </li>
+                                <li><strong>For Multiple Tasks:</strong> 
+                                    <span class="example">Ask driver the name, confirm load id and confirm phone number</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title">Contact Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="contact_name">
+                            Contact Name / Dispatcher
+                            <span class="label-hint">- Who to address</span>
+                        </label>
+                        <input type="text" id="contact_name" name="contact_name" required
+                               value="{{ form_data.contact_name if form_data else '' }}"
+                               placeholder="e.g., John Smith">
+                    </div>
+                    <div class="form-group">
+                        <label for="contact_phone">
+                            Contact Phone
+                            <span class="label-hint">- Number to call</span>
+                        </label>
+                        <div class="phone-input-wrapper" data-phone-container>
+                            <button type="button" class="country-code-select" data-country-select>
+                                <span class="country-flag" data-country-flag>🇺🇸</span>
+                                <span class="country-code" data-country-code>{{ form_data.country_code if form_data and form_data.country_code else '+1' }}</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div class="country-code-dropdown">
+                                <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                <div class="country-options" data-country-options></div>
+                            </div>
+                            <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.country_code if form_data and form_data.country_code else '+1' }}">
+                            <input type="tel" id="contact_phone" name="contact_phone" required
+                                   value="{{ form_data.contact_phone if form_data else '' }}"
+                                   placeholder="(555) 123-4567"
+                                   class="phone-input"
+                                   data-phone-input>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="transfer_call_to">
+                            Transfer Call To
+                            <span class="label-hint">- Optional transfer number</span>
+                        </label>
+                        <div class="phone-input-wrapper" data-phone-container>
+                            <button type="button" class="country-code-select" data-country-select>
+                                <span class="country-flag" data-country-flag>🇺🇸</span>
+                                <span class="country-code" data-country-code>{{ form_data.transfer_country_code if form_data and form_data.transfer_country_code else '+1' }}</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div class="country-code-dropdown">
+                                <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                <div class="country-options" data-country-options></div>
+                            </div>
+                            <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.transfer_country_code if form_data and form_data.transfer_country_code else '+1' }}">
+                            <input type="tel" id="transfer_call_to" name="transfer_call_to"
+                                   value="{{ form_data.transfer_call_to if form_data else '' }}"
+                                   placeholder="(555) 123-4567"
+                                   class="phone-input"
+                                   data-phone-input>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title">Schedule Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="scheduled_pickup_time">
+                            Scheduled Pickup Time
+                            <span class="label-hint">- For status validation</span>
+                        </label>
+                        <input type="datetime-local" id="scheduled_pickup_time" name="scheduled_pickup_time" required
+                               value="{{ form_data.scheduled_pickup_time if form_data else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduled_delivery_time">
+                            Scheduled Delivery Time
+                        </label>
+                        <input type="datetime-local" id="scheduled_delivery_time" name="scheduled_delivery_time" required
+                               value="{{ form_data.scheduled_delivery_time if form_data else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title">Location Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="origin_address">
+                            Origin Address
+                            <span class="label-hint">- Pickup location</span>
+                        </label>
+                        <input type="text" id="origin_address" name="origin_address" required
+                               value="{{ form_data.origin_address if form_data else '' }}"
+                               placeholder="e.g., 123 Main St, City, State ZIP">
+                    </div>
+                    <div class="form-group">
+                        <label for="destination_address">
+                            Destination Address
+                            <span class="label-hint">- Delivery location</span>
+                        </label>
+                        <input type="text" id="destination_address" name="destination_address" required
+                               value="{{ form_data.destination_address if form_data else '' }}"
+                               placeholder="e.g., 456 Oak Ave, City, State ZIP">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="section-title">Status Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="last_known_status">
+                            Last Known Status
+                            <span class="label-hint">- Prior update</span>
+                        </label>
+                        <input type="text" id="last_known_status" name="last_known_status" required
+                               value="{{ form_data.last_known_status if form_data else '' }}"
+                               placeholder="e.g., In Transit, At Pickup, Delivered">
+                    </div>
+                    <div class="form-group">
+                        <label for="last_check_call_time">
+                            Last Check Call Time
+                            <span class="label-hint">- Optional</span>
+                        </label>
+                        <input type="datetime-local" id="last_check_call_time" name="last_check_call_time"
+                               value="{{ form_data.last_check_call_time if form_data else '' }}">
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="notes">
+                        Notes / Special Instructions
+                        <span class="label-hint">- Additional context for the AI</span>
+                    </label>
+                    <textarea id="notes" name="notes" 
+                              placeholder="e.g., Driver prefers text updates, fragile cargo, specific delivery instructions...">{{ form_data.notes if form_data else '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="submit-btn">
+                    <span class="material-icons">phone</span>
+                    Make Call
+                </button>
+            </div>
+        </form>
+        </div> <!-- End of default-tab -->
+
+        <!-- At Pickup Form Tab Content -->
+        <div id="at-pickup-tab" class="tab-content {% if active_tab == 'at-pickup' %}active{% endif %}">
+            <form method="post" action="/API/submit-at-pickup">
+                <div class="form-section">
+                    <h2 class="section-title">At Pickup (Pre-arrival)</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="pickup_load_id">Load # / Customer Ref #</label>
+                            <input type="text" id="pickup_load_id" name="load_id" required 
+                                   value="{{ form_data.pickup_load_id if form_data else '' }}"
+                                   placeholder="e.g., LD-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="pickup_contact_phone">
+                                Contact Phone
+                                <span class="label-hint">- Number to call</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.pickup_country_code if form_data and form_data.pickup_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.pickup_country_code if form_data and form_data.pickup_country_code else '+1' }}">
+                                <input type="tel" id="pickup_contact_phone" name="contact_phone" required 
+                                       value="{{ form_data.pickup_contact_phone if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pickup_transfer_call_to">
+                                Transfer Call To
+                                <span class="label-hint">- Optional transfer number</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.pickup_transfer_country_code if form_data and form_data.pickup_transfer_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.pickup_transfer_country_code if form_data and form_data.pickup_transfer_country_code else '+1' }}">
+                                <input type="tel" id="pickup_transfer_call_to" name="transfer_call_to"
+                                       value="{{ form_data.pickup_transfer_call_to if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pickup_trucker_name">
+                                Trucker Name
+                                <span class="label-hint">- The name AI will address</span>
+                            </label>
+                            <input type="text" id="pickup_trucker_name" name="trucker_name" required 
+                                   value="{{ form_data.pickup_trucker_name if form_data else '' }}"
+                                   placeholder="e.g., John Doe">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="pickup_address">Pickup Address</label>
+                            <input type="text" id="pickup_address" name="pickup_address" required 
+                                   value="{{ form_data.pickup_address if form_data else '' }}"
+                                   placeholder="Full address with appointment or FCFS window">
+                        </div>
+                        <div class="form-group">
+                            <label for="driver_type">Driver Type</label>
+                            <select id="driver_type" name="driver_type" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="local" {% if form_data and form_data.driver_type == 'local' %}selected{% endif %}>Local</option>
+                                <option value="otr" {% if form_data and form_data.driver_type == 'otr' %}selected{% endif %}>OTR (Over The Road)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tractor_number">Tractor #</label>
+                            <input type="text" id="tractor_number" name="tractor_number" 
+                                   value="{{ form_data.tractor_number if form_data else '' }}"
+                                   placeholder="e.g., T-1234">
+                        </div>
+                        <div class="form-group">
+                            <label for="trailer_number">Trailer #</label>
+                            <input type="text" id="trailer_number" name="trailer_number" 
+                                   value="{{ form_data.trailer_number if form_data else '' }}"
+                                   placeholder="e.g., TR-5678">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="required_equipment">Required Equipment</label>
+                            <input type="text" id="required_equipment" name="required_equipment" 
+                                   value="{{ form_data.required_equipment if form_data else '' }}"
+                                   placeholder="e.g., van, reefer, flatbed, temp control, straps">
+                        </div>
+                        <div class="form-group">
+                            <label for="preferred_comms">Preferred Communication</label>
+                            <select id="preferred_comms" name="preferred_comms" class="form-select">
+                                <option value="">Select...</option>
+                                <option value="call" {% if form_data and form_data.preferred_comms == 'call' %}selected{% endif %}>Call</option>
+                                <option value="text" {% if form_data and form_data.preferred_comms == 'text' %}selected{% endif %}>Text</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tracking_on">Tracking On?</label>
+                            <select id="tracking_on" name="tracking_on" class="form-select">
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.tracking_on == 'Y' %}selected{% endif %}>Yes</option>
+                                <option value="N" {% if form_data and form_data.tracking_on == 'N' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn">
+                        <span class="material-icons">phone</span>
+                        Make Call
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Pickup Complete Form Tab Content -->
+        <div id="pickup-complete-tab" class="tab-content {% if active_tab == 'pickup-complete' %}active{% endif %}">
+            <form method="post" action="/API/submit-pickup-complete">
+                <div class="form-section">
+                    <h2 class="section-title">Pickup Complete</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="pc_load_id">Load #</label>
+                            <input type="text" id="pc_load_id" name="load_id" required 
+                                   value="{{ form_data.pc_load_id if form_data else '' }}"
+                                   placeholder="e.g., LD-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="pc_contact_phone">
+                                Contact Phone
+                                <span class="label-hint">- Number to call</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.pc_country_code if form_data and form_data.pc_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.pc_country_code if form_data and form_data.pc_country_code else '+1' }}">
+                                <input type="tel" id="pc_contact_phone" name="contact_phone" required 
+                                       value="{{ form_data.pc_contact_phone if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pc_transfer_call_to">
+                                Transfer Call To
+                                <span class="label-hint">- Optional transfer number</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.pc_transfer_country_code if form_data and form_data.pc_transfer_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.pc_transfer_country_code if form_data and form_data.pc_transfer_country_code else '+1' }}">
+                                <input type="tel" id="pc_transfer_call_to" name="transfer_call_to"
+                                       value="{{ form_data.pc_transfer_call_to if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pc_trucker_name">
+                                Trucker Name
+                                <span class="label-hint">- The name AI will address</span>
+                            </label>
+                            <input type="text" id="pc_trucker_name" name="trucker_name" required 
+                                   value="{{ form_data.pc_trucker_name if form_data else '' }}"
+                                   placeholder="e.g., John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="actual_pickup_time">Actual Pickup Time</label>
+                            <input type="datetime-local" id="actual_pickup_time" name="actual_pickup_time" required
+                                   value="{{ form_data.actual_pickup_time if form_data else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="bol_verified">BOL/PO Verified?</label>
+                            <select id="bol_verified" name="bol_verified" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.bol_verified == 'Y' %}selected{% endif %}>Yes - Matches</option>
+                                <option value="N" {% if form_data and form_data.bol_verified == 'N' %}selected{% endif %}>No - Does Not Match</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="commodity_description">Commodity Description</label>
+                            <input type="text" id="commodity_description" name="commodity_description" 
+                                   value="{{ form_data.commodity_description if form_data else '' }}"
+                                   placeholder="e.g., Electronics, Produce, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label for="next_stop_location">Next Stop City/State</label>
+                            <input type="text" id="next_stop_location" name="next_stop_location" 
+                                   value="{{ form_data.next_stop_location if form_data else '' }}"
+                                   placeholder="e.g., Chicago, IL">
+                        </div>
+                        <div class="form-group">
+                            <label for="scheduled_eta">Scheduled ETA</label>
+                            <input type="datetime-local" id="scheduled_eta" name="scheduled_eta"
+                                   value="{{ form_data.scheduled_eta if form_data else '' }}">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="accessorials_needed">Accessorials Needed</label>
+                            <input type="text" id="accessorials_needed" name="accessorials_needed" 
+                                   value="{{ form_data.accessorials_needed if form_data else '' }}"
+                                   placeholder="e.g., lumper, temp check, straps">
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn">
+                        <span class="material-icons">phone</span>
+                        Make Call
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- In Transit Form Tab Content -->
+        <div id="in-transit-tab" class="tab-content {% if active_tab == 'in-transit' %}active{% endif %}">
+            <form method="post" action="/API/submit-in-transit">
+                <div class="form-section">
+                    <h2 class="section-title">In Transit</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="it_load_id">Load #</label>
+                            <input type="text" id="it_load_id" name="load_id" required 
+                                   value="{{ form_data.it_load_id if form_data else '' }}"
+                                   placeholder="e.g., LD-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="it_contact_phone">
+                                Contact Phone
+                                <span class="label-hint">- Number to call</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.it_country_code if form_data and form_data.it_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.it_country_code if form_data and form_data.it_country_code else '+1' }}">
+                                <input type="tel" id="it_contact_phone" name="contact_phone" required 
+                                       value="{{ form_data.it_contact_phone if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="it_transfer_call_to">
+                                Transfer Call To
+                                <span class="label-hint">- Optional transfer number</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.it_transfer_country_code if form_data and form_data.it_transfer_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.it_transfer_country_code if form_data and form_data.it_transfer_country_code else '+1' }}">
+                                <input type="tel" id="it_transfer_call_to" name="transfer_call_to"
+                                       value="{{ form_data.it_transfer_call_to if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="it_trucker_name">
+                                Trucker Name
+                                <span class="label-hint">- The name AI will address</span>
+                            </label>
+                            <input type="text" id="it_trucker_name" name="trucker_name" required 
+                                   value="{{ form_data.it_trucker_name if form_data else '' }}"
+                                   placeholder="e.g., John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="current_location">Current Location</label>
+                            <input type="text" id="current_location" name="current_location" required 
+                                   value="{{ form_data.current_location if form_data else '' }}"
+                                   placeholder="e.g., Chicago, IL">
+                        </div>
+                        <div class="form-group">
+                            <label for="remaining_miles">Remaining Miles</label>
+                            <input type="text" id="remaining_miles" name="remaining_miles" required 
+                                   value="{{ form_data.remaining_miles if form_data else '' }}"
+                                   placeholder="e.g., 250">
+                        </div>
+                        <div class="form-group">
+                            <label for="driver_tracking">Driver on Tracking?</label>
+                            <select id="driver_tracking" name="driver_tracking" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.driver_tracking == 'Y' %}selected{% endif %}>Yes</option>
+                                <option value="N" {% if form_data and form_data.driver_tracking == 'N' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="delay_reason">Known Delay Reason</label>
+                            <select id="delay_reason" name="delay_reason" class="form-select">
+                                <option value="none" {% if form_data and form_data.delay_reason == 'none' %}selected{% endif %}>None</option>
+                                <option value="weather" {% if form_data and form_data.delay_reason == 'weather' %}selected{% endif %}>Weather</option>
+                                <option value="traffic" {% if form_data and form_data.delay_reason == 'traffic' %}selected{% endif %}>Traffic</option>
+                                <option value="hos" {% if form_data and form_data.delay_reason == 'hos' %}selected{% endif %}>HOS (Hours of Service)</option>
+                                <option value="breakdown" {% if form_data and form_data.delay_reason == 'breakdown' %}selected{% endif %}>Breakdown</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn">
+                        <span class="material-icons">phone</span>
+                        Make Call
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- At Drop Form Tab Content -->
+        <div id="at-drop-tab" class="tab-content {% if active_tab == 'at-drop' %}active{% endif %}">
+            <form method="post" action="/API/submit-at-drop">
+                <div class="form-section">
+                    <h2 class="section-title">At Drop</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="ad_load_id">Load #</label>
+                            <input type="text" id="ad_load_id" name="load_id" required 
+                                   value="{{ form_data.ad_load_id if form_data else '' }}"
+                                   placeholder="e.g., LD-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="ad_contact_phone">
+                                Contact Phone
+                                <span class="label-hint">- Number to call</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.ad_country_code if form_data and form_data.ad_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.ad_country_code if form_data and form_data.ad_country_code else '+1' }}">
+                                <input type="tel" id="ad_contact_phone" name="contact_phone" required 
+                                       value="{{ form_data.ad_contact_phone if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ad_transfer_call_to">
+                                Transfer Call To
+                                <span class="label-hint">- Optional transfer number</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.ad_transfer_country_code if form_data and form_data.ad_transfer_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.ad_transfer_country_code if form_data and form_data.ad_transfer_country_code else '+1' }}">
+                                <input type="tel" id="ad_transfer_call_to" name="transfer_call_to"
+                                       value="{{ form_data.ad_transfer_call_to if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ad_trucker_name">
+                                Trucker Name
+                                <span class="label-hint">- The name AI will address</span>
+                            </label>
+                            <input type="text" id="ad_trucker_name" name="trucker_name" required 
+                                   value="{{ form_data.ad_trucker_name if form_data else '' }}"
+                                   placeholder="e.g., John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="receiver_name">Receiver Name</label>
+                            <input type="text" id="receiver_name" name="receiver_name" required 
+                                   value="{{ form_data.receiver_name if form_data else '' }}"
+                                   placeholder="e.g., XYZ Distribution Center">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="receiver_address">Receiver Address</label>
+                            <input type="text" id="receiver_address" name="receiver_address" required 
+                                   value="{{ form_data.receiver_address if form_data else '' }}"
+                                   placeholder="Full address with appointment or FCFS window">
+                        </div>
+                        <div class="form-group">
+                            <label for="arrival_time">Arrival Time</label>
+                            <input type="datetime-local" id="arrival_time" name="arrival_time" required
+                                   value="{{ form_data.arrival_time if form_data else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="dock_number">Dock #</label>
+                            <input type="text" id="dock_number" name="dock_number" required 
+                                   value="{{ form_data.dock_number if form_data else '' }}"
+                                   placeholder="e.g., Door 42">
+                        </div>
+                        <div class="form-group">
+                            <label for="lumper_needed">Lumper Needed?</label>
+                            <select id="lumper_needed" name="lumper_needed" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.lumper_needed == 'Y' %}selected{% endif %}>Yes</option>
+                                <option value="N" {% if form_data and form_data.lumper_needed == 'N' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="lumper_amount">Lumper Amount</label>
+                            <input type="text" id="lumper_amount" name="lumper_amount" 
+                                   value="{{ form_data.lumper_amount if form_data else '' }}"
+                                   placeholder="e.g., $150">
+                        </div>
+                        <div class="form-group">
+                            <label for="payment_method">Payment Method</label>
+                            <select id="payment_method" name="payment_method" class="form-select">
+                                <option value="">Select...</option>
+                                <option value="Comcheck" {% if form_data and form_data.payment_method == 'Comcheck' %}selected{% endif %}>Comcheck</option>
+                                <option value="T-Chek" {% if form_data and form_data.payment_method == 'T-Chek' %}selected{% endif %}>T-Chek</option>
+                                <option value="EFS" {% if form_data and form_data.payment_method == 'EFS' %}selected{% endif %}>EFS</option>
+                                <option value="Direct Bill" {% if form_data and form_data.payment_method == 'Direct Bill' %}selected{% endif %}>Direct Bill</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn">
+                        <span class="material-icons">phone</span>
+                        Make Call
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Delivered Form Tab Content -->
+        <div id="delivered-tab" class="tab-content {% if active_tab == 'delivered' %}active{% endif %}">
+            <form method="post" action="/API/submit-delivered">
+                <div class="form-section">
+                    <h2 class="section-title">Delivered</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="del_load_id">Load #</label>
+                            <input type="text" id="del_load_id" name="load_id" required 
+                                   value="{{ form_data.del_load_id if form_data else '' }}"
+                                   placeholder="e.g., LD-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="del_contact_phone">
+                                Contact Phone
+                                <span class="label-hint">- Number to call</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.del_country_code if form_data and form_data.del_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.del_country_code if form_data and form_data.del_country_code else '+1' }}">
+                                <input type="tel" id="del_contact_phone" name="contact_phone" required 
+                                       value="{{ form_data.del_contact_phone if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="del_transfer_call_to">
+                                Transfer Call To
+                                <span class="label-hint">- Optional transfer number</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.del_transfer_country_code if form_data and form_data.del_transfer_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.del_transfer_country_code if form_data and form_data.del_transfer_country_code else '+1' }}">
+                                <input type="tel" id="del_transfer_call_to" name="transfer_call_to"
+                                       value="{{ form_data.del_transfer_call_to if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="del_trucker_name">
+                                Trucker Name
+                                <span class="label-hint">- The name AI will address</span>
+                            </label>
+                            <input type="text" id="del_trucker_name" name="trucker_name" required 
+                                   value="{{ form_data.del_trucker_name if form_data else '' }}"
+                                   placeholder="e.g., John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="empty_time">Time Empty / Out-Gate Time</label>
+                            <input type="datetime-local" id="empty_time" name="empty_time" required
+                                   value="{{ form_data.empty_time if form_data else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="pod_uploaded">POD Uploaded?</label>
+                            <select id="pod_uploaded" name="pod_uploaded" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.pod_uploaded == 'Y' %}selected{% endif %}>Yes</option>
+                                <option value="N" {% if form_data and form_data.pod_uploaded == 'N' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="lumper_receipt">Lumper Receipt/Scale Ticket Collected?</label>
+                            <select id="lumper_receipt" name="lumper_receipt" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.lumper_receipt == 'Y' %}selected{% endif %}>Yes</option>
+                                <option value="N" {% if form_data and form_data.lumper_receipt == 'N' %}selected{% endif %}>No</option>
+                                <option value="NA" {% if form_data and form_data.lumper_receipt == 'NA' %}selected{% endif %}>Not Applicable</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="final_osd">Final OS&D?</label>
+                            <select id="final_osd" name="final_osd" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option value="Y" {% if form_data and form_data.final_osd == 'Y' %}selected{% endif %}>Yes</option>
+                                <option value="N" {% if form_data and form_data.final_osd == 'N' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="osd_notes">OS&D Notes</label>
+                            <input type="text" id="osd_notes" name="osd_notes" 
+                                   value="{{ form_data.osd_notes if form_data else '' }}"
+                                   placeholder="Enter any OS&D notes here">
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn">
+                        <span class="material-icons">phone</span>
+                        Make Call
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Request POD Form Tab Content -->
+        <div id="request-pod-tab" class="tab-content {% if active_tab == 'request-pod' %}active{% endif %}">
+            <form method="post" action="/API/submit-request-pod">
+                <div class="form-section">
+                    <h2 class="section-title">Request POD</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="pod_load_id">Load #</label>
+                            <input type="text" id="pod_load_id" name="load_id" required 
+                                   value="{{ form_data.pod_load_id if form_data else '' }}"
+                                   placeholder="e.g., LD-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="pod_contact_phone">
+                                Contact Phone
+                                <span class="label-hint">- Number to call</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.pod_country_code if form_data and form_data.pod_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="country_code" data-country-code-input value="{{ form_data.pod_country_code if form_data and form_data.pod_country_code else '+1' }}">
+                                <input type="tel" id="pod_contact_phone" name="contact_phone" required 
+                                       value="{{ form_data.pod_contact_phone if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pod_transfer_call_to">
+                                Transfer Call To
+                                <span class="label-hint">- Optional transfer number</span>
+                            </label>
+                            <div class="phone-input-wrapper" data-phone-container>
+                                <button type="button" class="country-code-select" data-country-select>
+                                    <span class="country-flag" data-country-flag>🇺🇸</span>
+                                    <span class="country-code" data-country-code>{{ form_data.pod_transfer_country_code if form_data and form_data.pod_transfer_country_code else '+1' }}</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div class="country-code-dropdown">
+                                    <input type="text" class="country-search" placeholder="Search country..." data-country-search>
+                                    <div class="country-options" data-country-options></div>
+                                </div>
+                                <input type="hidden" name="transfer_country_code" data-country-code-input value="{{ form_data.pod_transfer_country_code if form_data and form_data.pod_transfer_country_code else '+1' }}">
+                                <input type="tel" id="pod_transfer_call_to" name="transfer_call_to"
+                                       value="{{ form_data.pod_transfer_call_to if form_data else '' }}"
+                                       placeholder="(555) 123-4567"
+                                       class="phone-input"
+                                       data-phone-input>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pod_trucker_name">
+                                Trucker Name
+                                <span class="label-hint">- The name AI will address</span>
+                            </label>
+                            <input type="text" id="pod_trucker_name" name="trucker_name" required 
+                                   value="{{ form_data.pod_trucker_name if form_data else '' }}"
+                                   placeholder="e.g., John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="delivery_date">Delivery Date/Time</label>
+                            <input type="datetime-local" id="delivery_date" name="delivery_date" required
+                                   value="{{ form_data.delivery_date if form_data else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="upload_method">Preferred Upload Method</label>
+                            <select id="upload_method" name="upload_method" class="form-select">
+                                <option value="">Select...</option>
+                                <option value="app" {% if form_data and form_data.upload_method == 'app' %}selected{% endif %}>Mobile App</option>
+                                <option value="email" {% if form_data and form_data.upload_method == 'email' %}selected{% endif %}>Email</option>
+                                <option value="portal" {% if form_data and form_data.upload_method == 'portal' %}selected{% endif %}>Web Portal</option>
+                                <option value="fax" {% if form_data and form_data.upload_method == 'fax' %}selected{% endif %}>Fax</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reminder_attempt">Reminder Attempt #</label>
+                            <select id="reminder_attempt" name="reminder_attempt" class="form-select">
+                                <option value="1" {% if not form_data or form_data.reminder_attempt == '1' %}selected{% endif %}>1st Attempt</option>
+                                <option value="2" {% if form_data and form_data.reminder_attempt == '2' %}selected{% endif %}>2nd Attempt</option>
+                                <option value="3" {% if form_data and form_data.reminder_attempt == '3' %}selected{% endif %}>3rd Attempt</option>
+                                <option value="4+" {% if form_data and form_data.reminder_attempt == '4+' %}selected{% endif %}>4+ Attempts</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn">
+                        <span class="material-icons">phone</span>
+                        Make Call
+                    </button>
+                </div>
+            </form>
+        </div>
+        </div> <!-- End of content-area -->
+    </div> <!-- End of main-container -->
+    <!-- Hidden Call Button -->
+    <div id="hiddenCallButtonContainer" style="position: fixed; bottom: 20px; right: 20px; display: none; z-index: 9999;">
+        <button id="hiddenCallButton" onclick="openWebCall()" style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            font-size: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease-out;
+        " onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 6px 30px rgba(102, 126, 234, 0.6)';" 
+           onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 20px rgba(102, 126, 234, 0.4)';">
+            <span class="material-icons">phone_in_talk</span>
+        </button>
+    </div>
+
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+
+    <script>
+        // Hidden call button functionality
+        let typedSequence = '';
+        let lastKeyTime = 0;
+        const targetSequence = 'test';
+        const keyTimeout = 1000; // Reset if more than 1 second between keypresses
+        
+        // Listen for keypress events
+        document.addEventListener('keypress', function(event) {
+            // Only track if no input is focused
+            if (document.activeElement.tagName !== 'INPUT' && 
+                document.activeElement.tagName !== 'TEXTAREA' && 
+                document.activeElement.tagName !== 'SELECT') {
+                
+                const currentTime = Date.now();
+                
+                // Reset sequence if too much time has passed or if it's a non-letter character
+                if (currentTime - lastKeyTime > keyTimeout || !/^[a-zA-Z]$/.test(event.key)) {
+                    typedSequence = '';
+                }
+                
+                lastKeyTime = currentTime;
+                
+                // Only add letters to the sequence
+                if (/^[a-zA-Z]$/.test(event.key)) {
+                    typedSequence += event.key.toLowerCase();
+                    
+                    // Check if we have the exact sequence
+                    if (typedSequence === targetSequence) {
+                        showHiddenCallButton();
+                        typedSequence = ''; // Reset sequence
+                    } else if (typedSequence.length >= targetSequence.length) {
+                        // If we've typed more than the target length and it doesn't match, reset
+                        if (!targetSequence.startsWith(typedSequence.substring(0, targetSequence.length))) {
+                            typedSequence = event.key.toLowerCase(); // Start fresh with current key
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Reset sequence when clicking on any input or after certain events
+        document.addEventListener('click', function(event) {
+            if (event.target.tagName === 'INPUT' || 
+                event.target.tagName === 'TEXTAREA' || 
+                event.target.tagName === 'SELECT') {
+                typedSequence = '';
+                lastKeyTime = 0;
+            }
+        });
+        
+        // Reset on focus change
+        document.addEventListener('focusin', function(event) {
+            typedSequence = '';
+            lastKeyTime = 0;
+        });
+        
+        // Reset on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                typedSequence = '';
+                lastKeyTime = 0;
+                // Also hide the button if it's visible
+                const container = document.getElementById('hiddenCallButtonContainer');
+                container.style.display = 'none';
+            }
+        });
+        
+        function showHiddenCallButton() {
+            const container = document.getElementById('hiddenCallButtonContainer');
+            container.style.display = 'block';
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                container.style.display = 'none';
+            }, 10000);
+        }
+        
+        function openWebCall() {
+            // Determine which tab is active
+            const activeTab = document.querySelector('.tab-content.active');
+            if (!activeTab) {
+                window.open('/API/retell/webcall', '_blank');
+                return;
+            }
+
+            // Get the active form data
+            const activeForm = activeTab.querySelector('form');
+            if (!activeForm) {
+                window.open('/API/retell/webcall', '_blank');
+                return;
+            }
+
+            // Collect form data
+            const formData = new FormData(activeForm);
+            const data = {};
+            
+            // Get form type from tab ID
+            const tabId = activeTab.id;
+            data.form_type = tabId.replace('-tab', '');
+            
+            // Convert FormData to object
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            // Store data in sessionStorage for the new window to access
+            const callData = {
+                formType: data.form_type,
+                formData: data,
+                timestamp: Date.now()
+            };
+            
+            // Generate a unique key for this call session
+            const sessionKey = 'retell_call_' + Date.now();
+            sessionStorage.setItem(sessionKey, JSON.stringify(callData));
+            
+            // Open webcall page with session key
+            window.open('/API/retell/webcall?session=' + sessionKey, '_blank');
+        }
+    </script>
+    
+    <script src="/static/js/form.js"></script>
+</body>
+</html> 
