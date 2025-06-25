@@ -2179,8 +2179,9 @@
         
         function showUpdateNotification(checkInData) {
             showNotification({
-                icon: 'fas fa-bell',
-                title: `Check-in #${checkInData.id} updated`,
+                icon: 'fas fa-brain',
+                title: `Check-in #${checkInData.id} analyzed`,
+                subtitle: 'AI analysis results available',
                 background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
@@ -2198,11 +2199,11 @@
         
         function showCallEndedNotification(checkInData) {
             showNotification({
-                icon: 'fas fa-phone-slash',
-                title: `Check-in #${checkInData.id} call ended`,
-                subtitle: 'Call completed and data saved',
-                background: 'linear-gradient(135deg, #ed8936, #f6ad55)',
-                shadowColor: 'rgba(237, 137, 54, 0.3)'
+                icon: 'fas fa-check-circle',
+                title: `Check-in #${checkInData.id} analysis complete`,
+                subtitle: 'Call analyzed and results are ready',
+                background: 'linear-gradient(135deg, #48bb78, #68d391)',
+                shadowColor: 'rgba(72, 187, 120, 0.3)'
             });
         }
         
