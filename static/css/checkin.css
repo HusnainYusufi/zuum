@@ -286,8 +286,6 @@
   max-height: 500px;
 }
 
-
-
 .section-icon {
   font-size: 16px;
   color: #0969da;
@@ -329,14 +327,24 @@
   background: #2d1617 !important;
 }
 
-.status-item.review {
-  border-left-color: #fb8500;
-  background: #fff8f1;
+.status-item.transferred {
+  border-left-color: #0969da;
+  background: #f0f7ff;
 }
 
-.transcript-page.dark-mode .status-item.review {
-  border-left-color: #f0883e !important;
-  background: #2d1b13 !important;
+.transcript-page.dark-mode .status-item.transferred {
+  border-left-color: #58a6ff !important;
+  background: #0d1d35 !important;
+}
+
+.status-item.active {
+  border-left-color: #8957e5;
+  background: #f5f0ff;
+}
+
+.transcript-page.dark-mode .status-item.active {
+  border-left-color: #a371f7 !important;
+  background: #271052 !important;
 }
 
 .status-item.normal {
@@ -431,7 +439,7 @@
   content: "DRIVER";
   font-size: 10px;
   font-weight: 600;
-  color: rgba(55, 65, 81, 0.7);
+  color: rgba(255, 255, 255, 0.7);
   display: block;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -451,8 +459,6 @@
 .transcript-page.dark-mode .transcript-line-wrapper.user-wrapper::before {
   color: rgba(156, 163, 175, 0.8);
 }
-
-
 
 .transcript-line-wrapper.agent-wrapper {
   background: transparent !important;
@@ -518,8 +524,6 @@
   background: inherit !important;
   border: none !important;
 }
-
-
 
 /* Apply background and styling to the actual message bubbles */
 .transcript-line-wrapper.agent-wrapper .transcript-line {
@@ -1553,6 +1557,24 @@ input[type="file"]::-webkit-file-upload-button:hover {
 .transcript-page.dark-mode .output-item.status-warning {
   border-left-color: #f0883e !important;
   background: #2d1b13 !important;
+}
+
+.output-item.status-info {
+  border-left-color: #0969da;
+  background: rgba(9, 105, 218, 0.1);
+}
+
+.transcript-page.dark-mode .output-item.status-info {
+  border-left-color: #58a6ff !important;
+  background: rgba(88, 166, 255, 0.1) !important;
+}
+
+.output-item.status-info .output-value {
+  color: #0969da;
+}
+
+.transcript-page.dark-mode .output-item.status-info .output-value {
+  color: #58a6ff !important;
 }
 
 .output-label {

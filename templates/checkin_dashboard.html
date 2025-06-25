@@ -1,0 +1,2998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-in Dashboard</title>
+    <link rel="stylesheet" href="/static/css/StakeholderDashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Modern font system */
+        * {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        /* Ensure proper height for mobile */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Override specific styles for checkin dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .stat-card {
+            background: var(--card-dark);
+            border-radius: var(--border-radius);
+            padding: 10px;
+            box-shadow: var(--box-shadow-dark);
+            text-align: center;
+            transition: all var(--transition-speed);
+            border: 1px solid rgba(74, 85, 104, 0.3);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-color: var(--primary-color);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
+            color: var(--primary-light);
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 2px;
+            color: var(--text-light);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dashboard-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            width: 100%;
+            min-height: calc(100vh - 220px);
+            overflow: visible;
+            margin-top: 15px;
+        }
+
+        .dashboard-left-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 10px;
+            height: 100%;
+        }
+
+        .dashboard-left-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .dashboard-left-content::-webkit-scrollbar-track {
+            background: #1a202c;
+            border-radius: 4px;
+        }
+
+        .dashboard-left-content::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        .dashboard-left-content::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-shrink: 0;
+            padding: 4px;
+        }
+
+        .chart-card {
+            background: rgba(26, 32, 44, 0.4);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            box-shadow: var(--box-shadow-dark);
+            min-height: 250px;
+            max-height: 250px;
+            border: 1px solid rgba(74, 85, 104, 0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card canvas {
+            max-height: 200px !important;
+            width: 100% !important;
+            flex: 1;
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-title i {
+            color: var(--primary-light);
+        }
+
+        .latest-checkin-card {
+            background: linear-gradient(135deg, #1e2a3a 0%, #2d3748 100%);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.3),
+                0 1px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(66, 153, 225, 0.2);
+            position: relative;
+            overflow: visible;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+
+
+        .latest-checkin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(66, 153, 225, 0.1);
+        }
+
+        .latest-checkin-id-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(66, 153, 225, 0.15);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        .latest-checkin-id-badge i {
+            color: #63b3ed;
+            font-size: 14px;
+        }
+
+        .latest-checkin-id-badge span {
+            font-weight: 600;
+            color: #63b3ed;
+            font-size: 14px;
+        }
+
+        .latest-checkin-timestamp {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+        }
+
+        .latest-checkin-timestamp i {
+            color: #63b3ed;
+            font-size: 12px;
+        }
+
+        .latest-checkin-body {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .latest-checkin-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .latest-checkin-info-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            min-height: 50px;
+        }
+
+        .latest-checkin-info-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(66, 153, 225, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .latest-checkin-info-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .latest-checkin-info-value {
+            font-size: 14px;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .latest-checkin-summary {
+            background: rgba(66, 153, 225, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(66, 153, 225, 0.2);
+            margin-top: 4px;
+        }
+
+        .latest-checkin-summary-label {
+            font-size: 12px;
+            color: #63b3ed;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .latest-checkin-summary-text {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.5;
+        }
+
+        .latest-checkin-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .latest-checkin-tag {
+            background: rgba(66, 153, 225, 0.15);
+            color: #63b3ed;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+            font-weight: 500;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-indicator.no-issue {
+            background: rgba(72, 187, 120, 0.15);
+            color: #68d391;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .status-indicator.issue {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f6ad55;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-indicator.review {
+            background: rgba(160, 174, 192, 0.15);
+            color: #a0aec0;
+            border: 1px solid rgba(160, 174, 192, 0.3);
+        }
+
+        .status-indicator.transfer {
+            background: rgba(72, 187, 120, 0.15);
+            color: #68d391;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .check-ins-section {
+            background: linear-gradient(135deg, #1e2a3a 0%, #2d3748 100%);
+            border-radius: 16px;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.3),
+                0 1px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-width: 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(66, 153, 225, 0.2);
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .check-ins-section h3 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #4299e1, #63b3ed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-icon {
+            color: #4299e1 !important;
+            font-size: 18px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: var(--card-dark);
+            border-radius: 6px;
+            border: 1px solid rgba(74, 85, 104, 0.3);
+            box-shadow: var(--box-shadow-dark);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .filter-label {
+            font-size: 0.75rem;
+            color: #a0aec0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            white-space: nowrap;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .filter-input {
+            padding: 10px 14px;
+            background-color: #1a202c;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-light);
+            transition: all 0.3s ease;
+            width: 100%;
+            min-width: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.2);
+        }
+
+        .filter-input:hover {
+            border-color: #718096;
+        }
+
+        /* Responsive filter layout */
+        @media (max-width: 1200px) {
+            .filters {
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+            
+            .filter-group:last-child {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .filters {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+
+        .check-ins-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding-right: 8px;
+            position: relative;
+            max-height: calc(100vh - 350px);
+            min-height: 200px;
+            padding-top: 6px;
+        }
+
+        .check-ins-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .check-ins-container::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 4px;
+        }
+
+        .check-ins-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+            border-radius: 4px;
+            box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .check-ins-container::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 100%);
+        }
+
+        .check-in-card {
+            background: transparent !important;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: visible;
+            backdrop-filter: none;
+            cursor: pointer;
+            transform: translateY(0);
+            box-shadow: 
+                0 4px 12px rgba(0, 0, 0, 0.15),
+                0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .check-in-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 12px 32px rgba(66, 153, 225, 0.15),
+                0 6px 18px rgba(0, 0, 0, 0.2),
+                0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: rgba(66, 153, 225, 0.4) !important;
+            background: linear-gradient(135deg, rgba(66, 153, 225, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%) !important;
+        }
+
+        .check-in-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0;
+            flex-wrap: nowrap;
+            gap: 8px;
+            padding: 0;
+            background: transparent;
+            border-radius: 8px;
+            min-height: auto;
+        }
+
+        .check-in-id-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .check-in-icon {
+            color: #4299e1;
+            font-size: 18px;
+            filter: drop-shadow(0 2px 4px rgba(66, 153, 225, 0.3));
+            animation: iconGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes iconGlow {
+            0%, 100% { filter: drop-shadow(0 2px 4px rgba(66, 153, 225, 0.3)); }
+            50% { filter: drop-shadow(0 2px 8px rgba(66, 153, 225, 0.6)); }
+        }
+
+        .check-in-id {
+            font-size: 13px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #4299e1, #63b3ed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .field-value {
+            color: rgba(255, 255, 255, 0.6) !important;
+            font-weight: 400;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .status-icon {
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .status-icon.success {
+            color: #68d391;
+        }
+
+        .status-icon.warning {
+            color: #f6ad55;
+        }
+
+        .status-icon.review {
+            color: #a0aec0;
+        }
+
+        .status-icon.transfer {
+            color: #68d391;
+        }
+
+
+
+        .check-in-status {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .check-in-card.clickable {
+            cursor: pointer;
+            transform: translateY(0);
+            box-shadow: 
+                0 4px 12px rgba(0, 0, 0, 0.15),
+                0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .check-in-card.clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 12px 32px rgba(66, 153, 225, 0.15),
+                0 6px 18px rgba(0, 0, 0, 0.2),
+                0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: rgba(66, 153, 225, 0.4) !important;
+            background: linear-gradient(135deg, rgba(66, 153, 225, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%) !important;
+        }
+
+
+
+        .status-badge {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            padding: 6px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: none;
+            white-space: nowrap;
+            line-height: 1;
+            min-width: 28px;
+            height: 28px;
+        }
+
+        .status-badge.issue-flagged {
+            background-color: #f59e0b !important;
+            color: #1f2937 !important;
+            border: none !important;
+        }
+
+        .status-badge.issue-flagged:hover {
+            background-color: #d97706 !important;
+            color: #1f2937 !important;
+        }
+
+        .status-badge.requires-review {
+            background-color: #4b5563 !important;
+            color: #d1d5db !important;
+            border: none !important;
+        }
+
+        .status-badge.requires-review:hover {
+            background-color: #374151 !important;
+            color: #d1d5db !important;
+        }
+
+
+
+
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding-top: 15px;
+            border-top: 1px solid #4a5568;
+        }
+
+        .pagination button {
+            padding: 6px 12px;
+            background: rgba(45, 55, 72, 0.8);
+            border: 1px solid #4a5568;
+            color: var(--text-light);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .no-check-ins {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-style: italic;
+            padding: 30px 16px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border-radius: 10px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+
+        .view-all-container {
+            padding: 15px 0 5px 0;
+            border-top: 1px solid rgba(96, 165, 250, 0.1);
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .view-all-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .view-all-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .view-all-button:hover::before {
+            left: 100%;
+        }
+
+        .view-all-button:hover {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .view-all-button i {
+            font-size: 16px;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-dark);
+            border-radius: var(--border-radius);
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(74, 85, 104, 0.3);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 25px;
+            border-bottom: 1px solid #4a5568;
+            background: var(--card-dark);
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #718096;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--text-light);
+            background: rgba(113, 128, 150, 0.1);
+        }
+
+        .modal-body {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .modal-body::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .modal-body::-webkit-scrollbar-track {
+            background: #1a202c;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 6px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        .modal-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: var(--card-dark);
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(74, 85, 104, 0.3);
+            box-shadow: var(--box-shadow-dark);
+        }
+
+        .modal-checkins-container {
+            flex: 1;
+            background: var(--card-dark);
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(74, 85, 104, 0.3);
+            box-shadow: var(--box-shadow-dark);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-checkins-list {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal-checkins-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-checkins-list::-webkit-scrollbar-track {
+            background: #1a202c;
+        }
+
+        .modal-checkins-list::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        .modal-checkins-list::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        .modal-pagination {
+            padding: 20px;
+            border-top: 1px solid #4a5568;
+            background: rgba(26, 32, 44, 0.5);
+        }
+
+        /* Modal Check-in Card Styles */
+        .modal-check-in-card {
+            background: linear-gradient(135deg, rgba(26, 32, 44, 0.8) 0%, rgba(45, 55, 72, 0.6) 100%);
+            border: 1px solid rgba(66, 153, 225, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            cursor: pointer;
+            box-shadow: 
+                0 4px 16px rgba(0, 0, 0, 0.2),
+                0 2px 8px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .modal-check-in-card:hover {
+            background: linear-gradient(135deg, rgba(66, 153, 225, 0.15) 0%, rgba(45, 55, 72, 0.8) 100%);
+            border-color: rgba(66, 153, 225, 0.4);
+            transform: translateY(-4px);
+            box-shadow: 
+                0 16px 40px rgba(66, 153, 225, 0.2),
+                0 8px 24px rgba(0, 0, 0, 0.3),
+                0 4px 12px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-check-in-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(66, 153, 225, 0.2);
+        }
+
+        .modal-check-in-id {
+            font-weight: 800;
+            background: linear-gradient(135deg, #4299e1, #63b3ed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 20px;
+            margin-right: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .modal-check-in-timestamp {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            font-weight: 500;
+            background: rgba(66, 153, 225, 0.12);
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(66, 153, 225, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-check-in-timestamp i {
+            color: #63b3ed;
+            font-size: 12px;
+        }
+
+        .modal-check-in-status {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .modal-check-in-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-check-in-field {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .modal-field-label {
+            font-weight: 700;
+            color: #63b3ed;
+            font-size: 11px;
+            min-width: 80px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .modal-field-value {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+            line-height: 1.5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .modal-summary-field {
+            background: rgba(66, 153, 225, 0.08);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(66, 153, 225, 0.2);
+            margin-top: 8px;
+        }
+
+        .modal-summary-field .modal-field-label {
+            color: #63b3ed;
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.6px;
+        }
+
+        .modal-summary-field .modal-field-value {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 400;
+            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Tablet styles */
+        @media (max-width: 1200px) {
+            .dashboard-main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                height: auto;
+                min-height: auto;
+                gap: 15px;
+            }
+
+            .dashboard-left-content {
+                height: auto;
+                overflow-y: visible;
+            }
+
+            .check-ins-section {
+                height: auto;
+                max-height: 600px;
+                max-width: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .check-ins-container {
+                flex: 1;
+                max-height: 450px;
+                overflow-y: auto;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+            }
+
+            .stat-number {
+                font-size: 1.3rem;
+            }
+
+            .stat-label {
+                font-size: 0.65rem;
+            }
+        }
+
+        /* Mobile landscape */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 15px;
+            }
+
+            .dashboard-header {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 24px;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .nav-button, .refresh-button {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .chart-card {
+                min-height: 180px;
+                padding: 10px;
+            }
+
+            .dashboard-main-grid {
+                gap: 15px;
+                height: auto;
+                overflow: visible;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 8px;
+            }
+
+            .stat-icon {
+                font-size: 1.3rem;
+                margin-bottom: 4px;
+            }
+
+            .stat-number {
+                font-size: 1.2rem;
+            }
+
+            .stat-label {
+                font-size: 0.65rem;
+            }
+
+            .check-ins-section {
+                height: auto;
+                max-height: 500px;
+                padding: 15px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .check-ins-container {
+                max-height: 350px;
+                min-height: 200px;
+            }
+
+            .check-ins-section h3 {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+
+            .check-in-card {
+                padding: 8px 12px;
+                margin-bottom: 4px;
+            }
+
+            .check-in-id {
+                font-size: 12px;
+            }
+
+            .field-value {
+                font-size: 11px !important;
+            }
+
+            .status-icon {
+                font-size: 14px;
+            }
+
+            .latest-checkin-card {
+                padding: 15px;
+            }
+
+            .latest-checkin-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .latest-checkin-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .view-all-button {
+                padding: 10px 16px;
+                font-size: 12px;
+                min-height: 40px;
+            }
+        }
+
+        /* Mobile portrait */
+        @media (max-width: 480px) {
+            .dashboard-container {
+                padding: 10px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 20px;
+                width: 100%;
+            }
+
+            .header-icon {
+                font-size: 20px;
+            }
+
+            .header-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .nav-button, .refresh-button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+
+            .stat-card {
+                padding: 8px 6px;
+            }
+
+            .stat-icon {
+                font-size: 1.2rem;
+                margin-bottom: 2px;
+            }
+
+            .stat-number {
+                font-size: 1.1rem;
+                margin-bottom: 1px;
+            }
+
+            .stat-label {
+                font-size: 0.6rem;
+                letter-spacing: 0.3px;
+            }
+
+            .dashboard-main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .check-ins-section {
+                height: auto;
+                max-height: 450px;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .check-ins-container {
+                flex: 1;
+                max-height: 300px;
+                min-height: 150px;
+                overflow-y: auto;
+            }
+
+            .view-all-container {
+                padding: 10px 0 0 0;
+            }
+
+            .check-in-icon {
+                font-size: 16px;
+            }
+
+            .check-in-id {
+                font-size: 11px;
+            }
+
+            .field-value {
+                font-size: 10px !important;
+                margin-left: 4px !important;
+            }
+
+            .check-in-status {
+                gap: 2px;
+            }
+
+            .status-icon {
+                font-size: 12px;
+            }
+
+            .chart-card {
+                min-height: 160px;
+                padding: 8px;
+            }
+
+            .chart-title {
+                font-size: 0.8rem;
+                margin-bottom: 8px;
+            }
+
+            .latest-checkin-card {
+                padding: 12px;
+            }
+
+            .latest-checkin-info-item {
+                padding: 10px;
+            }
+
+            .latest-checkin-summary {
+                padding: 12px;
+            }
+
+            .latest-checkin-id-badge {
+                padding: 4px 10px;
+                font-size: 12px;
+            }
+
+            .latest-checkin-timestamp {
+                font-size: 11px;
+            }
+
+            .view-all-container {
+                padding-top: 15px;
+            }
+
+            .view-all-button {
+                padding: 10px 16px;
+                font-size: 12px;
+                gap: 6px;
+            }
+
+            .modal-content {
+                margin: 10px;
+                height: calc(100vh - 20px);
+                max-height: none;
+            }
+
+            .modal-filters {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 15px;
+            }
+        }
+
+        /* Modal Mobile Responsive Styles */
+        @media (max-width: 1024px) {
+            .modal-content {
+                width: 95%;
+                height: 95vh;
+                margin: 2.5vh auto;
+            }
+            
+            .modal-filters {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                padding: 15px;
+            }
+            
+            .modal-check-in-card {
+                padding: 15px;
+            }
+            
+            .modal-check-in-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .modal-overlay {
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+            
+            .modal-content {
+                width: 100%;
+                height: calc(100vh - 40px);
+                max-height: none;
+                margin: 0;
+                border-radius: 12px;
+            }
+            
+            .modal-header {
+                padding: 15px 20px;
+                flex-wrap: wrap;
+            }
+            
+            .modal-title {
+                font-size: 18px;
+                flex: 1;
+                min-width: 200px;
+            }
+            
+            .modal-close {
+                order: 2;
+            }
+            
+            .modal-body {
+                padding: 20px 15px;
+                gap: 15px;
+            }
+            
+            .modal-filters {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 12px;
+            }
+            
+            .filter-group {
+                gap: 4px;
+            }
+            
+            .filter-label {
+                font-size: 0.7rem;
+            }
+            
+            .filter-input {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .modal-checkins-container {
+                border-radius: 8px;
+            }
+            
+            .modal-checkins-list {
+                padding: 15px;
+            }
+            
+            .modal-check-in-card {
+                padding: 12px;
+                margin-bottom: 12px;
+                border-radius: 8px;
+            }
+            
+            .modal-check-in-header {
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 16px;
+                margin-right: 8px;
+            }
+            
+            .modal-check-in-timestamp {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+            
+            .modal-check-in-content {
+                gap: 10px;
+            }
+            
+            .modal-check-in-field {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 6px 0;
+            }
+            
+            .modal-field-label {
+                font-size: 10px;
+                min-width: auto;
+                margin-bottom: 2px;
+            }
+            
+            .modal-field-value {
+                font-size: 13px;
+                width: 100%;
+            }
+            
+            .modal-summary-field {
+                padding: 10px;
+                margin-top: 6px;
+            }
+            
+            .modal-summary-field .modal-field-label {
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+            
+            .modal-summary-field .modal-field-value {
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            
+            .modal-pagination {
+                padding: 15px;
+            }
+            
+            .pagination {
+                flex-wrap: wrap;
+                gap: 6px;
+                justify-content: center;
+            }
+            
+            .pagination button {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+                min-width: 44px;
+                border-radius: 6px;
+            }
+            
+            .modal-active-indicator {
+                padding: 4px 10px;
+                font-size: 11px;
+            }
+            
+            .modal-active-spinner {
+                width: 12px;
+                height: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .modal-overlay {
+                padding: 5px;
+                padding-top: 10px;
+            }
+            
+            .modal-content {
+                width: 100%;
+                height: calc(100vh - 20px);
+                border-radius: 8px;
+            }
+            
+            .modal-header {
+                padding: 12px 15px;
+            }
+            
+            .modal-title {
+                font-size: 16px;
+                gap: 8px;
+            }
+            
+            .modal-title i {
+                font-size: 16px;
+            }
+            
+            .modal-close {
+                font-size: 20px;
+                padding: 4px;
+            }
+            
+            .modal-body {
+                padding: 15px 12px;
+                gap: 12px;
+            }
+            
+            .modal-filters {
+                padding: 10px;
+                gap: 8px;
+            }
+            
+            .filter-label {
+                font-size: 0.65rem;
+                margin-bottom: 3px;
+            }
+            
+            .filter-input {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+            
+            .modal-checkins-list {
+                padding: 12px;
+            }
+            
+            .modal-check-in-card {
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+            
+            .modal-check-in-header {
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                gap: 8px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 14px;
+                margin-right: 6px;
+            }
+            
+            .modal-check-in-timestamp {
+                font-size: 11px;
+                padding: 3px 6px;
+            }
+            
+            .modal-check-in-timestamp i {
+                font-size: 10px;
+            }
+            
+            .modal-check-in-status {
+                gap: 4px;
+            }
+            
+            .modal-check-in-status .status-icon {
+                font-size: 16px;
+            }
+            
+            .modal-check-in-content {
+                gap: 8px;
+            }
+            
+            .modal-check-in-field {
+                padding: 4px 0;
+                gap: 3px;
+            }
+            
+            .modal-field-label {
+                font-size: 9px;
+            }
+            
+            .modal-field-value {
+                font-size: 12px;
+            }
+            
+            .modal-summary-field {
+                padding: 8px;
+                margin-top: 4px;
+            }
+            
+            .modal-summary-field .modal-field-label {
+                font-size: 10px;
+                margin-bottom: 4px;
+            }
+            
+            .modal-summary-field .modal-field-value {
+                font-size: 11px;
+                line-height: 1.4;
+            }
+            
+            .modal-pagination {
+                padding: 12px;
+            }
+            
+            .pagination {
+                gap: 4px;
+            }
+            
+            .pagination button {
+                padding: 6px 8px;
+                font-size: 0.7rem;
+                min-width: 36px;
+            }
+            
+            .pagination span {
+                font-size: 0.7rem;
+                padding: 0 4px;
+            }
+            
+            .modal-active-indicator {
+                padding: 3px 8px;
+                font-size: 10px;
+            }
+            
+            .modal-active-spinner {
+                width: 10px;
+                height: 10px;
+                border-width: 1.5px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .modal-content {
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .modal-header {
+                padding: 10px 12px;
+            }
+            
+            .modal-title {
+                font-size: 14px;
+                gap: 6px;
+            }
+            
+            .modal-body {
+                padding: 12px 10px;
+                gap: 10px;
+            }
+            
+            .modal-filters {
+                padding: 8px;
+                gap: 6px;
+            }
+            
+            .filter-input {
+                padding: 5px 8px;
+                font-size: 0.7rem;
+            }
+            
+            .modal-checkins-list {
+                padding: 10px;
+            }
+            
+            .modal-check-in-card {
+                padding: 8px;
+                margin-bottom: 8px;
+            }
+            
+            .modal-check-in-id {
+                font-size: 13px;
+            }
+            
+            .modal-check-in-timestamp {
+                font-size: 10px;
+                padding: 2px 5px;
+            }
+            
+            .modal-field-value {
+                font-size: 11px;
+            }
+            
+            .modal-summary-field .modal-field-value {
+                font-size: 10px;
+            }
+            
+            .pagination button {
+                padding: 5px 6px;
+                font-size: 0.65rem;
+                min-width: 32px;
+            }
+        }
+
+        /* Very small devices */
+        @media (max-width: 360px) {
+            .dashboard-header h1 {
+                font-size: 18px;
+            }
+
+            .stat-icon {
+                font-size: 1rem;
+            }
+
+            .stat-number {
+                font-size: 1rem;
+            }
+
+            .stat-label {
+                font-size: 0.55rem;
+            }
+
+            .check-in-id {
+                font-size: 10px;
+            }
+
+            .field-value {
+                font-size: 9px !important;
+            }
+        }
+
+        /* Header Actions Styles */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background-color: var(--card-dark);
+            color: var(--text-light);
+            border: 1px solid rgba(74, 85, 104, 0.3);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            text-decoration: none;
+            box-shadow: var(--box-shadow-dark);
+        }
+
+        .nav-button:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .nav-button i {
+            font-size: 16px;
+            color: var(--primary-light);
+        }
+
+        .nav-button:hover i {
+            color: white;
+        }
+
+        .refresh-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            box-shadow: var(--box-shadow-dark);
+        }
+
+        .refresh-button:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .refresh-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-button.refreshing .refresh-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Loading spinner for active check-ins */
+        .active-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #60a5fa;
+            animation: pulse-bg 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { 
+                background: rgba(59, 130, 246, 0.15);
+                border-color: rgba(59, 130, 246, 0.3);
+            }
+            50% { 
+                background: rgba(59, 130, 246, 0.25);
+                border-color: rgba(59, 130, 246, 0.5);
+            }
+        }
+
+        .active-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .modal-active-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #93c5fd;
+            animation: pulse-bg 2s ease-in-out infinite;
+        }
+
+        .modal-active-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(147, 197, 253, 0.3);
+            border-top-color: #93c5fd;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+    </style>
+</head>
+<body style="overflow-x: hidden; margin: 0; padding: 0;">
+    <div id="app" class="dashboard-container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h1>
+                <i class="fas fa-clipboard-check header-icon"></i>
+                <span class="header-title">Check-in Dashboard</span>
+            </h1>
+            <div class="header-actions">
+                <a href="/transit-dashboard" class="nav-button">
+                    <i class="fas fa-truck"></i>
+                    <span>Transit Dashboard</span>
+                </a>
+                <button class="refresh-button" id="refresh-button">
+                    <i class="fas fa-sync refresh-icon"></i>
+                    <span class="refresh-text">Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div class="stat-number" id="total-checkins">0</div>
+                <div class="stat-label">Total Check-ins</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle" style="color: #ed8936;"></i>
+                </div>
+                <div class="stat-number" id="total-issues">0</div>
+                <div class="stat-label">Issues Flagged</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-phone-alt" style="color: #48bb78;"></i>
+                </div>
+                <div class="stat-number" id="call-transfers">0</div>
+                <div class="stat-label">Call Transfers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-day" style="color: #4299e1;"></i>
+                </div>
+                <div class="stat-number" id="today-checkins">0</div>
+                <div class="stat-label">Today's Check-ins</div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-main-grid">
+            <!-- Left Content -->
+            <div class="dashboard-left-content">
+                <!-- Charts Section -->
+                <div class="charts-section">
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <i class="fas fa-chart-line"></i>
+                            Check-ins Per Day (Last 30 Days)
+                        </div>
+                        <canvas id="checkins-per-day-chart"></canvas>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-title">
+                            <i class="fas fa-chart-area"></i>
+                            Weekly Trends
+                        </div>
+                        <canvas id="weekly-trends-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Latest Check-in Details -->
+                <div class="latest-checkin-card" id="latest-checkin-card">
+                    <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 1px; background: linear-gradient(135deg, #4299e1, #63b3ed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        <i class="fas fa-info-circle" style="color: #4299e1 !important; font-size: 18px;"></i>
+                        Latest Check-in Details
+                    </h3>
+                    <div id="latest-checkin-content">
+                        <p class="no-check-ins">Loading latest check-in...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Check-ins Section -->
+            <div class="check-ins-section">
+                <h3>
+                    <i class="fas fa-clipboard-check section-icon"></i>
+                    RECENT CHECK-INS
+                </h3>
+
+                <!-- Recent Checkins List (Limited to 5) -->
+                <div class="check-ins-container" id="recent-checkins-list">
+                    <p class="no-check-ins">Loading recent check-ins...</p>
+                </div>
+
+                <!-- View All Button -->
+                <div class="view-all-container">
+                    <button class="view-all-button" id="view-all-button">
+                        <i class="fas fa-list"></i>
+                        <span>View All Check-ins</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-spinner" id="loading-spinner" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading data...</p>
+        </div>
+    </div>
+
+    <!-- Full Screen Modal for All Check-ins -->
+    <div class="modal-overlay" id="checkins-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-clipboard-list"></i>
+                    All Check-ins
+                </h2>
+                <button class="modal-close" id="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Modal Filters -->
+                <div class="modal-filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Filter by Issue Status</label>
+                        <select class="filter-input" id="modal-issue-filter">
+                            <option value="">All</option>
+                            <option value="true">Issues Only</option>
+                            <option value="false">No Issues</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Filter by Transfer Status</label>
+                        <select class="filter-input" id="modal-review-filter">
+                            <option value="">All</option>
+                            <option value="true">Call Transferred</option>
+                            <option value="false">Not Transferred</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Sort by Time</label>
+                        <select class="filter-input" id="modal-time-filter">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Search Tags</label>
+                        <input type="text" class="filter-input" id="modal-tags-filter" placeholder="Enter tag name...">
+                    </div>
+                </div>
+
+                <!-- Modal Checkins Container -->
+                <div class="modal-checkins-container">
+                    <div class="modal-checkins-list" id="modal-checkins-list">
+                        <p class="no-check-ins">Loading check-ins...</p>
+                    </div>
+                    <div class="modal-pagination" id="modal-pagination">
+                        <!-- Pagination buttons will be generated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let modalCurrentPage = 1;
+        let modalTotalPages = 1;
+        let checkins = [];
+        let modalCheckins = [];
+        let charts = {};
+        let autoRefreshInterval = null;
+        let websocket = null;
+        
+        // WebSocket connection for real-time updates
+        function connectWebSocket() {
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+                
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connected for real-time updates');
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const notification = JSON.parse(event.data);
+                        console.log('Received notification:', notification);
+                        
+                        // Handle different types of notifications
+                        if (notification.type === 'check_in_update') {
+                            handleCheckInUpdate(notification.data);
+                        } else if (notification.type === 'stop_update') {
+                            // Optional: handle stop updates if needed
+                            console.log('Stop update received:', notification.data);
+                        } else if (notification.type === 'journey_state_update') {
+                            // Optional: handle journey state updates if needed
+                            console.log('Journey state update received:', notification.data);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket connection closed. Attempting to reconnect...');
+                    // Attempt to reconnect after 3 seconds
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+                
+                // Send periodic ping to keep connection alive
+                setInterval(() => {
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send('ping');
+                    }
+                }, 30000); // Send ping every 30 seconds
+                
+            } catch (error) {
+                console.error('Error connecting to WebSocket:', error);
+                // Retry connection after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            }
+        }
+        
+        function handleCheckInUpdate(checkInData) {
+            console.log('Check-in update received:', checkInData);
+            
+            // Refresh dashboard data to reflect the update
+            refreshDashboardSilently();
+            
+            // Show appropriate notification based on the update type
+            if (checkInData.call_trasfered) {
+                showTransferNotification(checkInData);
+            } else if (!checkInData.is_active) {
+                showCallEndedNotification(checkInData);
+            } else {
+                showUpdateNotification(checkInData);
+            }
+        }
+        
+        function showUpdateNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-brain',
+                title: `Check-in #${checkInData.id} analyzed`,
+                subtitle: 'AI analysis results available',
+                background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
+                shadowColor: 'rgba(66, 153, 225, 0.3)'
+            });
+        }
+        
+        function showTransferNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-phone-alt',
+                title: `Check-in #${checkInData.id} call transferred`,
+                subtitle: 'Call successfully transferred to broker',
+                background: 'linear-gradient(135deg, #48bb78, #68d391)',
+                shadowColor: 'rgba(72, 187, 120, 0.3)'
+            });
+        }
+        
+        function showCallEndedNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-check-circle',
+                title: `Check-in #${checkInData.id} analysis complete`,
+                subtitle: 'Call analyzed and results are ready',
+                background: 'linear-gradient(135deg, #48bb78, #68d391)',
+                shadowColor: 'rgba(72, 187, 120, 0.3)'
+            });
+        }
+        
+        function showNotification({ icon, title, subtitle, background, shadowColor }) {
+            // Create a notification
+            const notification = document.createElement('div');
+            notification.className = 'update-notification';
+            notification.innerHTML = `
+                <i class="${icon}"></i>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    ${subtitle ? `<div class="notification-subtitle">${subtitle}</div>` : ''}
+                </div>
+            `;
+            
+            // Add styling for the notification
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${background};
+                color: white;
+                padding: 16px 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px ${shadowColor}, 0 4px 12px rgba(0, 0, 0, 0.2);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 14px;
+                font-weight: 500;
+                animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                cursor: pointer;
+                min-width: 280px;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            `;
+            
+            // Add CSS animation if not already added
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOutRight {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                    }
+                    @keyframes pulse {
+                        0%, 100% { transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                    }
+                    .notification-content {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 2px;
+                    }
+                    .notification-title {
+                        font-weight: 600;
+                        font-size: 14px;
+                    }
+                    .notification-subtitle {
+                        font-weight: 400;
+                        font-size: 12px;
+                        opacity: 0.9;
+                    }
+                    .update-notification i {
+                        font-size: 18px;
+                        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+                        animation: pulse 2s ease-in-out infinite;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 400);
+            }, 5000);
+            
+            // Allow clicking to dismiss
+            notification.addEventListener('click', () => {
+                notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 400);
+            });
+        }
+        
+        async function refreshDashboardSilently() {
+            try {
+                // Refresh all dashboard data without showing loading indicators
+                await Promise.all([
+                    loadStatistics(),
+                    loadLatestCheckin(),
+                    loadRecentCheckins()
+                ]);
+                
+                // If modal is open, refresh it too
+                if (document.getElementById('checkins-modal').classList.contains('active')) {
+                    await loadModalCheckins(modalCurrentPage);
+                }
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+            }
+        }
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            setupEventListeners();
+            startAutoRefresh();
+            connectWebSocket(); // Connect to WebSocket for real-time updates
+        });
+
+        // Clean up WebSocket connection when page unloads
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+            if (websocket) {
+                websocket.close();
+            }
+        });
+
+        function setupEventListeners() {
+            document.getElementById('refresh-button').addEventListener('click', refreshData);
+            document.getElementById('view-all-button').addEventListener('click', openModal);
+            document.getElementById('modal-close').addEventListener('click', closeModal);
+            document.getElementById('checkins-modal').addEventListener('click', function(e) {
+                if (e.target === this) closeModal();
+            });
+            
+            // Modal filters
+            document.getElementById('modal-issue-filter').addEventListener('change', applyModalFilters);
+            document.getElementById('modal-review-filter').addEventListener('change', applyModalFilters);
+            document.getElementById('modal-time-filter').addEventListener('change', applyModalFilters);
+            document.getElementById('modal-tags-filter').addEventListener('input', debounce(applyModalFilters, 300));
+            
+            // ESC key to close modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && document.getElementById('checkins-modal').classList.contains('active')) {
+                    closeModal();
+                }
+            });
+            
+            // Stop auto-refresh when page is unloaded
+            window.addEventListener('beforeunload', function() {
+                stopAutoRefresh();
+            });
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function loadDashboardData() {
+            showLoading(true);
+            try {
+                await Promise.all([
+                    loadStatistics(),
+                    loadChartData(),
+                    loadLatestCheckin(),
+                    loadRecentCheckins()
+                ]);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/checkin/statistics');
+                const data = await response.json();
+                
+                document.getElementById('total-checkins').textContent = data.total_checkins || 0;
+                document.getElementById('total-issues').textContent = data.total_issues || 0;
+                document.getElementById('call-transfers').textContent = data.call_transfers || 0;
+                document.getElementById('today-checkins').textContent = data.today_checkins || 0;
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        async function loadChartData() {
+            try {
+                const response = await fetch('/api/checkin/chart-data');
+                const data = await response.json();
+                
+                createCheckinsPerDayChart(data.checkins_per_day);
+                createWeeklyTrendsChart(data.weekly_trends);
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        async function loadLatestCheckin() {
+            try {
+                const response = await fetch('/api/checkin/latest');
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.data) {
+                    displayLatestCheckin(data.data);
+                } else {
+                    document.getElementById('latest-checkin-content').innerHTML = '<p class="no-check-ins">No check-ins found</p>';
+                }
+            } catch (error) {
+                console.error('Error loading latest check-in:', error);
+                document.getElementById('latest-checkin-content').innerHTML = '<p class="no-check-ins">Error loading latest check-in</p>';
+            }
+        }
+
+        async function loadRecentCheckins() {
+            try {
+                const response = await fetch('/api/checkin/list?page=1&per_page=10');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    checkins = data.data.checkins;
+                    displayRecentCheckins(checkins);
+                }
+            } catch (error) {
+                console.error('Error loading recent check-ins:', error);
+            }
+        }
+
+        async function loadModalCheckins(page = 1) {
+            try {
+                const filters = getModalFilters();
+                const { sort_by_time, ...apiFilters } = filters; // Extract sort_by_time for client-side handling
+                
+                const queryParams = new URLSearchParams({
+                    page: page,
+                    per_page: 15,
+                    ...apiFilters
+                });
+                
+                const response = await fetch(`/api/checkin/list?${queryParams}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    modalCheckins = data.data.checkins;
+                    
+                    // Apply client-side time sorting (default to descending if not specified)
+                    const sortOrder = sort_by_time || 'desc';
+                    modalCheckins.sort((a, b) => {
+                        const dateA = new Date(a.AI_Timestamp);
+                        const dateB = new Date(b.AI_Timestamp);
+                        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+                    });
+                    
+                    modalCurrentPage = data.data.current_page;
+                    modalTotalPages = data.data.total_pages;
+                    
+                    displayModalCheckins(modalCheckins);
+                    updateModalPagination();
+                }
+            } catch (error) {
+                console.error('Error loading modal check-ins:', error);
+            }
+        }
+
+        function getModalFilters() {
+            const filters = {};
+            
+            const issueFilter = document.getElementById('modal-issue-filter').value;
+            if (issueFilter) filters.issue_flagged = issueFilter;
+            
+            const reviewFilter = document.getElementById('modal-review-filter').value;
+            if (reviewFilter) filters.requires_review = reviewFilter;
+            
+            const timeFilter = document.getElementById('modal-time-filter').value;
+            if (timeFilter) filters.sort_by_time = timeFilter;
+            
+            const tagsFilter = document.getElementById('modal-tags-filter').value.trim();
+            if (tagsFilter) filters.tags = tagsFilter;
+            
+            return filters;
+        }
+
+        function applyModalFilters() {
+            modalCurrentPage = 1;
+            loadModalCheckins(1);
+        }
+
+        function displayLatestCheckin(checkin) {
+            const content = document.getElementById('latest-checkin-content');
+            const date = new Date(checkin.AI_Timestamp);
+            const dateStr = date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const timeStr = date.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+            
+            content.innerHTML = `
+                <div class="latest-checkin-header">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="latest-checkin-id-badge">
+                            <i class="fas fa-clipboard-check"></i>
+                            <span>#${checkin.id}</span>
+                        </div>
+                        ${checkin.is_active ? `
+                        <div class="active-indicator">
+                            <div class="active-spinner"></div>
+                            <span>Call Active</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="latest-checkin-timestamp">
+                        <i class="fas fa-clock"></i>
+                        <span>${dateStr} at ${timeStr}</span>
+                    </div>
+                </div>
+                <div class="latest-checkin-body">
+                    <div class="latest-checkin-info-grid">
+                        <div class="latest-checkin-info-item">
+                            <div class="latest-checkin-info-label">
+                                <i class="fas fa-truck" style="color: #63b3ed; font-size: 10px;"></i>
+                                Load ID
+                            </div>
+                            <div class="latest-checkin-info-value">${checkin.load_id || 'N/A'}</div>
+                        </div>
+                        <div class="latest-checkin-info-item">
+                            <div class="latest-checkin-info-label">
+                                ${checkin.Issue_Flagged ? 
+                                    '<i class="fas fa-exclamation-triangle" style="color: #f6ad55; font-size: 10px;"></i>' : 
+                                    '<i class="fas fa-check-circle" style="color: #68d391; font-size: 10px;"></i>'}
+                                Issue Status
+                            </div>
+                            <div class="latest-checkin-info-value">
+                                ${checkin.Issue_Flagged ? 
+                                    '<span class="status-indicator issue">Flagged</span>' : 
+                                    '<span class="status-indicator no-issue">No Issues</span>'}
+                            </div>
+                        </div>
+                        <div class="latest-checkin-info-item">
+                            <div class="latest-checkin-info-label">
+                                <i class="fas fa-phone-alt" style="color: #a0aec0; font-size: 10px;"></i>
+                                Call Status
+                            </div>
+                            <div class="latest-checkin-info-value">
+                                ${checkin.call_trasfered ? 
+                                    '<span class="status-indicator transfer">Transferred</span>' : 
+                                    'Not Transferred'}
+                            </div>
+                        </div>
+                        <div class="latest-checkin-info-item">
+                            <div class="latest-checkin-info-label">
+                                <i class="fas fa-tags" style="color: #63b3ed; font-size: 10px;"></i>
+                                Tags
+                            </div>
+                            <div class="latest-checkin-info-value">
+                                ${tags.length > 0 ? 
+                                    `<div class="latest-checkin-tags">${tags.map(tag => 
+                                        `<span class="latest-checkin-tag">${tag}</span>`
+                                    ).join('')}</div>` : 
+                                    'No tags'}
+                            </div>
+                        </div>
+                    </div>
+                    ${checkin.AI_Response_Summary ? `
+                        <div class="latest-checkin-summary">
+                            <div class="latest-checkin-summary-label">AI Summary</div>
+                            <div class="latest-checkin-summary-text">${checkin.AI_Response_Summary}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function displayRecentCheckins(checkins) {
+            const container = document.getElementById('recent-checkins-list');
+            
+            if (!checkins || checkins.length === 0) {
+                container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
+                return;
+            }
+            
+            const checkinsHtml = checkins.map(checkin => {
+                const date = new Date(checkin.AI_Timestamp);
+                const day = date.getDate();
+                const month = date.toLocaleDateString('en-US', { month: 'short' });
+                const year = date.getFullYear();
+                const time = date.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+                const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
+                
+                return `
+                    <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
+                        <div class="check-in-header">
+                            <div class="check-in-id-wrapper">
+                                <i class="fas fa-clipboard-check check-in-icon"></i>
+                                <span class="check-in-id">#${checkin.id}</span>
+                                <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
+                            </div>
+                            <div class="check-in-status">
+                                ${checkin.is_active ? 
+                                    '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+                                ${checkin.Issue_Flagged ? 
+                                    '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
+                                    '<i class="fas fa-check-circle status-icon success"></i>'}
+                                ${checkin.call_trasfered ? 
+                                    '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = checkinsHtml;
+        }
+
+        function displayModalCheckins(checkins) {
+            const container = document.getElementById('modal-checkins-list');
+            
+            if (!checkins || checkins.length === 0) {
+                container.innerHTML = '<p class="no-check-ins">No check-ins found</p>';
+                return;
+            }
+            
+            const checkinsHtml = checkins.map(checkin => {
+                const date = new Date(checkin.AI_Timestamp);
+                const dateStr = date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+                const timeStr = date.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+                const tags = checkin.Tags ? 
+                    checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag).join(', ') : 
+                    'No tags';
+                
+                return `
+                    <div class="modal-check-in-card" onclick="window.location.href='/checkin/${checkin.id}'">
+                        <div class="modal-check-in-header">
+                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                                <span class="modal-check-in-id">#${checkin.id}</span>
+                                ${checkin.is_active ? `
+                                <div class="modal-active-indicator">
+                                    <div class="modal-active-spinner"></div>
+                                    <span>Call Active</span>
+                                </div>
+                                ` : ''}
+                                <span class="modal-check-in-timestamp">
+                                    <i class="fas fa-clock"></i>
+                                    ${dateStr} at ${timeStr}
+                                </span>
+                            </div>
+                            <div class="modal-check-in-status">
+                                ${checkin.Issue_Flagged ? 
+                                    '<i class="fas fa-exclamation-triangle status-icon warning" style="font-size: 20px;"></i>' : 
+                                    '<i class="fas fa-check-circle status-icon success" style="font-size: 20px;"></i>'}
+                                ${checkin.call_trasfered ? 
+                                    '<i class="fas fa-phone-alt status-icon transfer" style="font-size: 20px;"></i>' : ''}
+                            </div>
+                        </div>
+                        <div class="modal-check-in-content">
+                            ${checkin.AI_Response_Summary ? `
+                            <div class="modal-summary-field">
+                                <div class="modal-field-label">AI Summary</div>
+                                <div class="modal-field-value">${checkin.AI_Response_Summary}</div>
+                            </div>
+                            ` : ''}
+                            <div class="modal-check-in-field">
+                                <span class="modal-field-label">Load ID:</span>
+                                <span class="modal-field-value">${checkin.load_id || 'N/A'}</span>
+                            </div>
+                            ${checkin.Tags ? `
+                            <div class="modal-check-in-field">
+                                <span class="modal-field-label">Tags:</span>
+                                <span class="modal-field-value">${tags}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = checkinsHtml;
+        }
+
+        function updateModalPagination() {
+            const container = document.getElementById('modal-pagination');
+            
+            if (modalTotalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let paginationHtml = '<div class="pagination">';
+            
+            // Previous button
+            paginationHtml += `<button ${modalCurrentPage === 1 ? 'disabled' : ''} onclick="changeModalPage(${modalCurrentPage - 1})">
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>`;
+            
+            // Page numbers
+            const startPage = Math.max(1, modalCurrentPage - 2);
+            const endPage = Math.min(modalTotalPages, modalCurrentPage + 2);
+            
+            if (startPage > 1) {
+                paginationHtml += `<button onclick="changeModalPage(1)">1</button>`;
+                if (startPage > 2) {
+                    paginationHtml += `<span style="color: #718096;">...</span>`;
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHtml += `<button class="${i === modalCurrentPage ? 'active' : ''}" onclick="changeModalPage(${i})">${i}</button>`;
+            }
+            
+            if (endPage < modalTotalPages) {
+                if (endPage < modalTotalPages - 1) {
+                    paginationHtml += `<span style="color: #718096;">...</span>`;
+                }
+                paginationHtml += `<button onclick="changeModalPage(${modalTotalPages})">${modalTotalPages}</button>`;
+            }
+            
+            // Next button
+            paginationHtml += `<button ${modalCurrentPage === modalTotalPages ? 'disabled' : ''} onclick="changeModalPage(${modalCurrentPage + 1})">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>`;
+            
+            paginationHtml += '</div>';
+            container.innerHTML = paginationHtml;
+        }
+
+        function changeModalPage(page) {
+            if (page >= 1 && page <= modalTotalPages && page !== modalCurrentPage) {
+                loadModalCheckins(page);
+            }
+        }
+
+        function createCheckinsPerDayChart(data) {
+            const ctx = document.getElementById('checkins-per-day-chart').getContext('2d');
+            
+            if (charts.checkinsPerDay) {
+                charts.checkinsPerDay.destroy();
+            }
+            
+            charts.checkinsPerDay = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels || [],
+                    datasets: [{
+                        label: 'Check-ins',
+                        data: data.values || [],
+                        borderColor: '#63b3ed',
+                        backgroundColor: 'rgba(99, 179, 237, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    aspectRatio: 2,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#718096',
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                display: false // Hide x-axis labels
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+
+        function createWeeklyTrendsChart(data) {
+            const ctx = document.getElementById('weekly-trends-chart').getContext('2d');
+            
+            if (charts.weeklyTrends) {
+                charts.weeklyTrends.destroy();
+            }
+            
+            charts.weeklyTrends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels || [],
+                    datasets: [{
+                        label: 'Issues',
+                        data: data.issues || [],
+                        borderColor: '#ed8936',
+                        backgroundColor: 'rgba(237, 137, 54, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2
+                    }, {
+                        label: 'Call Transfers',
+                        data: data.transfers || [],
+                        borderColor: '#48bb78',
+                        backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    aspectRatio: 2,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#e2e8f0',
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function openModal() {
+            const modal = document.getElementById('checkins-modal');
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Load modal data
+            loadModalCheckins(1);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('checkins-modal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            
+            // Reset modal filters
+            document.getElementById('modal-issue-filter').value = '';
+            document.getElementById('modal-review-filter').value = '';
+            document.getElementById('modal-time-filter').value = 'desc';
+            document.getElementById('modal-tags-filter').value = '';
+            
+            // Reset modal pagination
+            modalCurrentPage = 1;
+            modalTotalPages = 1;
+        }
+
+        function refreshData() {
+            const button = document.getElementById('refresh-button');
+            const icon = button.querySelector('.refresh-icon');
+            
+            button.disabled = true;
+            icon.classList.add('refreshing');
+            
+            loadDashboardData().finally(() => {
+                button.disabled = false;
+                icon.classList.remove('refreshing');
+            });
+        }
+
+        function showLoading(show) {
+            const spinner = document.getElementById('loading-spinner');
+            spinner.style.display = show ? 'flex' : 'none';
+        }
+
+        function startAutoRefresh() {
+            // Check for active check-ins every 10 seconds
+            autoRefreshInterval = setInterval(async () => {
+                try {
+                    // Check if any checkins are active
+                    const response = await fetch('/api/checkin/list?page=1&per_page=100');
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.data.checkins) {
+                        const hasActiveCheckins = data.data.checkins.some(checkin => checkin.is_active);
+                        
+                        if (hasActiveCheckins) {
+                            // Refresh the dashboard silently if there are active check-ins
+                            await loadStatistics();
+                            await loadLatestCheckin();
+                            await loadRecentCheckins();
+                            
+                            // If modal is open, refresh it too
+                            if (document.getElementById('checkins-modal').classList.contains('active')) {
+                                await loadModalCheckins(modalCurrentPage);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Auto-refresh error:', error);
+                }
+            }, 10000); // Check every 10 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+    </script>
+</body>
+</html>

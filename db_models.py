@@ -86,11 +86,12 @@ class CheckIn(Base):
     Issue_Flagged = Column(Boolean, default=False)
     Exception_Type = Column(String)
     Call_confidence_score = Column(String)
-    Requires_Human_Review = Column(Boolean, default=False)
+    call_trasfered = Column(Boolean, default=False)
     Tags = Column(String)
     miles = Column(String)  # Add miles field
     # Define relationship to Stop
     stop = relationship("Stop", backref="check_ins")
+    is_active = Column(Boolean, default=True)
 
 class RetellCall(Base):
     __tablename__ = "retell_calls"

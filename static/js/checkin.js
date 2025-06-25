@@ -3,7 +3,7 @@ class CheckInPage {
         this.checkIn = null;
         this.checkInId = this.getCheckInIdFromUrl();
         this.isDarkMode = true;
-        this.init();
+        // Don't call init() here - it will be called after DOM is ready
     }
 
     getCheckInIdFromUrl() {
@@ -12,9 +12,11 @@ class CheckInPage {
     }
 
     async init() {
-        // Always apply dark mode
-        document.querySelector('.App').classList.add('dark-mode');
-        document.querySelector('.transcript-page').classList.add('dark-mode');
+        // Apply dark mode to the new structure
+        const checkinPage = document.querySelector('.checkin-page');
+        if (checkinPage) {
+            checkinPage.classList.add('dark-mode');
+        }
 
         // Show loading spinner
         this.showLoading();
@@ -45,7 +47,8 @@ class CheckInPage {
 
     showLoading() {
         const loadingContainer = document.getElementById('loading-container');
-        const mainContent = document.querySelector('.transcript-page');
+        const mainContent = document.querySelector('.checkin-page');
+        
         if (loadingContainer) {
             loadingContainer.style.display = 'flex';
             loadingContainer.classList.add(this.isDarkMode ? 'dark-mode' : '');
@@ -57,7 +60,7 @@ class CheckInPage {
 
     hideLoading() {
         const loadingContainer = document.getElementById('loading-container');
-        const mainContent = document.querySelector('.transcript-page');
+        const mainContent = document.querySelector('.checkin-page');
         if (loadingContainer) {
             loadingContainer.style.display = 'none';
         }
@@ -139,21 +142,23 @@ class CheckInPage {
         }
 
         try {
-            const response = await fetch('/check-ins', {
+            // Use the correct API endpoint
+            const response = await fetch(`/api/checkin/${this.checkInId}`, {
                 headers: {
                     'ngrok-skip-browser-warning': 'true'
                 }
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch check-ins');
+                throw new Error(`Failed to fetch check-in: ${response.status} ${response.statusText}`);
             }
 
-            const checkIns = await response.json();
-            this.checkIn = checkIns.find(ci => ci.id.toString() === this.checkInId);
+            const result = await response.json();
 
-            if (!this.checkIn) {
-                console.error('Check-in not found');
+            if (result.status === 'success' && result.data) {
+                this.checkIn = result.data;
+            } else {
+                console.error('Check-in not found or invalid response:', result);
             }
         } catch (error) {
             console.error('Error fetching check-in:', error);
@@ -161,10 +166,11 @@ class CheckInPage {
     }
 
     render() {
+
         // Update page title
         const pageTitle = document.getElementById('page-title');
         if (pageTitle) {
-            pageTitle.textContent = `Call Transcript - Check-in #${this.checkIn.id.toString().padStart(2, '0')}`;
+            pageTitle.textContent = `Check-in #${this.checkIn.id.toString().padStart(2, '0')}`;
         }
 
         // Render check-in details
@@ -175,6 +181,11 @@ class CheckInPage {
 
         // Render transcript
         this.renderTranscript();
+
+        // Render load information if available
+        if (this.checkIn.check_in_metadata) {
+            this.renderLoadInfo();
+        }
 
         // Render AI summary if available
         if (this.checkIn.AI_Response_Summary) {
@@ -286,18 +297,36 @@ class CheckInPage {
         if (!statusContainer) return;
 
         const issueFlagged = this.checkIn.Issue_Flagged || false;
-        const requiresReview = this.checkIn.Requires_Human_Review || false;
+        const isCallTransferred = this.checkIn.call_trasfered || false;
+        const isCallActive = this.checkIn.is_active || false;
 
-        statusContainer.innerHTML = `
-            <div class="status-item ${issueFlagged ? 'flagged' : 'normal'}">
-                <span class="status-label">Issue Flagged:</span>
-                <span class="status-value">${issueFlagged ? 'Yes' : 'No'}</span>
-            </div>
-            <div class="status-item ${requiresReview ? 'review' : 'normal'}">
-                <span class="status-label">Human Review:</span>
-                <span class="status-value">${requiresReview ? 'Yes' : 'No'}</span>
+        let statusHTML = '';
+
+        // Issue Flagged Status
+        statusHTML += `
+            <div class="info-item">
+                <span class="info-label">Issue Flagged:</span>
+                <span class="info-value ${issueFlagged ? 'status-flagged' : 'status-completed'}">${issueFlagged ? 'Yes' : 'No'}</span>
             </div>
         `;
+
+        // Call Transfer Status
+        statusHTML += `
+            <div class="info-item">
+                <span class="info-label">Call Transferred:</span>
+                <span class="info-value ${isCallTransferred ? 'status-transferred' : 'status-completed'}">${isCallTransferred ? 'Yes' : 'No'}</span>
+            </div>
+        `;
+
+        // Call Status (Active/Completed)
+        statusHTML += `
+            <div class="info-item">
+                <span class="info-label">Call Status:</span>
+                <span class="info-value ${isCallActive ? 'status-active' : 'status-completed'}">${isCallActive ? 'Active' : 'Completed'}</span>
+            </div>
+        `;
+
+        statusContainer.innerHTML = statusHTML;
     }
 
     renderTranscript() {
@@ -352,6 +381,70 @@ class CheckInPage {
         transcriptContainer.innerHTML = transcriptHTML;
     }
 
+    renderLoadInfo() {
+        const loadInfoCard = document.getElementById('load-info-card');
+        const loadInfoContent = document.getElementById('load-info-content');
+        
+        if (loadInfoCard && loadInfoContent) {
+            try {
+                const metadata = JSON.parse(this.checkIn.check_in_metadata);
+                
+                if (metadata.form) {
+                    loadInfoCard.style.display = 'block';
+                    
+                    // Clean up the form JSON string before parsing
+                    let formString = metadata.form.trim();
+                    
+                    // Remove trailing comma if it exists
+                    if (formString.endsWith(',')) {
+                        formString = formString.slice(0, -1);
+                    }
+                    
+                    // Remove any trailing whitespace and commas from the end of the object
+                    formString = formString.replace(/,\s*}$/, '}');
+                    
+                    // Parse the cleaned form data
+                    const formData = JSON.parse(formString);
+                    let loadInfoHTML = '';
+                    
+                    // Dynamically render all form fields
+                    Object.entries(formData).forEach(([key, value]) => {
+                        // Create a user-friendly label from the key
+                        const displayLabel = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        
+                        // Format the value
+                        let displayValue = this.escapeHtml(String(value));
+                        
+                        // Special formatting for common patterns
+                        if (key.toLowerCase().includes('tracking') && (value === 'Y' || value === 'Yes' || value === true)) {
+                            displayValue = 'Yes';
+                        } else if (key.toLowerCase().includes('tracking') && (value === 'N' || value === 'No' || value === false)) {
+                            displayValue = 'No';
+                        }
+                        
+                        loadInfoHTML += `
+                            <div class="info-item">
+                                <span class="info-label">
+                                    <i class="fas fa-info-circle" style="margin-right: 6px; color: #63b3ed;"></i>
+                                    ${displayLabel}:
+                                </span>
+                                <span class="info-value">${displayValue}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    loadInfoContent.innerHTML = loadInfoHTML;
+                } else {
+                    console.log('No form data found in metadata');
+                }
+            } catch (error) {
+                console.error('Error parsing load info data:', error);
+                console.log('Check-in metadata:', this.checkIn.check_in_metadata);
+                console.log('Form string after cleanup:', metadata?.form);
+            }
+        }
+    }
+
     renderAISummary() {
         const summaryCard = document.getElementById('ai-summary-card');
         const summaryContent = document.getElementById('ai-summary-content');
@@ -359,62 +452,6 @@ class CheckInPage {
         if (summaryCard && summaryContent) {
             summaryCard.style.display = 'block';
             summaryContent.innerHTML = `<p>${this.escapeHtml(this.checkIn.AI_Response_Summary)}</p>`;
-        }
-    }
-
-    renderFormData() {
-        const formCard = document.getElementById('form-card');
-        const formContent = document.getElementById('form-content');
-        
-        if (formCard && formContent) {
-            try {
-                const metadata = JSON.parse(this.checkIn.check_in_metadata);
-                
-                if (metadata.form) {
-                    formCard.style.display = 'block';
-                    
-                    // Parse the form data (it's a JSON string within the metadata)
-                    const formData = JSON.parse(metadata.form);
-                    let formHTML = '<div class="form-grid">';
-                    
-                    // Define a mapping for better display names
-                    const fieldMapping = {
-                        'load_id': 'Load ID',
-                        'trucker_name': 'Driver Name',
-                        'contact_phone': 'Contact Phone',
-                        'pickup_address': 'Pickup Address',
-                        'driver_type': 'Driver Type',
-                        'tractor_number': 'Tractor Number',
-                        'trailer_number': 'Trailer Number',
-                        'required_equipment': 'Required Equipment',
-                        'preferred_comms': 'Preferred Communication',
-                        'tracking_on': 'Tracking Enabled'
-                    };
-                    
-                    Object.entries(formData).forEach(([key, value]) => {
-                        // Use mapping if available, otherwise format the key
-                        const displayKey = fieldMapping[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        
-                        // Format specific values
-                        let displayValue = String(value);
-                        if (key === 'tracking_on') {
-                            displayValue = value === 'Y' ? 'Yes' : 'No';
-                        }
-                        
-                        formHTML += `
-                            <div class="form-item">
-                                <span class="form-label">${displayKey}</span>
-                                <span class="form-value">${this.escapeHtml(displayValue)}</span>
-                            </div>
-                        `;
-                    });
-                    
-                    formHTML += '</div>';
-                    formContent.innerHTML = formHTML;
-                }
-            } catch (error) {
-                console.error('Error parsing form data:', error);
-            }
         }
     }
 
@@ -441,7 +478,9 @@ class CheckInPage {
                         'ETA_to_shipper': 'ETA to Shipper',
                         'Confirmed_equipment': 'Equipment Confirmed',
                         'Tracking_started': 'Tracking Started',
-                        'door number': 'Door Number'
+                        'door number': 'Door Number',
+                        'call_transferred': 'Call Transferred',
+                        'transfer_reason': 'Transfer Reason'
                     };
                     
                     // Define field order for better presentation
@@ -452,6 +491,8 @@ class CheckInPage {
                         'ETA_to_shipper',
                         'Confirmed_equipment',
                         'Tracking_started',
+                        'call_transferred',
+                        'transfer_reason',
                         'door number'
                     ];
                     
@@ -465,9 +506,10 @@ class CheckInPage {
                             let displayValue = value;
                             let statusClass = '';
                             
-                            if (typeof value === 'boolean') {
-                                displayValue = value ? 'Yes' : 'No';
-                                statusClass = value ? 'status-success' : 'status-warning';
+                            if (typeof value === 'boolean' || key === 'call_transferred') {
+                                const boolValue = value === true || value === 'true' || value === 'Y';
+                                displayValue = boolValue ? 'Yes' : 'No';
+                                statusClass = boolValue ? 'status-success' : (key === 'call_transferred' ? 'status-info' : 'status-warning');
                             } else if (key === 'door number' && (value === 'None' || value === null || value === '')) {
                                 displayValue = 'Not provided';
                                 statusClass = 'status-warning';
@@ -609,5 +651,9 @@ class CheckInPage {
 
 // Initialize the page when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new CheckInPage();
+    // Add a small delay to ensure all elements are rendered
+    setTimeout(() => {
+        const checkInPage = new CheckInPage();
+        checkInPage.init();
+    }, 100);
 }); 

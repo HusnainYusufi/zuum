@@ -25,7 +25,7 @@ This project provides an automated system for handling freight broker voice call
 ```
 voice_freight_broker/
 ├── templates/              # HTML templates for web interface
-│   ├── dashboard.html     # Main monitoring dashboard
+│   ├── transit-dashboard.html     # Main monitoring dashboard
 │   └── checkin.html       # Driver check-in interface
 ├── services/
 │   └── langrapghs/        # LangGraph workflows
@@ -84,7 +84,7 @@ chmod +x docker-scripts.sh
 ```
 
 The application will be available at:
-- Web Dashboard: http://localhost:8000/dashboard
+- Web Dashboard: http://localhost:8000/transit-dashboard
 - Check-in Interface: http://localhost:8000/checkin
 - API Documentation: http://localhost:8000/docs
 - Ngrok Dashboard: http://localhost:4040 (for webhook inspection)
@@ -180,7 +180,7 @@ docker-scripts.bat help      # Show all commands
 
 The application provides two main web interfaces:
 
-### Dashboard (`/dashboard`)
+### Dashboard (`/transit-dashboard`)
 - Real-time monitoring of journeys and stops
 - View active trips and their current state
 - Check recent notifications and alerts

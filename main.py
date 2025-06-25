@@ -127,7 +127,7 @@ class CheckInResponse(BaseModel):
     Issue_Flagged: bool = False
     Exception_Type: Optional[str] = None
     Call_confidence_score: Optional[str] = None
-    Requires_Human_Review: bool = False
+    call_trasfered: bool = False
     Tags: Optional[str] = None
     stop_name: Optional[str] = None
     stop_location: Optional[str] = None
@@ -136,6 +136,7 @@ class CheckInResponse(BaseModel):
     call_transcript: Optional[str] = None
     recording_url: Optional[str] = None
     check_in_metadata: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class FeedbackRequest(BaseModel):
     feedbackType: str
@@ -378,7 +379,7 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 Issue_Flagged=check_in.Issue_Flagged,
                 Exception_Type=check_in.Exception_Type,
                 Call_confidence_score=check_in.Call_confidence_score,
-                Requires_Human_Review=check_in.Requires_Human_Review,
+                call_trasfered=check_in.call_trasfered,
                 Tags=check_in.Tags,
                 stop_name=stop_name,
                 stop_location=stop_location,
@@ -386,7 +387,8 @@ async def get_check_ins(db: Session = Depends(get_db)):
                 call_id=retell_call.call_id if retell_call else None,
                 call_transcript=retell_call.call_transcript if retell_call else None,
                 recording_url=retell_call.recording_url if retell_call else None,
-                check_in_metadata=retell_call.check_in_metadata if retell_call else None
+                check_in_metadata=retell_call.check_in_metadata if retell_call else None,
+                is_active=check_in.is_active
             ))
         print(result)
         return result

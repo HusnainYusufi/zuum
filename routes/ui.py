@@ -36,10 +36,10 @@ async def get_journey_state():
     journey = db.query(Journey).filter(Journey.id == 1).first()
     return journey.current_state
 
-@router.get("/dashboard", response_class=HTMLResponse)
+@router.get("/transit-dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     """Serve the stakeholder dashboard page"""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse("transit-dashboard.html", {"request": request})
 
 @router.get("/checkin/{check_in_id}", response_class=HTMLResponse)
 async def checkin_page(request: Request, check_in_id: int):
@@ -50,6 +50,11 @@ async def checkin_page(request: Request, check_in_id: int):
 async def test_forms_chat_page(request: Request):
     """Serve the test forms chat interface page"""
     return templates.TemplateResponse("test_forms_chat.html", {"request": request})
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def checkin_dashboard_page(request: Request):
+    """Serve the checkin dashboard page"""
+    return templates.TemplateResponse("checkin_dashboard.html", {"request": request})
 
 
 
