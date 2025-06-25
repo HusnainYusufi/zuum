@@ -645,16 +645,21 @@ async def retell_recording_webhook(request: dict = Body(...)):
         elif request.get("event") == "call_analyzed":
             call_data = request.get("call", {})
             
-            # Extract call_id, recording_url, and transcript
+            # Extract call_id, recording_url, transcript, and call_analysis
             call_id = call_data.get("call_id")
             recording_url = call_data.get("recording_url")
             transcript = call_data.get("transcript")
+            call_analysis = call_data.get("call_analysis", {})
             
             logger.info(f"Call analyzed - Call ID: {call_id}, Recording URL: {recording_url}")
             
             # Find the RetellCall record with this call_id and update it
+            retell_call = None
+            check_in = None
+            
             if call_id:
                 retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
+                
                 if retell_call:
                     # Update with recording URL and transcript
                     if recording_url:
@@ -662,19 +667,129 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     if transcript:
                         retell_call.call_transcript = transcript
                     retell_call.call_status = "completed"
-                    db.commit()
+                    
+                    # Get associated check-in if it exists
+                    if retell_call.check_in_id:
+                        check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
+                    
                     logger.info(f"Updated RetellCall with recording_url and transcript from call_analyzed")
                 else:
                     # Create new RetellCall record if it doesn't exist
-                    new_retell_call = RetellCall(
+                    retell_call = RetellCall(
                         call_id=call_id,
                         recording_url=recording_url,
                         call_transcript=transcript,
                         call_status="completed"
                     )
-                    db.add(new_retell_call)
-                    db.commit()
+                    db.add(retell_call)
+                    db.flush()  # Get the ID
                     logger.info(f"Created new RetellCall from call_analyzed with call_id: {call_id}")
+                
+                # Extract and store custom_analysis_data
+                custom_analysis_data = call_analysis.get("custom_analysis_data", {})
+                logger.info(f"Call analysis data: {call_analysis}")
+                if custom_analysis_data:
+                    logger.info(f"Processing custom_analysis_data: {custom_analysis_data}")
+                    
+                                        # If no check-in exists, create one
+                    if not check_in:
+                        check_in = CheckIn(
+                            AI_Timestamp=datetime.now().isoformat(),
+                            Issue_Flagged=False,
+                            call_trasfered=False,
+                            is_active=False  # Set to False since call is analyzed and complete
+                        )
+                        db.add(check_in)
+                        db.flush()  # Get the check_in ID
+                        
+                        # Link the RetellCall to the CheckIn
+                        retell_call.check_in_id = check_in.id
+                    
+                    # Extract load_id and stop_id from retell_llm_dynamic_variables if available (for both new and existing check-ins)
+                    if 'retell_llm_dynamic_variables' in call_data:
+                        try:
+                            # Extract from form field if it's a JSON string
+                            form_str = call_data['retell_llm_dynamic_variables'].get('form', '{}')
+                            if isinstance(form_str, str):
+                                form_data = json.loads(form_str)
+                            else:
+                                form_data = form_str or {}
+                            
+                            if 'load_id' in form_data and not check_in.load_id:
+                                check_in.load_id = form_data['load_id']
+                            
+                            # Also check for stop_id directly in retell_llm_dynamic_variables
+                            dynamic_vars = call_data['retell_llm_dynamic_variables']
+                            if 'stop_id' in dynamic_vars and not check_in.stop_id:
+                                check_in.stop_id = int(dynamic_vars['stop_id'])
+                            elif 'id' in dynamic_vars and not check_in.stop_id:
+                                check_in.stop_id = int(dynamic_vars['id'])
+                        except Exception as e:
+                            logger.warning(f"Could not parse form data from metadata: {e}")
+                    
+                    # Update CheckIn fields from custom_analysis_data
+                    if 'issue_flagged' in custom_analysis_data:
+                        check_in.Issue_Flagged = custom_analysis_data['issue_flagged']
+                    
+                    if 'call_confidence_score' in custom_analysis_data:
+                        check_in.Call_confidence_score = custom_analysis_data['call_confidence_score']
+                    
+                    if 'exception_type' in custom_analysis_data:
+                        exception_type = custom_analysis_data['exception_type']
+                        # Only store if it's not "N/A" or empty
+                        if exception_type and exception_type != "N/A":
+                            check_in.Exception_Type = exception_type
+                    
+                    if 'tags' in custom_analysis_data:
+                        tags = custom_analysis_data['tags']
+                        # Only store if it's not "N/A" or empty
+                        if tags and tags != "N/A":
+                            check_in.Tags = tags
+                    
+                    if '_a_i__response__summary' in custom_analysis_data:
+                        check_in.AI_Response_Summary = custom_analysis_data['_a_i__response__summary']
+                        check_in.AI_Timestamp = datetime.now().isoformat()
+                    
+                    # Store the output field and other custom data in metadata
+                    check_in_metadata = {}
+                    if retell_call.check_in_metadata:
+                        try:
+                            check_in_metadata = json.loads(retell_call.check_in_metadata)
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Store the entire custom_analysis_data in metadata
+                    check_in_metadata['custom_analysis_data'] = custom_analysis_data
+                    
+                    # If there's an output field, store it separately for easier access
+                    if 'output' in custom_analysis_data:
+                        check_in_metadata['output'] = custom_analysis_data['output']
+                    
+                    retell_call.check_in_metadata = json.dumps(check_in_metadata)
+                    
+                    # Mark check-in as inactive since analysis is complete
+                    check_in.is_active = False
+                    
+                    logger.info(f"Updated check-in {check_in.id} with custom_analysis_data")
+                
+                # Store retell_llm_dynamic_variables in metadata if not already stored
+                if 'retell_llm_dynamic_variables' in call_data:
+                    existing_metadata = {}
+                    if retell_call.check_in_metadata:
+                        try:
+                            existing_metadata = json.loads(retell_call.check_in_metadata)
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    if 'retell_llm_dynamic_variables' not in existing_metadata:
+                        existing_metadata['retell_llm_dynamic_variables'] = call_data['retell_llm_dynamic_variables']
+                        retell_call.check_in_metadata = json.dumps(existing_metadata)
+                
+                db.commit()
+                
+                # Send notification about the check-in update if we have a check-in
+                if check_in and check_in.stop_id:
+                    send_checkin_notification(check_in, check_in.stop_id, db)
             
             return {"status": "success", "message": "Call analyzed webhook processed successfully"}
         
