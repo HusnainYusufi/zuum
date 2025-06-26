@@ -3,6 +3,7 @@ class CheckInPage {
         this.checkIn = null;
         this.checkInId = this.getCheckInIdFromUrl();
         this.isDarkMode = true;
+        this.websocket = null;
         // Don't call init() here - it will be called after DOM is ready
     }
 
@@ -21,28 +22,352 @@ class CheckInPage {
         // Show loading spinner
         this.showLoading();
 
-        // Check call status first
-        const callStatus = await this.checkCallStatus();
+        // Connect to WebSocket for real-time updates
+        this.connectWebSocket();
+
+        // Fetch check-in data first to determine current state
+        await this.fetchCheckIn();
         
-        if (callStatus === 'in_progress') {
-            // Show call progress overlay and start polling
-            this.showCallProgress();
-            await this.pollCallStatus();
-        } else {
-            // Fetch check-in data directly
-            await this.fetchCheckIn();
+        // Debug logging
+        console.log('Check-in data loaded:', {
+            id: this.checkIn?.id,
+            call_status: this.checkIn?.call_status,
+            has_AI_Response: !!this.checkIn?.AI_Response_Summary,
+            AI_Response_length: this.checkIn?.AI_Response_Summary?.length || 0,
+            call_transcript: !!this.checkIn?.call_transcript,
+            user_picked_up: this.checkIn?.user_picked_up
+        });
+
+        // Hide loading spinner first
+        this.hideLoading();
+
+        // PRIORITY 1: If we have AI response or transcript, render content immediately
+        if (this.checkIn && (this.checkIn.AI_Response_Summary || this.checkIn.call_transcript)) {
+            console.log('Rendering content immediately - analysis data available');
+            this.hideCallProgress();
+            this.render();
+            return;
         }
 
-        // Hide loading spinner and call progress overlay
-        this.hideLoading();
-        this.hideCallProgress();
+        // PRIORITY 2: If call status is analyzed, render content
+        if (this.checkIn && this.checkIn.call_status === 'analyzed') {
+            console.log('Rendering content - call status is analyzed');
+            this.hideCallProgress();
+            this.render();
+            return;
+        }
 
-        // Render the page
+        // PRIORITY 3: If call is completed but no analysis data, check for additional status
+        if (this.checkIn && this.checkIn.call_status === 'completed') {
+            console.log('Call completed - checking if transcript/analysis is available');
+            
+            // Give it a moment to check for recent updates
+            setTimeout(async () => {
+                await this.fetchCheckIn();
+                if (this.checkIn && (this.checkIn.AI_Response_Summary || this.checkIn.call_transcript)) {
+                    console.log('Found analysis data after refresh - rendering content');
+                    this.hideCallProgress();
+                    this.render();
+                } else {
+                    console.log('No analysis data found - showing basic content');
+                    this.hideCallProgress();
+                    this.render(); // Render basic content even without full analysis
+                }
+            }, 1000);
+            
+            // For now, show call progress while we check
+            this.showCallProgress();
+            return;
+        }
+
+        // PRIORITY 4: If call is in progress, show progress overlay and poll
+        if (this.checkIn && this.checkIn.call_status === 'in_progress') {
+            console.log('Call in progress - showing progress overlay');
+            this.showCallProgress();
+            
+            // Start polling for updates
+            const callStatus = await this.checkCallStatus();
+            if (callStatus === 'in_progress') {
+                await this.pollCallStatus();
+            }
+            return;
+        }
+
+        // PRIORITY 5: Default case - render whatever we have
         if (this.checkIn) {
+            console.log('Rendering available content - default case');
+            this.hideCallProgress();
             this.render();
         } else {
+            console.log('No check-in data available');
+            this.hideCallProgress();
             this.renderNoData();
         }
+    }
+
+    connectWebSocket() {
+        try {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+            
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = (event) => {
+                console.log('WebSocket connected for check-in page');
+            };
+            
+            this.websocket.onmessage = (event) => {
+                try {
+                    const notification = JSON.parse(event.data);
+                    console.log('Received notification:', notification);
+                    
+                    // Handle different types of notifications
+                    if (notification.type === 'check_in_update') {
+                        this.handleCheckInUpdate(notification.data);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            this.websocket.onclose = (event) => {
+                console.log('WebSocket connection closed. Attempting to reconnect...');
+                // Attempt to reconnect after 3 seconds
+                setTimeout(() => this.connectWebSocket(), 3000);
+            };
+            
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            // Send periodic ping to keep connection alive
+            setInterval(() => {
+                if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    this.websocket.send('ping');
+                }
+            }, 30000); // Send ping every 30 seconds
+            
+        } catch (error) {
+            console.error('Error connecting to WebSocket:', error);
+            // Retry connection after 5 seconds
+            setTimeout(() => this.connectWebSocket(), 5000);
+        }
+    }
+
+    handleCheckInUpdate(checkInData) {
+        // Only handle updates for this specific check-in
+        if (checkInData.id != this.checkInId) {
+            return;
+        }
+
+        console.log('Check-in update received for current check-in:', checkInData);
+        
+        // Store previous state
+        const wasActive = this.checkIn ? (this.checkIn.call_status === 'in_progress' || this.checkIn.call_status === 'completed') && !this.checkIn.AI_Response_Summary : false;
+        
+        // Show appropriate notification based on the update type
+        if (checkInData.call_trasfered || checkInData.call_status === 'transferred') {
+            this.showNotification({
+                icon: 'fas fa-phone-alt',
+                title: 'Call transferred',
+                subtitle: 'Call successfully transferred to broker',
+                background: 'linear-gradient(135deg, #48bb78, #68d391)',
+                shadowColor: 'rgba(72, 187, 120, 0.3)'
+            });
+        } else if (checkInData.call_status === 'analyzed' || checkInData.AI_Response_Summary || checkInData.call_transcript) {
+            // Call has been analyzed or has content
+            this.showNotification({
+                icon: 'fas fa-brain',
+                title: 'Call analysis complete',
+                subtitle: 'AI analysis results are now available',
+                background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
+                shadowColor: 'rgba(66, 153, 225, 0.3)'
+            });
+            
+            // Hide progress and show main content immediately
+            this.hideCallProgress();
+            this.render(); // Render immediately, no delay
+        } else if ((checkInData.call_status === 'in_progress' || checkInData.call_status === 'completed') && !checkInData.AI_Response_Summary) {
+            // Call was just made or in progress
+            this.showNotification({
+                icon: 'fas fa-phone',
+                title: 'Call in progress',
+                subtitle: 'Please wait while the call is being processed',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                shadowColor: 'rgba(59, 130, 246, 0.3)'
+            });
+            
+            // Show call progress if not already showing
+            if (!wasActive) {
+                this.showCallProgress();
+            }
+        } else if (checkInData.call_status === 'completed') {
+            // Call is completed - always render content
+            this.showNotification({
+                icon: 'fas fa-check-circle',
+                title: 'Call completed',
+                subtitle: 'Call processing finished',
+                background: 'linear-gradient(135deg, #10b981, #34d399)',
+                shadowColor: 'rgba(16, 185, 129, 0.3)'
+            });
+            
+            // Always render content for completed calls
+            this.hideCallProgress();
+            this.render();
+        }
+        
+        // Refresh the check-in data silently
+        this.refreshCheckInSilently();
+    }
+
+    async refreshCheckInSilently() {
+        try {
+            console.log('Refreshing check-in data silently...');
+            const oldCheckIn = this.checkIn;
+            await this.fetchCheckIn();
+            
+            // Check for state transitions
+            if (oldCheckIn && this.checkIn) {
+                const wasActive = (oldCheckIn.call_status === 'in_progress' || oldCheckIn.call_status === 'completed') && !oldCheckIn.AI_Response_Summary;
+                const isActive = (this.checkIn.call_status === 'in_progress' || this.checkIn.call_status === 'completed') && !this.checkIn.AI_Response_Summary;
+                const isAnalyzed = this.checkIn.call_status === 'analyzed' || this.checkIn.AI_Response_Summary;
+                
+                // If call went from active to analyzed with AI response, transition to main view
+                if (wasActive && isAnalyzed) {
+                    console.log('Call analysis completed, transitioning to main view');
+                    setTimeout(() => {
+                        this.hideCallProgress();
+                        this.render();
+                    }, 1000);
+                    return;
+                }
+                
+                // If call became active, show progress view
+                if (!wasActive && isActive) {
+                    console.log('Call became active, showing progress view');
+                    this.showCallProgress();
+                    return;
+                }
+            }
+            
+            // Only re-render if the page is currently showing content (analyzed state)
+            if (this.checkIn && (this.checkIn.call_status === 'analyzed' || this.checkIn.AI_Response_Summary)) {
+                this.render();
+                console.log('Check-in data refreshed successfully');
+            }
+        } catch (error) {
+            console.error('Error refreshing check-in data:', error);
+        }
+    }
+
+    showNotification({ icon, title, subtitle, background, shadowColor }) {
+        // Create a notification
+        const notification = document.createElement('div');
+        notification.className = 'update-notification';
+        notification.innerHTML = `
+            <i class="${icon}"></i>
+            <div class="notification-content">
+                <div class="notification-title">${title}</div>
+                ${subtitle ? `<div class="notification-subtitle">${subtitle}</div>` : ''}
+            </div>
+        `;
+        
+        // Add styling for the notification
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${background};
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px ${shadowColor}, 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            min-width: 280px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        `;
+        
+        // Add CSS animation if not already added
+        if (!document.querySelector('#notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOutRight {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                }
+                @keyframes pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                }
+                .notification-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                }
+                .notification-title {
+                    font-weight: 600;
+                    font-size: 14px;
+                }
+                .notification-subtitle {
+                    font-weight: 400;
+                    font-size: 12px;
+                    opacity: 0.9;
+                }
+                .update-notification i {
+                    font-size: 18px;
+                    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+                    animation: pulse 2s ease-in-out infinite;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Remove notification after 5 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 400);
+        }, 5000);
+        
+        // Allow clicking to dismiss
+        notification.addEventListener('click', () => {
+            notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 400);
+        });
     }
 
     showLoading() {
@@ -108,30 +433,52 @@ class CheckInPage {
     }
 
     async pollCallStatus() {
-        const maxAttempts = 60; // Poll for up to 5 minutes (60 attempts * 5 seconds)
+        const maxAttempts = 30; // Poll for up to 2.5 minutes (30 attempts * 5 seconds)
         let attempts = 0;
 
+        console.log('Starting polling for call status updates...');
+
         while (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds (faster polling)
             attempts++;
 
-            const status = await this.checkCallStatus();
+            console.log(`Poll attempt ${attempts}/${maxAttempts}`);
+
+            // Fetch fresh data each time
+            await this.fetchCheckIn();
             
-            if (status === 'completed') {
-                // Call completed, fetch the check-in data
-                await this.fetchCheckIn();
-                break;
-            } else if (status === 'error' || status === 'no_call') {
-                // Error or no call found, stop polling
+            // Stop immediately if we have any meaningful content
+            if (this.checkIn && (this.checkIn.AI_Response_Summary || this.checkIn.call_transcript || this.checkIn.call_status === 'analyzed' || this.checkIn.call_status === 'completed')) {
+                console.log('Content found during polling - stopping and rendering:', {
+                    has_AI_Response: !!this.checkIn.AI_Response_Summary,
+                    has_transcript: !!this.checkIn.call_transcript,
+                    call_status: this.checkIn.call_status
+                });
+                this.hideCallProgress();
+                this.render();
+                return;
+            }
+
+            // Check external call status
+            const status = await this.checkCallStatus();
+            console.log(`External call status: ${status}`);
+            
+            if (status === 'completed' || status === 'error' || status === 'no_call') {
+                console.log('Call status indicates completion or error - stopping polling');
                 break;
             }
             
             // Continue polling if status is still 'in_progress'
         }
 
-        // If we've exhausted all attempts, still try to fetch data
-        if (attempts >= maxAttempts) {
-            await this.fetchCheckIn();
+        console.log('Polling completed - rendering final content');
+        
+        // Always render content at the end, regardless of what we have
+        this.hideCallProgress();
+        if (this.checkIn) {
+            this.render();
+        } else {
+            this.renderNoData();
         }
     }
 
@@ -298,9 +645,25 @@ class CheckInPage {
 
         const issueFlagged = this.checkIn.Issue_Flagged || false;
         const isCallTransferred = this.checkIn.call_trasfered || false;
-        const isCallActive = this.checkIn.is_active || false;
+        // Use call_status to determine if call is active
+        const isCallActive = this.checkIn.call_status === 'in_progress';
+        const callStatusText = this.getCallStatusText(this.checkIn.call_status);
 
         let statusHTML = '';
+
+        // Phone Pickup Status
+        const userPickedUp = this.checkIn.user_picked_up;
+        const didNotPickUp = (userPickedUp === false || userPickedUp === 'false' || userPickedUp === 'False');
+        const didPickUp = (userPickedUp === true || userPickedUp === 'true' || userPickedUp === 'True');
+        statusHTML += `
+            <div class="info-item">
+                <span class="info-label">
+                    <i class="fas ${didNotPickUp ? 'fa-phone-slash' : 'fa-phone'}" style="margin-right: 6px; color: ${didNotPickUp ? '#fc8181' : '#68d391'};"></i>
+                    Phone Pickup:
+                </span>
+                <span class="info-value ${didNotPickUp ? 'status-flagged' : 'status-completed'}">${didNotPickUp ? 'No Answer' : didPickUp ? 'Answered' : 'Unknown'}</span>
+            </div>
+        `;
 
         // Issue Flagged Status
         statusHTML += `
@@ -318,15 +681,44 @@ class CheckInPage {
             </div>
         `;
 
-        // Call Status (Active/Completed)
+        // Call Status (using actual call_status from database)
         statusHTML += `
             <div class="info-item">
                 <span class="info-label">Call Status:</span>
-                <span class="info-value ${isCallActive ? 'status-active' : 'status-completed'}">${isCallActive ? 'Active' : 'Completed'}</span>
+                <span class="info-value ${this.getCallStatusClass(this.checkIn.call_status)}">${callStatusText}</span>
             </div>
         `;
 
         statusContainer.innerHTML = statusHTML;
+    }
+
+    getCallStatusText(callStatus) {
+        switch (callStatus) {
+            case 'in_progress':
+                return 'Active';
+            case 'completed':
+                return 'Completed';
+            case 'analyzed':
+                return 'Analyzed';
+            case 'transferred':
+                return 'Transferred';
+            default:
+                return callStatus ? callStatus.charAt(0).toUpperCase() + callStatus.slice(1) : 'Unknown';
+        }
+    }
+
+    getCallStatusClass(callStatus) {
+        switch (callStatus) {
+            case 'in_progress':
+                return 'status-active';
+            case 'completed':
+            case 'analyzed':
+                return 'status-completed';
+            case 'transferred':
+                return 'status-transferred';
+            default:
+                return 'status-info';
+        }
     }
 
     renderTranscript() {
@@ -955,5 +1347,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         const checkInPage = new CheckInPage();
         checkInPage.init();
+        
+        // Clean up WebSocket connection when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (checkInPage.websocket) {
+                checkInPage.websocket.close();
+            }
+        });
     }, 100);
 }); 

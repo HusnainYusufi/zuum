@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 import json
 from services.prompt_config.prompt_config import prompt_config
 import logging
-from sqlalchemy.orm import Session
-from db_models import get_db, CheckIn, RetellCall, Stop
+
+# Replace old database imports with new Supabase service
+from services.supabase import supabase_service
 from services.notification_service import notify_check_in_update
 import asyncio
 
@@ -36,9 +37,17 @@ RETELL_API_URL = "https://api.retellai.com/v2/create-phone-call"
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# Silence noisy HTTP libraries if you want to use DEBUG level
+# Uncomment these lines if you change back to DEBUG level:
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING) 
+logging.getLogger('h11').setLevel(logging.WARNING)
+logging.getLogger('h2').setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
@@ -181,7 +190,7 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
 
 async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_data: dict = None):
     """
-    Create a check-in entry directly in the database with associated RetellCall.
+    Create a check-in entry using Supabase service with associated RetellCall.
     
     Args:
         call_id: The Retell call ID
@@ -193,10 +202,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
         Dictionary with check-in creation result
     """
     try:
-        # Get DB session
-        db = next(get_db())
-        
-        # Determine stop_id based on form_type
+        # Determine stop_id based on form_type (keeping for backward compatibility)
         stop_id_mapping = {
             "default": 0,
             "at_pickup": 1,
@@ -208,87 +214,106 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
         }
         stop_id = stop_id_mapping.get(form_type, 0)
         
-        # Create a new empty check-in instance
-        new_checkin = CheckIn(
-            stop_id=stop_id,
-            load_id=load_id,
-            query=None,
-            AI_Response_Summary=None,
-            AI_Timestamp=datetime.now().isoformat(),
-            Issue_Flagged=False,
-            Exception_Type=None,
-            Call_confidence_score=None,
-            call_trasfered=False,
-            Tags=None,
-            miles=None,
-            is_active=True,
-            forms=json.dumps(form_data) if form_data else None
-        )
+        # Prepare check-in data for Supabase
+        check_in_data = {
+            "load_id": load_id,
+            "AI_Response_Summary": None,
+            "AI_Timestamp": datetime.now().isoformat(),
+            "Issue_Flagged": False,
+            "Exception_Type": None,
+            "Confidence_score": None,
+            "forms": form_data or {},
+            "call_status": "in_progress",
+            "tags": [form_type] if form_type else [],
+            "user_picked_up": False
+        }
         
-        # Add to database session and commit to get the ID
-        db.add(new_checkin)
-        db.flush()  # Flush to get the check-in ID without committing yet
+        # Create check-in using Supabase service
+        checkin_result = await supabase_service.create_check_in(check_in_data)
+        
+        if not checkin_result["success"]:
+            logger.error(f"Failed to create check-in: {checkin_result['error']}")
+            return {
+                "status": "error",
+                "message": f"Error creating check-in: {checkin_result['error']}"
+            }
+        
+        new_checkin = checkin_result["data"]
         
         # Log form data storage
         if form_data:
-            logger.info(f"Storing form data for check-in {new_checkin.id}: {json.dumps(form_data, indent=2)}")
+            logger.info(f"Storing form data for check-in {new_checkin['id']}: {json.dumps(form_data, indent=2)}")
         
-        # Create RetellCall row associated with this check-in
-        new_retell_call = RetellCall(
-            check_in_id=new_checkin.id,
-            call_id=call_id,
-            call_transcript=None,
-            recording_url=None,
-            check_in_metadata=None
-        )
-        
-        db.add(new_retell_call)
-        db.commit()
-        db.refresh(new_checkin)
-        db.refresh(new_retell_call)
-        
-        logger.info(f"Created new check-in with ID: {new_checkin.id} and RetellCall with call_id: {call_id}")
-        if form_data:
-            logger.info(f"Form data successfully stored for check-in {new_checkin.id}")
-        
-        # Get stop information if stop_id is provided
-        stop = None
-        if stop_id:
-            stop = db.query(Stop).filter(Stop.id == stop_id).first()
-        
-        # Prepare notification data
-        check_in_data = {
-            'id': new_checkin.id,
-            'stop_id': new_checkin.stop_id,
-            'load_id': new_checkin.load_id,
-            'query': new_checkin.query,
-            'AI_Response_Summary': new_checkin.AI_Response_Summary,
-            'AI_Timestamp': new_checkin.AI_Timestamp,
-            'Issue_Flagged': new_checkin.Issue_Flagged,
-            'Exception_Type': new_checkin.Exception_Type,
-            'Call_confidence_score': new_checkin.Call_confidence_score,
-            'call_trasfered': new_checkin.call_trasfered,
-            'is_active': new_checkin.is_active,
-            'Tags': new_checkin.Tags,
-            'stop_name': stop.name if stop else None,
-            'stop_location': stop.location if stop else None,
-            'stop_eta': stop.eta if stop else None
+        # Create RetellCall record associated with this check-in
+        retell_call_data = {
+            "check_in_id": new_checkin["id"],
+            "call_id": call_id,
+            "call_transcript": None,
+            "recording_url": None,
+            "output_data": {"form_type": form_type}
         }
         
-        # Send notification asynchronously
+        call_result = await supabase_service.create_retell_call(retell_call_data)
+        
+        if not call_result["success"]:
+            logger.error(f"Failed to create retell call: {call_result['error']}")
+            # Don't fail the request, just log the error
+        
+        logger.info(f"Created new check-in with ID: {new_checkin['id']} and RetellCall with call_id: {call_id}")
+        if form_data:
+            logger.info(f"Form data successfully stored for check-in {new_checkin['id']}")
+        
+        # Prepare notification data for backward compatibility
+        check_in_data_notification = {
+            'id': new_checkin['id'],
+            'stop_id': stop_id,  # Use mapped stop_id for notification
+            'load_id': new_checkin['load_id'],
+            'query': None,
+            'AI_Response_Summary': new_checkin.get('ai_response_summary'),
+            'AI_Timestamp': new_checkin.get('ai_timestamp'),
+            'Issue_Flagged': new_checkin.get('issue_flagged', False),
+            'Exception_Type': new_checkin.get('exception_type'),
+            'Call_confidence_score': new_checkin.get('confidence_score'),
+            'call_trasfered': new_checkin.get('call_status') == 'transferred',
+            'is_active': True,  # Mark as active since call was just initiated
+            'Tags': new_checkin.get('tags', []),
+            'stop_name': None,  # TODO: Add stop service if needed
+            'stop_location': None,
+            'stop_eta': None
+        }
+        
+        # Send notification asynchronously - call initiated
         try:
-            await notify_check_in_update(check_in_data)
-            logger.info(f"Sent notification for check-in {new_checkin.id}")
+            await notify_check_in_update(check_in_data_notification)
+            logger.info(f"Sent call-initiated notification for check-in {new_checkin['id']}")
         except Exception as e:
             logger.warning(f"Could not send notification: {e}")
             # Don't fail the request if notification fails
         
+        # Also create a notification record in the database
+        notification_data = {
+            "message": f"New {form_type.replace('_', ' ').title()} check-in created for load {load_id}",
+            "notification_type": "check_in_created",
+            "severity": "info",
+            "check_in_id": new_checkin['id'],
+            "metadata": {
+                "load_id": load_id,
+                "form_type": form_type,
+                "stop_id": stop_id
+            }
+        }
+        
+        try:
+            await supabase_service.create_notification(notification_data)
+        except Exception as e:
+            logger.warning(f"Could not create notification record: {e}")
+        
         # Generate the link to the checkin page
-        checkin_page_link = f"/checkin/{new_checkin.id}"
+        checkin_page_link = f"/checkin/{new_checkin['id']}"
         
         return {
             "status": "success",
-            "checkin_id": new_checkin.id,
+            "checkin_id": new_checkin['id'],
             "checkin_page_link": checkin_page_link,
             "message": "Check-in created successfully",
             "form_data_stored": bool(form_data)

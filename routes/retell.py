@@ -30,6 +30,7 @@ import os
 import json
 from db_models import RetellCall
 from services.notification_service import notify_stop_update, notify_check_in_update, notify_journey_state_update, send_notification
+from services.supabase import SupabaseService
 
 class ChangeStateRequest(BaseModel):
     state: int
@@ -53,38 +54,67 @@ db = next(get_db())
 
 
 
-def send_checkin_notification(check_in_record: CheckIn, stop_id: int, db_session: Session = None):
-    """Send notification about new check-in"""
+def send_checkin_notification_legacy(check_in_record: CheckIn, stop_id: int, db_session: Session = None):
+    """Legacy function - replaced by send_supabase_checkin_notification"""
+    send_supabase_checkin_notification(check_in_record)
+
+async def send_supabase_checkin_notification_async(check_in_record: CheckIn):
+    """Send notification about new or updated check-in using Supabase-compatible format (async version)"""
     try:
-        # Get stop information
-        stop = None
-        if db_session:
-            stop = db_session.query(Stop).filter(Stop.id == stop_id).first()
+        # Get the Supabase service instance
+        supabase_service = SupabaseService()
         
-        # Prepare notification data
+        # Check if this check-in exists in the new Supabase database
+        try:
+            # Try to get the check-in from Supabase by load_id since old IDs might not match
+            load_id = getattr(check_in_record, 'load_id', None)
+            if load_id:
+                # Find the corresponding check-in in Supabase by load_id
+                supabase_check_ins = await supabase_service.get_check_ins_by_load_id(load_id)
+                if supabase_check_ins:
+                    # Use the Supabase check-in data for the notification
+                    for supabase_check_in in supabase_check_ins:
+                        check_in_data = supabase_service._format_check_in_for_compatibility(supabase_check_in)
+                        await notify_check_in_update(check_in_data)
+                        logger.info(f"Sent check-in notification for Supabase check-in {supabase_check_in['id']} (load_id: {load_id})")
+                    return
+        except Exception as e:
+            logger.warning(f"Could not find check-in in Supabase database: {e}")
+        
+        # If we can't find it in Supabase, use the SQLAlchemy data but log a warning
+        logger.warning(f"Check-in {check_in_record.id} not found in Supabase database, using legacy data")
+        
+        # Prepare notification data in Supabase-compatible format using SQLAlchemy data
         check_in_data = {
             'id': check_in_record.id,
-            'stop_id': check_in_record.stop_id,
-            'load_id': check_in_record.load_id,
-            'query': check_in_record.query,
-            'AI_Response_Summary': check_in_record.AI_Response_Summary,
-            'AI_Timestamp': check_in_record.AI_Timestamp,
-            'Issue_Flagged': check_in_record.Issue_Flagged,
-            'Exception_Type': check_in_record.Exception_Type,
-            'Call_confidence_score': check_in_record.Call_confidence_score,
-            'call_trasfered': check_in_record.call_trasfered,
-            'is_active': check_in_record.is_active,
-            'Tags': check_in_record.Tags,
-            'stop_name': stop.name if stop else None,
-            'stop_location': stop.location if stop else None,
-            'stop_eta': stop.eta if stop else None
+            'stop_id': getattr(check_in_record, 'stop_id', None),
+            'load_id': getattr(check_in_record, 'load_id', None),
+            'query': getattr(check_in_record, 'query', None),
+            'AI_Response_Summary': getattr(check_in_record, 'AI_Response_Summary', None),
+            'AI_Timestamp': getattr(check_in_record, 'AI_Timestamp', None),
+            'Issue_Flagged': getattr(check_in_record, 'Issue_Flagged', False),
+            'Exception_Type': getattr(check_in_record, 'Exception_Type', None),
+            'Call_confidence_score': getattr(check_in_record, 'Call_confidence_score', None),
+            'call_trasfered': getattr(check_in_record, 'call_trasfered', False),
+            'is_active': getattr(check_in_record, 'is_active', False),
+            'Tags': getattr(check_in_record, 'Tags', None),
+            'stop_name': None,
+            'stop_location': None,
+            'stop_eta': None
         }
         
-        # Send notification
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(notify_check_in_update(check_in_data))
-        loop.close()
+        # Send notification using async method directly
+        await notify_check_in_update(check_in_data)
+        logger.info(f"Sent check-in notification for legacy check-in {check_in_record.id}")
+    except Exception as e:
+        logger.warning(f"Could not send notification: {e}")
+        # Don't fail the request if notification fails
+
+def send_supabase_checkin_notification(check_in_record: CheckIn):
+    """Send notification about new or updated check-in using Supabase-compatible format (sync wrapper)"""
+    try:
+        # For sync contexts, use asyncio.run
+        asyncio.run(send_supabase_checkin_notification_async(check_in_record))
     except Exception as e:
         logger.warning(f"Could not send notification: {e}")
         # Don't fail the request if notification fails
@@ -408,8 +438,109 @@ async def retell_recording_webhook(request: dict = Body(...)):
     try:
         logger.info(f"Received Retell webhook: {request}")
         
+        # Import Supabase service
+        from services.supabase import supabase_service
+        
+        # Check if this is a call_started event  
+        if request.get("event") == "call_started":
+            call_data = request.get("call", {})
+            call_id = call_data.get("call_id")
+            
+            logger.info(f"Call started - Call ID: {call_id}")
+            
+            if call_id:
+                # Find the retell call and get check_in_id
+                try:
+                    call_result = supabase_service.client.table("retell_calls").select("check_in_id").eq("call_id", call_id).execute()
+                    if call_result.data:
+                        check_in_id = call_result.data[0]["check_in_id"]
+                        
+                        # Update check-in to mark user as picked up and set call status to in_progress
+                        update_data = {
+                            "user_picked_up": True,
+                            "call_status": "in_progress"
+                        }
+                        await supabase_service.update_check_in(check_in_id, update_data)
+                        logger.info(f"Marked check-in {check_in_id} as user picked up for call {call_id}")
+                        
+                        # Get updated check-in data for WebSocket notification
+                        updated_checkin_result = await supabase_service.get_check_in(check_in_id)
+                        if updated_checkin_result["success"]:
+                            updated_check_in_data = updated_checkin_result["data"]
+                            
+                            # Send WebSocket notification for call start with updated data
+                            websocket_check_in_data = {
+                                'id': updated_check_in_data['id'],
+                                'stop_id': updated_check_in_data.get('stop_id'),
+                                'load_id': updated_check_in_data.get('load_id'),
+                                'query': None,
+                                'AI_Response_Summary': updated_check_in_data.get('ai_response_summary'),
+                                'AI_Timestamp': updated_check_in_data.get('ai_timestamp'),
+                                'Issue_Flagged': updated_check_in_data.get('issue_flagged', False),
+                                'Exception_Type': updated_check_in_data.get('exception_type'),
+                                'Call_confidence_score': updated_check_in_data.get('confidence_score'),
+                                'call_trasfered': updated_check_in_data.get('call_status') == 'transferred',
+                                'is_active': True,  # Call is now active
+                                'Tags': updated_check_in_data.get('tags'),
+                                'stop_name': None,
+                                'stop_location': None,
+                                'stop_eta': None,
+                                'call_status': 'in_progress',
+                                'user_picked_up': True  # Include this explicitly for dashboard
+                            }
+                            await notify_check_in_update(websocket_check_in_data)
+                            logger.info(f"Sent WebSocket check-in start notification for check-in {check_in_id}")
+                        
+                        # Create notification for call start
+                        notification_data = {
+                            "message": f"Call started for check-in {check_in_id}",
+                            "notification_type": "call_started",
+                            "severity": "info",
+                            "check_in_id": check_in_id,
+                            "metadata": {"call_id": call_id}
+                        }
+                        await supabase_service.create_notification(notification_data)
+                        logger.info(f"Sent call start notification for check-in {check_in_id}")
+                except Exception as e:
+                    logger.error(f"Error handling call start: {e}")
+            
+            return {"status": "success", "message": "Call start webhook processed successfully"}
+        
+        # Check if this is a call_answered event (when user picks up)
+        elif request.get("event") == "call_started":
+            call_data = request.get("call", {})
+            call_id = call_data.get("call_id")
+            
+            logger.info(f"Call answered - Call ID: {call_id}")
+            
+            if call_id:
+                # Find the retell call and get check_in_id
+                try:
+                    call_result = supabase_service.client.table("retell_calls").select("check_in_id").eq("call_id", call_id).execute()
+                    if call_result.data:
+                        check_in_id = call_result.data[0]["check_in_id"]
+                        
+                        # Update check-in to mark user as picked up
+                        await supabase_service.update_check_in(check_in_id, {"user_picked_up": True})
+                        logger.info(f"Marked check-in {check_in_id} as user picked up (answered) for call {call_id}")
+                        
+                        # Create notification for call answered
+                        notification_data = {
+                            "message": f"Call answered for check-in {check_in_id}",
+                            "notification_type": "call_answered",
+                            "severity": "info",
+                            "check_in_id": check_in_id,
+                            "metadata": {"call_id": call_id}
+                        }
+                        await supabase_service.create_notification(notification_data)
+                        logger.info(f"Sent call answered notification for check-in {check_in_id}")
+                except Exception as e:
+                    logger.error(f"Error handling call answered: {e}")
+            
+            return {"status": "success", "message": "Call answered webhook processed successfully"}
+        
         # Check if this is a call_ended event
-        if request.get("event") == "call_ended":
+        elif request.get("event") == "call_ended":
             call_data = request.get("call", {})
             
             # Extract call_id, recording_url, transcript, and disconnection_reason
@@ -420,50 +551,92 @@ async def retell_recording_webhook(request: dict = Body(...)):
             
             logger.info(f"Call ended - Call ID: {call_id}, Recording URL: {recording_url}, Disconnection Reason: {disconnection_reason}")
             
-            # Find the RetellCall record with this call_id and update it
-            retell_call = None
-            check_in = None
-            
             if call_id:
-                retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-                if retell_call:
-                    # Update with recording URL and transcript
-                    retell_call.recording_url = recording_url
+                # Try to get existing retell call from Supabase
+                try:
+                    existing_call_result = supabase_service.client.table("retell_calls").select("*").eq("call_id", call_id).execute()
+                    retell_call_data = existing_call_result.data[0] if existing_call_result.data else None
+                except Exception:
+                    retell_call_data = None
+                
+                check_in_id = None
+                if retell_call_data:
+                    # Update existing retell call
+                    update_data = {}
+                    if recording_url:
+                        update_data["recording_url"] = recording_url
                     if transcript:
-                        retell_call.call_transcript = transcript
-                    retell_call.call_status = "completed"
+                        update_data["call_transcript"] = transcript
                     
-                    # Get associated check-in if it exists
-                    if retell_call.check_in_id:
-                        check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
-                    
-                    logger.info(f"Updated RetellCall with recording_url and transcript")
+                    await supabase_service.update_retell_call(call_id, update_data)
+                    check_in_id = retell_call_data.get("check_in_id")
+                    logger.info(f"Updated existing retell call: {call_id}")
                 else:
-                    # Create new RetellCall record if it doesn't exist
-                    retell_call = RetellCall(
-                        call_id=call_id,
-                        recording_url=recording_url,
-                        call_transcript=transcript,
-                        call_status="completed"
-                    )
-                    db.add(retell_call)
-                    logger.info(f"Created new RetellCall with call_id: {call_id}")
+                    # Create new retell call
+                    retell_call_data = {
+                        "call_id": call_id,
+                        "recording_url": recording_url,
+                        "call_transcript": transcript
+                    }
+                    result = await supabase_service.create_retell_call(retell_call_data)
+                    if result["success"]:
+                        check_in_id = result["data"].get("check_in_id")
+                        logger.info(f"Created new retell call: {call_id}")
                 
-                # Check if call was transferred and update check-in accordingly
-                if disconnection_reason == "call_transfer" and check_in:
-                    check_in.call_trasfered = True
-                    logger.info(f"Marked check-in {check_in.id} as transferred due to call_transfer disconnection")
+                # Handle check-in updates if we have a check_in_id
+                if check_in_id:
+                    check_in_update = {}
                     
-                    # Don't send notification here - wait for call_analyzed event
-                
-                # Mark check-in as inactive since call has ended
-                if check_in:
-                    check_in.is_active = False
-                    logger.info(f"Marked check-in {check_in.id} as inactive since call ended")
-                    
-                    # Don't send notification here - wait for call_analyzed event
-                
-                db.commit()
+                    # Check if call was transferred
+                    if disconnection_reason == "call_transfer":
+                        check_in_update["call_status"] = "transferred"
+                        logger.info(f"Marked check-in {check_in_id} as transferred due to call_transfer disconnection")
+                        
+                        # Update check-in and send notification
+                        await supabase_service.update_check_in(check_in_id, check_in_update)
+                        
+                        # Create notification for transfer
+                        notification_data = {
+                            "message": f"Call transferred for check-in {check_in_id}",
+                            "notification_type": "call_transfer",
+                            "severity": "info",
+                            "check_in_id": check_in_id,
+                            "metadata": {"call_id": call_id, "disconnection_reason": disconnection_reason}
+                        }
+                        await supabase_service.create_notification(notification_data)
+                        
+                        # Send WebSocket notification for transfer
+                        updated_checkin_result = await supabase_service.get_check_in(check_in_id)
+                        if updated_checkin_result["success"]:
+                            updated_check_in_data = updated_checkin_result["data"]
+                            websocket_check_in_data = {
+                                'id': updated_check_in_data['id'],
+                                'stop_id': updated_check_in_data.get('stop_id'),
+                                'load_id': updated_check_in_data.get('load_id'),
+                                'query': None,
+                                'AI_Response_Summary': updated_check_in_data.get('ai_response_summary'),
+                                'AI_Timestamp': updated_check_in_data.get('ai_timestamp'),
+                                'Issue_Flagged': updated_check_in_data.get('issue_flagged', False),
+                                'Exception_Type': updated_check_in_data.get('exception_type'),
+                                'Call_confidence_score': updated_check_in_data.get('confidence_score'),
+                                'call_trasfered': True,  # Call was transferred
+                                'is_active': False,
+                                'Tags': updated_check_in_data.get('tags'),
+                                'stop_name': None,
+                                'stop_location': None,
+                                'stop_eta': None,
+                                'call_status': 'transferred'
+                            }
+                            await notify_check_in_update(websocket_check_in_data)
+                            logger.info(f"Sent WebSocket check-in transfer notification for check-in {check_in_id}")
+                        
+                        logger.info(f"Sent transfer notification for check-in {check_in_id}")
+                        return {"status": "success", "message": "Call transfer webhook processed successfully"}
+                    else:
+                        # Mark as completed but wait for analysis
+                        check_in_update["call_status"] = "completed"
+                        await supabase_service.update_check_in(check_in_id, check_in_update)
+                        logger.info(f"Marked check-in {check_in_id} as completed, waiting for analysis")
             
             return {"status": "success", "message": "Webhook processed successfully"}
         
@@ -474,18 +647,55 @@ async def retell_recording_webhook(request: dict = Body(...)):
             
             logger.info(f"Call transferred - Call ID: {call_id}")
             
-            # Find the RetellCall and associated CheckIn
             if call_id:
-                retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-                if retell_call and retell_call.check_in_id:
-                    check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
-                    if check_in:
-                        # Mark the check-in as transferred
-                        check_in.call_trasfered = True
-                        db.commit()
-                        logger.info(f"Marked check-in {check_in.id} as transferred")
+                # Find the retell call and get check_in_id
+                try:
+                    call_result = supabase_service.client.table("retell_calls").select("check_in_id").eq("call_id", call_id).execute()
+                    if call_result.data:
+                        check_in_id = call_result.data[0]["check_in_id"]
                         
-                        # Don't send notification here - wait for call_analyzed event
+                        # Update check-in as transferred
+                        await supabase_service.update_check_in(check_in_id, {"call_status": "transferred"})
+                        logger.info(f"Marked check-in {check_in_id} as transferred")
+                        
+                        # Create notification for transfer
+                        notification_data = {
+                            "message": f"Call transferred for check-in {check_in_id}",
+                            "notification_type": "call_transfer",
+                            "severity": "info",
+                            "check_in_id": check_in_id,
+                            "metadata": {"call_id": call_id}
+                        }
+                        await supabase_service.create_notification(notification_data)
+                        
+                        # Send WebSocket notification for transfer
+                        updated_checkin_result = await supabase_service.get_check_in(check_in_id)
+                        if updated_checkin_result["success"]:
+                            updated_check_in_data = updated_checkin_result["data"]
+                            websocket_check_in_data = {
+                                'id': updated_check_in_data['id'],
+                                'stop_id': updated_check_in_data.get('stop_id'),
+                                'load_id': updated_check_in_data.get('load_id'),
+                                'query': None,
+                                'AI_Response_Summary': updated_check_in_data.get('ai_response_summary'),
+                                'AI_Timestamp': updated_check_in_data.get('ai_timestamp'),
+                                'Issue_Flagged': updated_check_in_data.get('issue_flagged', False),
+                                'Exception_Type': updated_check_in_data.get('exception_type'),
+                                'Call_confidence_score': updated_check_in_data.get('confidence_score'),
+                                'call_trasfered': True,  # Call was transferred
+                                'is_active': False,
+                                'Tags': updated_check_in_data.get('tags'),
+                                'stop_name': None,
+                                'stop_location': None,
+                                'stop_eta': None,
+                                'call_status': 'transferred'
+                            }
+                            await notify_check_in_update(websocket_check_in_data)
+                            logger.info(f"Sent WebSocket check-in transfer notification for check-in {check_in_id}")
+                        
+                        logger.info(f"Sent transfer notification for check-in {check_in_id}")
+                except Exception as e:
+                    logger.error(f"Error handling call transfer: {e}")
             
             return {"status": "success", "message": "Call transfer webhook processed successfully"}
         
@@ -501,175 +711,192 @@ async def retell_recording_webhook(request: dict = Body(...)):
             
             logger.info(f"Call analyzed - Call ID: {call_id}, Recording URL: {recording_url}")
             
-            # Find the RetellCall record with this call_id and update it
-            retell_call = None
-            check_in = None
-            
             if call_id:
-                retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-                
-                if retell_call:
-                    # Update with recording URL and transcript
-                    if recording_url:
-                        retell_call.recording_url = recording_url
-                    if transcript:
-                        retell_call.call_transcript = transcript
-                    retell_call.call_status = "completed"
-                    
-                    # Get associated check-in if it exists
-                    if retell_call.check_in_id:
-                        check_in = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
-                    
-                    logger.info(f"Updated RetellCall with recording_url and transcript from call_analyzed")
-                else:
-                    # Create new RetellCall record if it doesn't exist
-                    retell_call = RetellCall(
-                        call_id=call_id,
-                        recording_url=recording_url,
-                        call_transcript=transcript,
-                        call_status="completed"
-                    )
-                    db.add(retell_call)
-                    db.flush()  # Get the ID
-                    logger.info(f"Created new RetellCall from call_analyzed with call_id: {call_id}")
-                
-                # Extract and store custom_analysis_data
+                # Extract custom_analysis_data
                 custom_analysis_data = call_analysis.get("custom_analysis_data", {})
                 logger.info(f"Call analysis data: {call_analysis}")
-                if custom_analysis_data:
-                    logger.info(f"Processing custom_analysis_data: {custom_analysis_data}")
-                    
-                                        # If no check-in exists, create one
-                    if not check_in:
-                        check_in = CheckIn(
-                            AI_Timestamp=datetime.now().isoformat(),
-                            Issue_Flagged=False,
-                            call_trasfered=False,
-                            is_active=False  # Set to False since call is analyzed and complete
-                        )
-                        db.add(check_in)
-                        db.flush()  # Get the check_in ID
+                
+                check_in_id = None
+                check_in_data = None
+                
+                # Try to find existing retell call and check-in
+                try:
+                    call_result = supabase_service.client.table("retell_calls").select("check_in_id").eq("call_id", call_id).execute()
+                    if call_result.data:
+                        check_in_id = call_result.data[0]["check_in_id"]
                         
-                        # Link the RetellCall to the CheckIn
-                        retell_call.check_in_id = check_in.id
+                        # Get the check-in data
+                        if check_in_id:
+                            checkin_result = await supabase_service.get_check_in(check_in_id)
+                            if checkin_result["success"]:
+                                check_in_data = checkin_result["data"]
+                except Exception:
+                    pass
+                
+                # If no check-in exists, create one from the form data
+                if not check_in_id:
+                    logger.info(f"Creating new check-in for call {call_id}")
                     
-                    # Extract load_id and stop_id from retell_llm_dynamic_variables if available (for both new and existing check-ins)
+                    # Extract metadata from retell_llm_dynamic_variables
+                    load_id = None
+                    forms_data = {}
+                    
                     if 'retell_llm_dynamic_variables' in call_data:
                         try:
+                            dynamic_vars = call_data['retell_llm_dynamic_variables']
+                            
                             # Extract from form field if it's a JSON string
-                            form_str = call_data['retell_llm_dynamic_variables'].get('form', '{}')
+                            form_str = dynamic_vars.get('form', '{}')
                             if isinstance(form_str, str):
                                 form_data = json.loads(form_str)
                             else:
                                 form_data = form_str or {}
                             
-                            if 'load_id' in form_data and not check_in.load_id:
-                                check_in.load_id = form_data['load_id']
+                            load_id = form_data.get('load_id')
+                            forms_data = form_data
                             
-                            # Also check for stop_id directly in retell_llm_dynamic_variables
-                            dynamic_vars = call_data['retell_llm_dynamic_variables']
-                            if 'stop_id' in dynamic_vars and not check_in.stop_id:
-                                check_in.stop_id = int(dynamic_vars['stop_id'])
-                            elif 'id' in dynamic_vars and not check_in.stop_id:
-                                check_in.stop_id = int(dynamic_vars['id'])
                         except Exception as e:
                             logger.warning(f"Could not parse form data from metadata: {e}")
                     
+                    # Create new check-in
+                    new_check_in = {
+                        "load_id": load_id,
+                        "ai_timestamp": datetime.now().isoformat(),
+                        "issue_flagged": False,
+                        "call_status": "analyzed",
+                        "forms": forms_data
+                    }
+                    
+                    result = await supabase_service.create_check_in(new_check_in)
+                    if result["success"]:
+                        check_in_id = result["data"]["id"]
+                        check_in_data = result["data"]
+                        logger.info(f"Created new check-in {check_in_id} for call {call_id}")
+                        
+                        # Link the retell call to the check-in
+                        retell_call_data = {
+                            "call_id": call_id,
+                            "check_in_id": check_in_id,
+                            "recording_url": recording_url,
+                            "call_transcript": transcript
+                        }
+                        await supabase_service.create_retell_call(retell_call_data)
+                
+                # Update check-in with analysis data
+                if check_in_id and custom_analysis_data:
+                    logger.info(f"Processing custom_analysis_data: {custom_analysis_data}")
+                    
+                    update_data = {}
+                    
                     # Update CheckIn fields from custom_analysis_data
                     if 'issue_flagged' in custom_analysis_data:
-                        check_in.Issue_Flagged = custom_analysis_data['issue_flagged']
+                        update_data['issue_flagged'] = custom_analysis_data['issue_flagged']
                     
                     if 'call_confidence_score' in custom_analysis_data:
-                        check_in.Call_confidence_score = custom_analysis_data['call_confidence_score']
+                        update_data['confidence_score'] = custom_analysis_data['call_confidence_score']
                     
                     if 'exception_type' in custom_analysis_data:
                         exception_type = custom_analysis_data['exception_type']
-                        # Only store if it's not "N/A" or empty
                         if exception_type and exception_type != "N/A":
-                            check_in.Exception_Type = exception_type
+                            update_data['exception_type'] = exception_type
                     
                     if 'tags' in custom_analysis_data:
                         tags = custom_analysis_data['tags']
-                        # Only store if it's not "N/A" or empty
                         if tags and tags != "N/A":
-                            check_in.Tags = tags
+                            # Convert to list if it's a string
+                            if isinstance(tags, str):
+                                try:
+                                    tags = json.loads(tags)
+                                except:
+                                    tags = [tags]  # Make it a list
+                            update_data['tags'] = tags
                     
                     if '_a_i__response__summary' in custom_analysis_data:
-                        check_in.AI_Response_Summary = custom_analysis_data['_a_i__response__summary']
-                        check_in.AI_Timestamp = datetime.now().isoformat()
+                        update_data['ai_response_summary'] = custom_analysis_data['_a_i__response__summary']
+                        update_data['ai_timestamp'] = datetime.now().isoformat()
                     
-                    # Store the output field and other custom data in metadata
-                    check_in_metadata = {}
-                    if retell_call.check_in_metadata:
-                        try:
-                            check_in_metadata = json.loads(retell_call.check_in_metadata)
-                        except json.JSONDecodeError:
-                            pass
+                    # Mark as analyzed
+                    update_data['call_status'] = 'analyzed'
                     
-                    # Store the entire custom_analysis_data in metadata
-                    check_in_metadata['custom_analysis_data'] = custom_analysis_data
-                    
-                    # If there's an output field, validate and store it separately for easier access
-                    if 'output' in custom_analysis_data:
-                        output_data = custom_analysis_data['output']
+                    # Update the check-in
+                    result = await supabase_service.update_check_in(check_in_id, update_data)
+                    if result["success"]:
+                        logger.info(f"Updated check-in {check_in_id} with custom_analysis_data")
                         
-                        # Try to parse the output to validate it's actual data, not schema
-                        try:
-                            if isinstance(output_data, str):
-                                parsed_output = json.loads(output_data)
-                            else:
-                                parsed_output = output_data
+                        # Update retell call with output data
+                        output_data = {
+                            'custom_analysis_data': custom_analysis_data,
+                            'retell_llm_dynamic_variables': call_data.get('retell_llm_dynamic_variables', {})
+                        }
+                        
+                        # Store the output field if present
+                        if 'output' in custom_analysis_data:
+                            output_data['output'] = custom_analysis_data['output']
+                        
+                        await supabase_service.update_retell_call(call_id, {
+                            "recording_url": recording_url,
+                            "call_transcript": transcript,
+                            "output_data": output_data
+                        })
+                        
+                        # Create notification for the analysis
+                        has_meaningful_data = (
+                            custom_analysis_data.get('_a_i__response__summary') or 
+                            custom_analysis_data.get('output') or
+                            custom_analysis_data.get('call_confidence_score')
+                        )
+                        
+                        if has_meaningful_data:
+                            # Store notification in database
+                            notification_data = {
+                                "message": f"Check-in {check_in_id} analysis completed",
+                                "notification_type": "check_in_analyzed",
+                                "severity": "high" if update_data.get('issue_flagged') else "info",
+                                "check_in_id": check_in_id,
+                                "metadata": {
+                                    "call_id": call_id,
+                                    "load_id": check_in_data.get('load_id') if check_in_data else None,
+                                    "issue_flagged": update_data.get('issue_flagged', False),
+                                    "confidence_score": update_data.get('confidence_score'),
+                                    "has_recording": bool(recording_url),
+                                    "has_transcript": bool(transcript)
+                                }
+                            }
+                            await supabase_service.create_notification(notification_data)
                             
-                            # Check if this is a schema definition (has 'type', 'properties', etc.)
-                            if isinstance(parsed_output, dict) and 'type' in parsed_output and 'properties' in parsed_output:
-                                logger.warning(f"Output field contains schema definition instead of extracted data for call {call_id}")
-                                # Store it anyway for debugging, but mark it as schema
-                                check_in_metadata['output_schema_received'] = output_data
-                            else:
-                                # This appears to be actual extracted data
-                                check_in_metadata['output'] = output_data
-                                logger.info(f"Stored extracted output data for call {call_id}: {parsed_output}")
-                        except json.JSONDecodeError as e:
-                            # If we can't parse it, store it as-is but log the issue
-                            logger.warning(f"Could not parse output data for call {call_id}: {e}")
-                            check_in_metadata['output'] = output_data
-                    
-                    retell_call.check_in_metadata = json.dumps(check_in_metadata)
-                    
-                    # Mark check-in as inactive since analysis is complete
-                    check_in.is_active = False
-                    
-                    logger.info(f"Updated check-in {check_in.id} with custom_analysis_data")
-                
-                # Store retell_llm_dynamic_variables in metadata if not already stored
-                if 'retell_llm_dynamic_variables' in call_data:
-                    existing_metadata = {}
-                    if retell_call.check_in_metadata:
-                        try:
-                            existing_metadata = json.loads(retell_call.check_in_metadata)
-                        except json.JSONDecodeError:
-                            pass
-                    
-                    if 'retell_llm_dynamic_variables' not in existing_metadata:
-                        existing_metadata['retell_llm_dynamic_variables'] = call_data['retell_llm_dynamic_variables']
-                        retell_call.check_in_metadata = json.dumps(existing_metadata)
-                
-                db.commit()
-                
-                # Send notification about the check-in update only after analysis is complete with meaningful data
-                if check_in and check_in.stop_id and custom_analysis_data:
-                    # Only send notification if we have substantial analysis data
-                    has_meaningful_data = (
-                        custom_analysis_data.get('_a_i__response__summary') or 
-                        custom_analysis_data.get('output') or
-                        custom_analysis_data.get('call_confidence_score')
-                    )
-                    
-                    if has_meaningful_data:
-                        send_checkin_notification(check_in, check_in.stop_id, db)
-                        logger.info(f"Sent check-in notification for analyzed call {call_id} with meaningful data")
-                    else:
-                        logger.info(f"Skipped notification for call {call_id} - no meaningful analysis data")
+                            # Send WebSocket notification to dashboard clients
+                            # Get updated check-in data for the notification
+                            updated_checkin_result = await supabase_service.get_check_in(check_in_id)
+                            if updated_checkin_result["success"]:
+                                updated_check_in_data = updated_checkin_result["data"]
+                                
+                                # Format check-in data for WebSocket notification (compatible with dashboard)
+                                websocket_check_in_data = {
+                                    'id': updated_check_in_data['id'],
+                                    'stop_id': updated_check_in_data.get('stop_id'),
+                                    'load_id': updated_check_in_data.get('load_id'),
+                                    'query': None,
+                                    'AI_Response_Summary': updated_check_in_data.get('ai_response_summary'),
+                                    'AI_Timestamp': updated_check_in_data.get('ai_timestamp'),
+                                    'Issue_Flagged': updated_check_in_data.get('issue_flagged', False),
+                                    'Exception_Type': updated_check_in_data.get('exception_type'),
+                                    'Call_confidence_score': updated_check_in_data.get('confidence_score'),
+                                    'call_trasfered': updated_check_in_data.get('call_status') == 'transferred',
+                                    'is_active': False,  # Analysis is complete, so not active anymore
+                                    'Tags': updated_check_in_data.get('tags'),
+                                    'stop_name': None,
+                                    'stop_location': None,
+                                    'stop_eta': None,
+                                    'call_status': updated_check_in_data.get('call_status')
+                                }
+                                
+                                # Send WebSocket broadcast to connected clients
+                                await notify_check_in_update(websocket_check_in_data)
+                                logger.info(f"Sent WebSocket check-in update notification for check-in {check_in_id}")
+                            
+                            logger.info(f"Sent check-in analysis notification for call {call_id} with meaningful data")
+                        else:
+                            logger.info(f"Skipped notification for call {call_id} - no meaningful analysis data")
             
             return {"status": "success", "message": "Call analyzed webhook processed successfully"}
         
@@ -677,6 +904,44 @@ async def retell_recording_webhook(request: dict = Body(...)):
         
     except Exception as e:
         logger.error(f"Error processing Retell webhook: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/test/websocket-notification")
+async def test_websocket_notification():
+    """Test endpoint to verify WebSocket notifications are working"""
+    try:
+        # Create a test check-in notification
+        test_check_in_data = {
+            'id': 999,
+            'stop_id': 1,
+            'load_id': 'TEST-123',
+            'query': None,
+            'AI_Response_Summary': 'Test notification - WebSocket is working correctly',
+            'AI_Timestamp': datetime.now().isoformat(),
+            'Issue_Flagged': False,
+            'Exception_Type': None,
+            'Call_confidence_score': 0.95,
+            'call_trasfered': False,
+            'is_active': False,
+            'Tags': ['test', 'websocket'],
+            'stop_name': None,
+            'stop_location': None,
+            'stop_eta': None,
+            'call_status': 'analyzed'
+        }
+        
+        # Send WebSocket notification
+        await notify_check_in_update(test_check_in_data)
+        logger.info("Sent test WebSocket notification")
+        
+        return {
+            "status": "success",
+            "message": "Test WebSocket notification sent successfully",
+            "test_data": test_check_in_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error sending test notification: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/check-in/{check_in_id}/status")

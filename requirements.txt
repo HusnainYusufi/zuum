@@ -10,3 +10,5 @@ rouge-score
 scikit-learn
 pyngrok
 twilio
+supabase==2.7.4
+boto3
