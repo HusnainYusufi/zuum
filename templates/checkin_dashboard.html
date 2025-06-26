@@ -387,7 +387,7 @@
             50% { transform: scale(1.05); }
         }
 
-        .filters {
+        .filters, .recent-filters {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
@@ -397,6 +397,12 @@
             border-radius: 6px;
             border: 1px solid rgba(74, 85, 104, 0.3);
             box-shadow: var(--box-shadow-dark);
+        }
+
+        .recent-filters {
+            grid-template-columns: repeat(2, 1fr);
+            margin-bottom: 10px;
+            padding: 12px;
         }
 
         .filter-group {
@@ -440,6 +446,11 @@
             border-color: #718096;
         }
 
+        .filter-input.active {
+            border-color: var(--primary-color);
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+
         /* Responsive filter layout */
         @media (max-width: 1200px) {
             .filters {
@@ -450,12 +461,17 @@
             .filter-group:last-child {
                 grid-column: 1 / -1;
             }
+
+            .recent-filters {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
         }
 
         @media (max-width: 800px) {
-            .filters {
+            .filters, .recent-filters {
                 grid-template-columns: 1fr;
-                gap: 12px;
+                gap: 10px;
             }
         }
 
@@ -590,6 +606,10 @@
 
         .status-icon.transfer {
             color: #68d391;
+        }
+
+        .status-icon.error {
+            color: #fc8181;
         }
 
 
@@ -873,7 +893,7 @@
 
         .modal-filters {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 15px;
             padding: 20px;
             background: var(--card-dark);
@@ -1374,7 +1394,7 @@
             }
             
             .modal-filters {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 gap: 12px;
                 padding: 15px;
             }
@@ -1430,7 +1450,7 @@
             }
             
             .modal-filters {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
                 padding: 12px;
             }
@@ -1713,6 +1733,7 @@
             }
             
             .modal-filters {
+                grid-template-columns: 1fr;
                 padding: 8px;
                 gap: 6px;
             }
@@ -2013,6 +2034,26 @@
                     RECENT CHECK-INS
                 </h3>
 
+                <!-- Recent Checkins Filters -->
+                <div class="recent-filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Call Status</label>
+                        <select class="filter-input" id="recent-call-status-filter">
+                            <option value="">All Calls</option>
+                            <option value="answered">Call Answered</option>
+                            <option value="not_answered">Call Not Answered</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Issue Status</label>
+                        <select class="filter-input" id="recent-issue-filter">
+                            <option value="">All</option>
+                            <option value="true">Issues Only</option>
+                            <option value="false">No Issues</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Recent Checkins List (Limited to 5) -->
                 <div class="check-ins-container" id="recent-checkins-list">
                     <p class="no-check-ins">Loading recent check-ins...</p>
@@ -2050,6 +2091,14 @@
             <div class="modal-body">
                 <!-- Modal Filters -->
                 <div class="modal-filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Filter by Call Status</label>
+                        <select class="filter-input" id="modal-call-status-filter">
+                            <option value="">All Calls</option>
+                            <option value="answered">Call Answered</option>
+                            <option value="not_answered">Call Not Answered</option>
+                        </select>
+                    </div>
                     <div class="filter-group">
                         <label class="filter-label">Filter by Issue Status</label>
                         <select class="filter-input" id="modal-issue-filter">
@@ -2117,25 +2166,31 @@
                     console.log('WebSocket connected for real-time updates');
                 };
                 
-                websocket.onmessage = function(event) {
-                    try {
-                        const notification = JSON.parse(event.data);
-                        console.log('Received notification:', notification);
-                        
-                        // Handle different types of notifications
-                        if (notification.type === 'check_in_update') {
-                            handleCheckInUpdate(notification.data);
-                        } else if (notification.type === 'stop_update') {
-                            // Optional: handle stop updates if needed
-                            console.log('Stop update received:', notification.data);
-                        } else if (notification.type === 'journey_state_update') {
-                            // Optional: handle journey state updates if needed
-                            console.log('Journey state update received:', notification.data);
-                        }
-                    } catch (error) {
-                        console.error('Error parsing WebSocket message:', error);
+                            websocket.onmessage = function(event) {
+                try {
+                    // Skip ping/pong messages
+                    if (event.data === 'pong' || event.data.startsWith('echo:')) {
+                        console.log('WebSocket ping/pong:', event.data);
+                        return;
                     }
-                };
+                    
+                    const notification = JSON.parse(event.data);
+                    console.log('Received notification:', notification);
+                    
+                    // Handle different types of notifications
+                    if (notification.type === 'check_in_update') {
+                        handleCheckInUpdate(notification.data);
+                    } else if (notification.type === 'stop_update') {
+                        // Optional: handle stop updates if needed
+                        console.log('Stop update received:', notification.data);
+                    } else if (notification.type === 'journey_state_update') {
+                        // Optional: handle journey state updates if needed
+                        console.log('Journey state update received:', notification.data);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
+                }
+            };
                 
                 websocket.onclose = function(event) {
                     console.log('WebSocket connection closed. Attempting to reconnect...');
@@ -2176,6 +2231,9 @@
             } else if (checkInData.is_active && !checkInData.AI_Response_Summary) {
                 // Call was just made (active but no summary yet)
                 showCallMadeNotification(checkInData);
+            } else if (!checkInData.is_active && !checkInData.AI_Response_Summary) {
+                // Call ended but no analysis yet
+                showCallEndedNotification(checkInData);
             } else {
                 // Generic update
                 showUpdateNotification(checkInData);
@@ -2215,12 +2273,24 @@
         }
         
         function showTransferNotification(checkInData) {
+            const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
                 icon: 'fas fa-phone-alt',
-                title: `Check-in #${checkInData.id} call transferred`,
+                title: `Call transferred ${loadId}`,
                 subtitle: 'Call successfully transferred to broker',
                 background: 'linear-gradient(135deg, #48bb78, #68d391)',
                 shadowColor: 'rgba(72, 187, 120, 0.3)'
+            });
+        }
+        
+        function showCallEndedNotification(checkInData) {
+            const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
+            showNotification({
+                icon: 'fas fa-phone-slash',
+                title: `Call ended ${loadId}`,
+                subtitle: 'Waiting for AI analysis results',
+                background: 'linear-gradient(135deg, #6b7280, #9ca3af)',
+                shadowColor: 'rgba(107, 114, 128, 0.3)'
             });
         }
         
@@ -2378,7 +2448,12 @@
                 if (e.target === this) closeModal();
             });
             
+            // Recent checkins filters
+            document.getElementById('recent-call-status-filter').addEventListener('change', applyRecentFilters);
+            document.getElementById('recent-issue-filter').addEventListener('change', applyRecentFilters);
+            
             // Modal filters
+            document.getElementById('modal-call-status-filter').addEventListener('change', applyModalFilters);
             document.getElementById('modal-issue-filter').addEventListener('change', applyModalFilters);
             document.getElementById('modal-review-filter').addEventListener('change', applyModalFilters);
             document.getElementById('modal-time-filter').addEventListener('change', applyModalFilters);
@@ -2474,7 +2549,16 @@
                 
                 if (data.status === 'success') {
                     checkins = data.data.checkins;
-                    displayRecentCheckins(checkins);
+                    
+                    // Apply current filters if any are set
+                    const callStatusFilter = document.getElementById('recent-call-status-filter').value;
+                    const issueFilter = document.getElementById('recent-issue-filter').value;
+                    
+                    if (callStatusFilter || issueFilter) {
+                        applyRecentFilters();
+                    } else {
+                        displayRecentCheckins(checkins);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading recent check-ins:', error);
@@ -2484,7 +2568,7 @@
         async function loadModalCheckins(page = 1) {
             try {
                 const filters = getModalFilters();
-                const { sort_by_time, ...apiFilters } = filters; // Extract sort_by_time for client-side handling
+                const { sort_by_time, call_status, ...apiFilters } = filters; // Extract client-side filters
                 
                 const queryParams = new URLSearchParams({
                     page: page,
@@ -2497,6 +2581,18 @@
                 
                 if (data.status === 'success') {
                     modalCheckins = data.data.checkins;
+                    
+                    // Apply client-side call status filtering
+                    if (call_status) {
+                        modalCheckins = modalCheckins.filter(checkin => {
+                            if (call_status === 'answered') {
+                                return checkin.user_picked_up === true || checkin.user_picked_up === 'true';
+                            } else if (call_status === 'not_answered') {
+                                return checkin.user_picked_up === false || checkin.user_picked_up === 'false';
+                            }
+                            return true;
+                        });
+                    }
                     
                     // Apply client-side time sorting (default to descending if not specified)
                     const sortOrder = sort_by_time || 'desc';
@@ -2517,8 +2613,53 @@
             }
         }
 
+        function applyRecentFilters() {
+            const callStatusFilter = document.getElementById('recent-call-status-filter').value;
+            const issueFilter = document.getElementById('recent-issue-filter').value;
+            
+            // Update filter visual state
+            const callStatusElement = document.getElementById('recent-call-status-filter');
+            const issueElement = document.getElementById('recent-issue-filter');
+            
+            callStatusElement.classList.toggle('active', !!callStatusFilter);
+            issueElement.classList.toggle('active', !!issueFilter);
+            
+            // Apply filters to current checkins data
+            let filteredCheckins = [...checkins];
+            
+            // Filter by call status (answered/not answered)
+            if (callStatusFilter) {
+                filteredCheckins = filteredCheckins.filter(checkin => {
+                    if (callStatusFilter === 'answered') {
+                        return checkin.user_picked_up === true || checkin.user_picked_up === 'true';
+                    } else if (callStatusFilter === 'not_answered') {
+                        return checkin.user_picked_up === false || checkin.user_picked_up === 'false';
+                    }
+                    return true;
+                });
+            }
+            
+            // Filter by issue status
+            if (issueFilter) {
+                filteredCheckins = filteredCheckins.filter(checkin => {
+                    if (issueFilter === 'true') {
+                        return checkin.Issue_Flagged === true || checkin.Issue_Flagged === 'true';
+                    } else if (issueFilter === 'false') {
+                        return checkin.Issue_Flagged === false || checkin.Issue_Flagged === 'false';
+                    }
+                    return true;
+                });
+            }
+            
+            // Display filtered results
+            displayRecentCheckins(filteredCheckins);
+        }
+
         function getModalFilters() {
             const filters = {};
+            
+            const callStatusFilter = document.getElementById('modal-call-status-filter').value;
+            if (callStatusFilter) filters.call_status = callStatusFilter;
             
             const issueFilter = document.getElementById('modal-issue-filter').value;
             if (issueFilter) filters.issue_flagged = issueFilter;
@@ -2536,12 +2677,32 @@
         }
 
         function applyModalFilters() {
+            // Update modal filter visual state
+            const callStatusElement = document.getElementById('modal-call-status-filter');
+            const issueElement = document.getElementById('modal-issue-filter');
+            const reviewElement = document.getElementById('modal-review-filter');
+            const tagsElement = document.getElementById('modal-tags-filter');
+            
+            callStatusElement.classList.toggle('active', !!callStatusElement.value);
+            issueElement.classList.toggle('active', !!issueElement.value);
+            reviewElement.classList.toggle('active', !!reviewElement.value);
+            tagsElement.classList.toggle('active', !!tagsElement.value.trim());
+            
             modalCurrentPage = 1;
             loadModalCheckins(1);
         }
 
         function displayLatestCheckin(checkin) {
             const content = document.getElementById('latest-checkin-content');
+            
+            // Debug logging for latest checkin
+            console.log('Latest checkin user_picked_up:', JSON.stringify({
+                id: checkin.id,
+                user_picked_up: checkin.user_picked_up,
+                type: typeof checkin.user_picked_up,
+                Issue_Flagged: checkin.Issue_Flagged,
+                raw_value: checkin.user_picked_up
+            }, null, 2));
             const date = new Date(checkin.AI_Timestamp);
             const dateStr = date.toLocaleDateString('en-US', { 
                 month: 'short', 
@@ -2562,7 +2723,7 @@
                             <i class="fas fa-clipboard-check"></i>
                             <span>#${checkin.id}</span>
                         </div>
-                        ${checkin.is_active ? `
+                        ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? `
                         <div class="active-indicator">
                             <div class="active-spinner"></div>
                             <span>Call Active</span>
@@ -2585,15 +2746,19 @@
                         </div>
                         <div class="latest-checkin-info-item">
                             <div class="latest-checkin-info-label">
-                                ${checkin.Issue_Flagged ? 
-                                    '<i class="fas fa-exclamation-triangle" style="color: #f6ad55; font-size: 10px;"></i>' : 
-                                    '<i class="fas fa-check-circle" style="color: #68d391; font-size: 10px;"></i>'}
-                                Issue Status
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                                    '<i class="fas fa-phone-slash" style="color: #fc8181; font-size: 10px;"></i>' : 
+                                    checkin.Issue_Flagged ? 
+                                        '<i class="fas fa-exclamation-triangle" style="color: #f6ad55; font-size: 10px;"></i>' : 
+                                        '<i class="fas fa-check-circle" style="color: #68d391; font-size: 10px;"></i>'}
+                                Status
                             </div>
                             <div class="latest-checkin-info-value">
-                                ${checkin.Issue_Flagged ? 
-                                    '<span class="status-indicator issue">Flagged</span>' : 
-                                    '<span class="status-indicator no-issue">No Issues</span>'}
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                                    '<span class="status-indicator issue">No Pickup</span>' : 
+                                    checkin.Issue_Flagged ? 
+                                        '<span class="status-indicator issue">Issue Flagged</span>' : 
+                                        '<span class="status-indicator no-issue">No Issues</span>'}
                             </div>
                         </div>
                         <div class="latest-checkin-info-item">
@@ -2639,6 +2804,17 @@
                 return;
             }
             
+            // Debug logging to check user_picked_up values
+            console.log('Recent checkins with user_picked_up values:', 
+                JSON.stringify(checkins.map(c => ({
+                    id: c.id,
+                    user_picked_up: c.user_picked_up,
+                    type: typeof c.user_picked_up,
+                    Issue_Flagged: c.Issue_Flagged,
+                    raw_value: c.user_picked_up
+                })), null, 2)
+            );
+            
             const checkinsHtml = checkins.map(checkin => {
                 const date = new Date(checkin.AI_Timestamp);
                 const day = date.getDate();
@@ -2660,12 +2836,14 @@
                                 <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
                             </div>
                             <div class="check-in-status">
-                                ${checkin.is_active ? 
+                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
                                     '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
-                                ${checkin.Issue_Flagged ? 
-                                    '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
-                                    '<i class="fas fa-check-circle status-icon success"></i>'}
-                                ${checkin.call_trasfered ? 
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                                    '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
+                                    checkin.Issue_Flagged ? 
+                                        '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
+                                        '<i class="fas fa-check-circle status-icon success"></i>'}
+                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
                                     '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
                             </div>
                         </div>
@@ -2705,7 +2883,7 @@
                         <div class="modal-check-in-header">
                             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <span class="modal-check-in-id">#${checkin.id}</span>
-                                ${checkin.is_active ? `
+                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? `
                                 <div class="modal-active-indicator">
                                     <div class="modal-active-spinner"></div>
                                     <span>Call Active</span>
@@ -2717,10 +2895,12 @@
                                 </span>
                             </div>
                             <div class="modal-check-in-status">
-                                ${checkin.Issue_Flagged ? 
-                                    '<i class="fas fa-exclamation-triangle status-icon warning" style="font-size: 20px;"></i>' : 
-                                    '<i class="fas fa-check-circle status-icon success" style="font-size: 20px;"></i>'}
-                                ${checkin.call_trasfered ? 
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                                    '<i class="fas fa-phone-slash status-icon error" style="font-size: 20px;" title="User did not pick up phone"></i>' : 
+                                    checkin.Issue_Flagged ? 
+                                        '<i class="fas fa-exclamation-triangle status-icon warning" style="font-size: 20px;"></i>' : 
+                                        '<i class="fas fa-check-circle status-icon success" style="font-size: 20px;"></i>'}
+                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
                                     '<i class="fas fa-phone-alt status-icon transfer" style="font-size: 20px;"></i>' : ''}
                             </div>
                         </div>
@@ -2949,6 +3129,7 @@
             document.body.style.overflow = 'auto';
             
             // Reset modal filters
+            document.getElementById('modal-call-status-filter').value = '';
             document.getElementById('modal-issue-filter').value = '';
             document.getElementById('modal-review-filter').value = '';
             document.getElementById('modal-time-filter').value = 'desc';
@@ -2978,32 +3159,8 @@
         }
 
         function startAutoRefresh() {
-            // Check for active check-ins every 10 seconds
-            autoRefreshInterval = setInterval(async () => {
-                try {
-                    // Check if any checkins are active
-                    const response = await fetch('/api/checkin/list?page=1&per_page=100');
-                    const data = await response.json();
-                    
-                    if (data.status === 'success' && data.data.checkins) {
-                        const hasActiveCheckins = data.data.checkins.some(checkin => checkin.is_active);
-                        
-                        if (hasActiveCheckins) {
-                            // Refresh the dashboard silently if there are active check-ins
-                            await loadStatistics();
-                            await loadLatestCheckin();
-                            await loadRecentCheckins();
-                            
-                            // If modal is open, refresh it too
-                            if (document.getElementById('checkins-modal').classList.contains('active')) {
-                                await loadModalCheckins(modalCurrentPage);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Auto-refresh error:', error);
-                }
-            }, 10000); // Check every 10 seconds
+            // Disabled auto-refresh polling - now using WebSocket real-time updates only
+            console.log('Auto-refresh disabled - using WebSocket real-time updates');
         }
 
         function stopAutoRefresh() {
