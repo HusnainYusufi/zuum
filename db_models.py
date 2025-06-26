@@ -92,6 +92,7 @@ class CheckIn(Base):
     # Define relationship to Stop
     stop = relationship("Stop", backref="check_ins")
     is_active = Column(Boolean, default=True)
+    forms = Column(String)
 
 class RetellCall(Base):
     __tablename__ = "retell_calls"

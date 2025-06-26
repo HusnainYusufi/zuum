@@ -151,7 +151,7 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
                           form_data.get("pod_load_id"))
                 
                 # Create check-in entry
-                checkin_result = await create_checkin_entry(call_id, load_id, form_type)
+                checkin_result = await create_checkin_entry(call_id, load_id, form_type, form_data)
                 
                 return {
                     "status": "success",
@@ -162,7 +162,8 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
                     "transfer_call": transfer_call,
                     "output_schema_properties": len(output_schema.get('properties', {})) if output_schema else 0,
                     "checkin_link": checkin_result.get("checkin_page_link") if checkin_result.get("status") == "success" else None,
-                    "checkin_id": checkin_result.get("checkin_id") if checkin_result.get("status") == "success" else None
+                    "checkin_id": checkin_result.get("checkin_id") if checkin_result.get("status") == "success" else None,
+                    "form_data_stored": checkin_result.get("form_data_stored", False) if checkin_result.get("status") == "success" else False
                 }
             else:
                 error_detail = response.json() if response.content else "Unknown error"
@@ -178,7 +179,7 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
         }
 
 
-async def create_checkin_entry(call_id: str, load_id: str, form_type: str):
+async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_data: dict = None):
     """
     Create a check-in entry directly in the database with associated RetellCall.
     
@@ -186,6 +187,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str):
         call_id: The Retell call ID
         load_id: The load ID from the form
         form_type: The type of form being submitted
+        form_data: The form data dictionary to store as JSON
     
     Returns:
         Dictionary with check-in creation result
@@ -219,12 +221,17 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str):
             call_trasfered=False,
             Tags=None,
             miles=None,
-            is_active=True
+            is_active=True,
+            forms=json.dumps(form_data) if form_data else None
         )
         
         # Add to database session and commit to get the ID
         db.add(new_checkin)
         db.flush()  # Flush to get the check-in ID without committing yet
+        
+        # Log form data storage
+        if form_data:
+            logger.info(f"Storing form data for check-in {new_checkin.id}: {json.dumps(form_data, indent=2)}")
         
         # Create RetellCall row associated with this check-in
         new_retell_call = RetellCall(
@@ -241,6 +248,8 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str):
         db.refresh(new_retell_call)
         
         logger.info(f"Created new check-in with ID: {new_checkin.id} and RetellCall with call_id: {call_id}")
+        if form_data:
+            logger.info(f"Form data successfully stored for check-in {new_checkin.id}")
         
         # Get stop information if stop_id is provided
         stop = None
@@ -281,7 +290,8 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str):
             "status": "success",
             "checkin_id": new_checkin.id,
             "checkin_page_link": checkin_page_link,
-            "message": "Check-in created successfully"
+            "message": "Check-in created successfully",
+            "form_data_stored": bool(form_data)
         }
                 
     except Exception as e:

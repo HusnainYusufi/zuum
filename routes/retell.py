@@ -609,9 +609,30 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     # Store the entire custom_analysis_data in metadata
                     check_in_metadata['custom_analysis_data'] = custom_analysis_data
                     
-                    # If there's an output field, store it separately for easier access
+                    # If there's an output field, validate and store it separately for easier access
                     if 'output' in custom_analysis_data:
-                        check_in_metadata['output'] = custom_analysis_data['output']
+                        output_data = custom_analysis_data['output']
+                        
+                        # Try to parse the output to validate it's actual data, not schema
+                        try:
+                            if isinstance(output_data, str):
+                                parsed_output = json.loads(output_data)
+                            else:
+                                parsed_output = output_data
+                            
+                            # Check if this is a schema definition (has 'type', 'properties', etc.)
+                            if isinstance(parsed_output, dict) and 'type' in parsed_output and 'properties' in parsed_output:
+                                logger.warning(f"Output field contains schema definition instead of extracted data for call {call_id}")
+                                # Store it anyway for debugging, but mark it as schema
+                                check_in_metadata['output_schema_received'] = output_data
+                            else:
+                                # This appears to be actual extracted data
+                                check_in_metadata['output'] = output_data
+                                logger.info(f"Stored extracted output data for call {call_id}: {parsed_output}")
+                        except json.JSONDecodeError as e:
+                            # If we can't parse it, store it as-is but log the issue
+                            logger.warning(f"Could not parse output data for call {call_id}: {e}")
+                            check_in_metadata['output'] = output_data
                     
                     retell_call.check_in_metadata = json.dumps(check_in_metadata)
                     
