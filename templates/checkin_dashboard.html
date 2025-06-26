@@ -2170,18 +2170,45 @@
             // Show appropriate notification based on the update type
             if (checkInData.call_trasfered) {
                 showTransferNotification(checkInData);
-            } else if (!checkInData.is_active) {
-                showCallEndedNotification(checkInData);
+            } else if (!checkInData.is_active && checkInData.AI_Response_Summary) {
+                // Call has been analyzed (inactive and has summary)
+                showCallAnalyzedNotification(checkInData);
+            } else if (checkInData.is_active && !checkInData.AI_Response_Summary) {
+                // Call was just made (active but no summary yet)
+                showCallMadeNotification(checkInData);
             } else {
+                // Generic update
                 showUpdateNotification(checkInData);
             }
         }
         
-        function showUpdateNotification(checkInData) {
+        function showCallMadeNotification(checkInData) {
+            const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
+            showNotification({
+                icon: 'fas fa-phone',
+                title: `Call made ${loadId}`,
+                subtitle: 'Call is in progress',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                shadowColor: 'rgba(59, 130, 246, 0.3)'
+            });
+        }
+        
+        function showCallAnalyzedNotification(checkInData) {
+            const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
                 icon: 'fas fa-brain',
-                title: `Check-in #${checkInData.id} analyzed`,
+                title: `Call analysed ${loadId}`,
                 subtitle: 'AI analysis results available',
+                background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
+                shadowColor: 'rgba(66, 153, 225, 0.3)'
+            });
+        }
+        
+        function showUpdateNotification(checkInData) {
+            showNotification({
+                icon: 'fas fa-info-circle',
+                title: `Check-in #${checkInData.id} updated`,
+                subtitle: 'Check-in information updated',
                 background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
@@ -2197,15 +2224,7 @@
             });
         }
         
-        function showCallEndedNotification(checkInData) {
-            showNotification({
-                icon: 'fas fa-check-circle',
-                title: `Check-in #${checkInData.id} analysis complete`,
-                subtitle: 'Call analyzed and results are ready',
-                background: 'linear-gradient(135deg, #48bb78, #68d391)',
-                shadowColor: 'rgba(72, 187, 120, 0.3)'
-            });
-        }
+
         
         function showNotification({ icon, title, subtitle, background, shadowColor }) {
             // Create a notification

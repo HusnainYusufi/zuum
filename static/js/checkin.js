@@ -183,7 +183,7 @@ class CheckInPage {
         this.renderTranscript();
 
         // Render load information if available
-        if (this.checkIn.check_in_metadata) {
+        if (this.checkIn.forms || this.checkIn.check_in_metadata) {
             this.renderLoadInfo();
         }
 
@@ -386,61 +386,257 @@ class CheckInPage {
         const loadInfoContent = document.getElementById('load-info-content');
         
         if (loadInfoCard && loadInfoContent) {
+            let formData = null;
+            
             try {
-                const metadata = JSON.parse(this.checkIn.check_in_metadata);
-                
-                if (metadata.form) {
-                    loadInfoCard.style.display = 'block';
-                    
-                    // Clean up the form JSON string before parsing
-                    let formString = metadata.form.trim();
-                    
-                    // Remove trailing comma if it exists
-                    if (formString.endsWith(',')) {
-                        formString = formString.slice(0, -1);
-                    }
-                    
-                    // Remove any trailing whitespace and commas from the end of the object
-                    formString = formString.replace(/,\s*}$/, '}');
-                    
-                    // Parse the cleaned form data
-                    const formData = JSON.parse(formString);
-                    let loadInfoHTML = '';
-                    
-                    // Dynamically render all form fields
-                    Object.entries(formData).forEach(([key, value]) => {
-                        // Create a user-friendly label from the key
-                        const displayLabel = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                // First, try to get form data from the new 'forms' column
+                if (this.checkIn.forms) {
+                    formData = JSON.parse(this.checkIn.forms);
+                    console.log('Using form data from new forms column');
+                    formData._dataSource = 'new_forms_column';
+                } 
+                // Fall back to the old check_in_metadata.form for backward compatibility
+                else if (this.checkIn.check_in_metadata) {
+                    const metadata = JSON.parse(this.checkIn.check_in_metadata);
+                    if (metadata.form) {
+                        // Clean up the form JSON string before parsing
+                        let formString = metadata.form.trim();
                         
-                        // Format the value
-                        let displayValue = this.escapeHtml(String(value));
-                        
-                        // Special formatting for common patterns
-                        if (key.toLowerCase().includes('tracking') && (value === 'Y' || value === 'Yes' || value === true)) {
-                            displayValue = 'Yes';
-                        } else if (key.toLowerCase().includes('tracking') && (value === 'N' || value === 'No' || value === false)) {
-                            displayValue = 'No';
+                        // Remove trailing comma if it exists
+                        if (formString.endsWith(',')) {
+                            formString = formString.slice(0, -1);
                         }
                         
-                        loadInfoHTML += `
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="fas fa-info-circle" style="margin-right: 6px; color: #63b3ed;"></i>
-                                    ${displayLabel}:
-                                </span>
-                                <span class="info-value">${displayValue}</span>
-                            </div>
-                        `;
+                        // Remove any trailing whitespace and commas from the end of the object
+                        formString = formString.replace(/,\s*}$/, '}');
+                        
+                        // Parse the cleaned form data
+                        formData = JSON.parse(formString);
+                        console.log('Using form data from legacy check_in_metadata');
+                        formData._dataSource = 'legacy_metadata';
+                    }
+                }
+                
+                if (formData) {
+                    loadInfoCard.style.display = 'block';
+                    
+                    // Add visual indicator for form data presence
+                    const cardHeader = loadInfoCard.querySelector('.card-header h3');
+                    if (cardHeader && !cardHeader.querySelector('.form-data-indicator')) {
+                        const isNewFormat = formData._dataSource === 'new_forms_column';
+                        const indicatorText = isNewFormat ? 'FORM DATA' : 'FORM DATA (LEGACY)';
+                        const indicatorColor = isNewFormat ? '#68d391' : '#f6ad55';
+                        const indicatorBg = isNewFormat ? 'rgba(104, 211, 145, 0.1)' : 'rgba(246, 173, 85, 0.1)';
+                        cardHeader.innerHTML += ` <span class="form-data-indicator" style="color: ${indicatorColor}; font-size: 12px; font-weight: 500; background: ${indicatorBg}; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">${indicatorText}</span>`;
+                    }
+                    
+                    let loadInfoHTML = '';
+                    
+                    // Define better field labels and organize them by category
+                    const fieldLabels = {
+                        // Basic Load Information
+                        'load_id': 'Load ID',
+                        'pickup_load_id': 'Load ID',
+                        'pc_load_id': 'Load ID', 
+                        'it_load_id': 'Load ID',
+                        'ad_load_id': 'Load ID',
+                        'del_load_id': 'Load ID',
+                        'pod_load_id': 'Load ID',
+                        
+                        // Contact Information
+                        'carrier_name': 'Carrier Name',
+                        'contact_name': 'Contact Name',
+                        'contact_phone': 'Contact Phone',
+                        'pickup_contact_phone': 'Contact Phone',
+                        'pc_contact_phone': 'Contact Phone',
+                        'it_contact_phone': 'Contact Phone',
+                        'ad_contact_phone': 'Contact Phone',
+                        'del_contact_phone': 'Contact Phone',
+                        'pod_contact_phone': 'Contact Phone',
+                        'country_code': 'Country Code',
+                        'pickup_country_code': 'Country Code',
+                        'pc_country_code': 'Country Code',
+                        'it_country_code': 'Country Code',
+                        'ad_country_code': 'Country Code',
+                        'del_country_code': 'Country Code',
+                        'pod_country_code': 'Country Code',
+                        
+                        // Driver Information
+                        'trucker_name': 'Trucker Name',
+                        'pickup_trucker_name': 'Trucker Name',
+                        'pc_trucker_name': 'Trucker Name',
+                        'it_trucker_name': 'Trucker Name',
+                        'ad_trucker_name': 'Trucker Name',
+                        'del_trucker_name': 'Trucker Name',
+                        'pod_trucker_name': 'Trucker Name',
+                        'driver_type': 'Driver Type',
+                        
+                        // Equipment Information
+                        'tractor_number': 'Tractor Number',
+                        'trailer_number': 'Trailer Number',
+                        'required_equipment': 'Required Equipment',
+                        
+                        // Location Information
+                        'pickup_address': 'Pickup Address',
+                        'origin_address': 'Origin Address',
+                        'destination_address': 'Destination Address',
+                        'receiver_address': 'Receiver Address',
+                        'current_location': 'Current Location',
+                        'next_stop_location': 'Next Stop Location',
+                        
+                        // Timing Information
+                        'scheduled_pickup_time': 'Scheduled Pickup Time',
+                        'scheduled_delivery_time': 'Scheduled Delivery Time',
+                        'actual_pickup_time': 'Actual Pickup Time',
+                        'scheduled_eta': 'Scheduled ETA',
+                        'arrival_time': 'Arrival Time',
+                        'empty_time': 'Empty Time',
+                        'delivery_date': 'Delivery Date',
+                        'last_check_call_time': 'Last Check Call Time',
+                        
+                        // Status Information
+                        'last_known_status': 'Last Known Status',
+                        'purpose': 'Call Purpose',
+                        'remaining_miles': 'Remaining Miles',
+                        'driver_tracking': 'Driver on Tracking',
+                        'tracking_on': 'Tracking On',
+                        'delay_reason': 'Delay Reason',
+                        
+                        // Delivery Information
+                        'receiver_name': 'Receiver Name',
+                        'dock_number': 'Dock Number',
+                        'bol_verified': 'BOL/PO Verified',
+                        'commodity_description': 'Commodity Description',
+                        'lumper_needed': 'Lumper Needed',
+                        'lumper_amount': 'Lumper Amount',
+                        'payment_method': 'Payment Method',
+                        'pod_uploaded': 'POD Uploaded',
+                        'lumper_receipt': 'Lumper Receipt Collected',
+                        'final_osd': 'Final OS&D',
+                        'osd_notes': 'OS&D Notes',
+                        'upload_method': 'Upload Method',
+                        'reminder_attempt': 'Reminder Attempt',
+                        
+                        // Additional Information
+                        'preferred_comms': 'Preferred Communication',
+                        'accessorials_needed': 'Accessorials Needed',
+                        'transfer_call_to': 'Transfer Call To',
+                        'transfer_country_code': 'Transfer Country Code',
+                        'notes': 'Notes'
+                    };
+                    
+                    // Define field ordering for better presentation
+                    const fieldOrder = [
+                        // Load and Contact Info
+                        'load_id', 'pickup_load_id', 'pc_load_id', 'it_load_id', 'ad_load_id', 'del_load_id', 'pod_load_id',
+                        'carrier_name', 'contact_name', 
+                        'contact_phone', 'pickup_contact_phone', 'pc_contact_phone', 'it_contact_phone', 'ad_contact_phone', 'del_contact_phone', 'pod_contact_phone',
+                        'country_code', 'pickup_country_code', 'pc_country_code', 'it_country_code', 'ad_country_code', 'del_country_code', 'pod_country_code',
+                        
+                        // Driver Info
+                        'trucker_name', 'pickup_trucker_name', 'pc_trucker_name', 'it_trucker_name', 'ad_trucker_name', 'del_trucker_name', 'pod_trucker_name',
+                        'driver_type',
+                        
+                        // Equipment
+                        'tractor_number', 'trailer_number', 'required_equipment',
+                        
+                        // Locations
+                        'pickup_address', 'origin_address', 'destination_address', 'receiver_address', 'current_location', 'next_stop_location',
+                        
+                        // Timing
+                        'scheduled_pickup_time', 'scheduled_delivery_time', 'actual_pickup_time', 'scheduled_eta', 'arrival_time', 'empty_time', 'delivery_date',
+                        
+                        // Status and Tracking
+                        'purpose', 'last_known_status', 'remaining_miles', 'driver_tracking', 'tracking_on', 'delay_reason',
+                        
+                        // Delivery Details
+                        'receiver_name', 'dock_number', 'bol_verified', 'commodity_description', 'lumper_needed', 'lumper_amount', 'payment_method',
+                        'pod_uploaded', 'lumper_receipt', 'final_osd', 'osd_notes', 'upload_method', 'reminder_attempt',
+                        
+                        // Additional
+                        'preferred_comms', 'accessorials_needed', 'transfer_call_to', 'notes'
+                    ];
+                    
+                    // First render fields in order
+                    fieldOrder.forEach(key => {
+                        if (formData.hasOwnProperty(key) && formData[key] !== null && formData[key] !== '' && formData[key] !== undefined && !key.startsWith('_')) {
+                            const displayLabel = fieldLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            let displayValue = this.escapeHtml(String(formData[key]));
+                            
+                            // Special formatting for common patterns
+                            if (key.toLowerCase().includes('tracking') && (formData[key] === 'Y' || formData[key] === 'Yes' || formData[key] === true)) {
+                                displayValue = '<span style="color: #68d391; font-weight: 600;">Yes</span>';
+                            } else if (key.toLowerCase().includes('tracking') && (formData[key] === 'N' || formData[key] === 'No' || formData[key] === false)) {
+                                displayValue = '<span style="color: #fc8181; font-weight: 600;">No</span>';
+                            } else if (key.toLowerCase().includes('verified') && (formData[key] === 'Y' || formData[key] === 'Yes')) {
+                                displayValue = '<span style="color: #68d391; font-weight: 600;">Yes - Matches</span>';
+                            } else if (key.toLowerCase().includes('verified') && (formData[key] === 'N' || formData[key] === 'No')) {
+                                displayValue = '<span style="color: #fc8181; font-weight: 600;">No - Does Not Match</span>';
+                            } else if (key.toLowerCase().includes('needed') && (formData[key] === 'Y' || formData[key] === 'Yes')) {
+                                displayValue = '<span style="color: #f6ad55; font-weight: 600;">Yes</span>';
+                            } else if (key.toLowerCase().includes('needed') && (formData[key] === 'N' || formData[key] === 'No')) {
+                                displayValue = '<span style="color: #68d391; font-weight: 600;">No</span>';
+                            } else if (key.toLowerCase().includes('uploaded') && (formData[key] === 'Y' || formData[key] === 'Yes')) {
+                                displayValue = '<span style="color: #68d391; font-weight: 600;">Yes</span>';
+                            } else if (key.toLowerCase().includes('uploaded') && (formData[key] === 'N' || formData[key] === 'No')) {
+                                displayValue = '<span style="color: #fc8181; font-weight: 600;">No</span>';
+                            } else if (key.toLowerCase().includes('time') || key.toLowerCase().includes('date')) {
+                                // Format datetime fields
+                                try {
+                                    const date = new Date(formData[key]);
+                                    if (!isNaN(date.getTime())) {
+                                        displayValue = date.toLocaleString('en-US', {
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                            year: 'numeric',
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                            hour12: true
+                                        });
+                                    }
+                                } catch (e) {
+                                    // Keep original value if date parsing fails
+                                }
+                            }
+                            
+                            loadInfoHTML += `
+                                <div class="info-item">
+                                    <span class="info-label">
+                                        <i class="fas fa-info-circle" style="margin-right: 6px; color: #63b3ed;"></i>
+                                        ${displayLabel}:
+                                    </span>
+                                    <span class="info-value">${displayValue}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    // Then render any remaining fields not in the order list
+                    Object.entries(formData).forEach(([key, value]) => {
+                        if (!fieldOrder.includes(key) && value !== null && value !== '' && value !== undefined && !key.startsWith('_')) {
+                            const displayLabel = fieldLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            const displayValue = this.escapeHtml(String(value));
+                            
+                            loadInfoHTML += `
+                                <div class="info-item">
+                                    <span class="info-label">
+                                        <i class="fas fa-info-circle" style="margin-right: 6px; color: #63b3ed;"></i>
+                                        ${displayLabel}:
+                                    </span>
+                                    <span class="info-value">${displayValue}</span>
+                                </div>
+                            `;
+                        }
                     });
                     
                     loadInfoContent.innerHTML = loadInfoHTML;
                 } else {
-                    console.log('No form data found in metadata');
+                    console.log('No form data found in either forms column or metadata');
                 }
             } catch (error) {
-                console.error('Error parsing load info data:', error);
+                console.error('Error parsing form data:', error);
+                console.log('Check-in forms:', this.checkIn.forms);
                 console.log('Check-in metadata:', this.checkIn.check_in_metadata);
-                console.log('Form string after cleanup:', metadata?.form);
             }
         }
     }
@@ -462,12 +658,36 @@ class CheckInPage {
         if (outputCard && outputContent) {
             try {
                 const metadata = JSON.parse(this.checkIn.check_in_metadata);
+                console.log('Checking output data:', {
+                    hasOutput: !!metadata.output,
+                    hasOutputSchemaReceived: !!metadata.output_schema_received,
+                    hasCustomAnalysisOutput: !!(metadata.custom_analysis_data && metadata.custom_analysis_data.output)
+                });
                 
+                // Check if we have actual output data
                 if (metadata.output) {
-                    outputCard.style.display = 'block';
-                    
                     // Parse the output data (it's a JSON string within the metadata)
                     const outputData = JSON.parse(metadata.output);
+                    
+                    // Check if this is a JSON schema (has 'type', 'properties', etc.) or actual data
+                    const isSchema = outputData.hasOwnProperty('type') && outputData.hasOwnProperty('properties');
+                    
+                    if (isSchema) {
+                        // This is a schema definition, not actual output data - show schema received message
+                        console.log('Output contains schema definition, not actual extracted data');
+                        outputCard.style.display = 'block';
+                        outputContent.innerHTML = `
+                            <div class="no-output-data">
+                                <i class="fas fa-exclamation-triangle" style="color: #f6ad55; font-size: 24px; margin-bottom: 12px;"></i>
+                                <p style="color: #a0aec0; font-size: 14px; margin: 0;">Schema received but no data was extracted from the call.</p>
+                                <p style="color: #718096; font-size: 12px; margin: 8px 0 0 0;">The AI was expecting to extract specific information but the call ended before data could be collected.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // This is actual output data, proceed with display
+                    outputCard.style.display = 'block';
                     let outputHTML = '<div class="output-grid">';
                     
                     // Define better display names and order
@@ -480,7 +700,13 @@ class CheckInPage {
                         'Tracking_started': 'Tracking Started',
                         'door number': 'Door Number',
                         'call_transferred': 'Call Transferred',
-                        'transfer_reason': 'Transfer Reason'
+                        'transfer_reason': 'Transfer Reason',
+                        'POD_followup_received': 'POD Follow-up Received',
+                        'POD_uploaded': 'POD Uploaded',
+                        'delivery_confirmation': 'Delivery Confirmed',
+                        'driver_response': 'Driver Response',
+                        'pickup_confirmed': 'Pickup Confirmed',
+                        'arrival_confirmed': 'Arrival Confirmed'
                     };
                     
                     // Define field order for better presentation
@@ -491,6 +717,12 @@ class CheckInPage {
                         'ETA_to_shipper',
                         'Confirmed_equipment',
                         'Tracking_started',
+                        'POD_followup_received',
+                        'POD_uploaded',
+                        'delivery_confirmation',
+                        'pickup_confirmed',
+                        'arrival_confirmed',
+                        'driver_response',
                         'call_transferred',
                         'transfer_reason',
                         'door number'
@@ -506,11 +738,14 @@ class CheckInPage {
                             let displayValue = value;
                             let statusClass = '';
                             
-                            if (typeof value === 'boolean' || key === 'call_transferred') {
-                                const boolValue = value === true || value === 'true' || value === 'Y';
+                            if (typeof value === 'boolean' || key === 'call_transferred' || key.toLowerCase().includes('received') || key.toLowerCase().includes('uploaded') || key.toLowerCase().includes('confirmed')) {
+                                const boolValue = value === true || value === 'true' || value === 'Y' || value === 'yes';
                                 displayValue = boolValue ? 'Yes' : 'No';
                                 statusClass = boolValue ? 'status-success' : (key === 'call_transferred' ? 'status-info' : 'status-warning');
                             } else if (key === 'door number' && (value === 'None' || value === null || value === '')) {
+                                displayValue = 'Not provided';
+                                statusClass = 'status-warning';
+                            } else if (value === 'None' || value === null || value === '') {
                                 displayValue = 'Not provided';
                                 statusClass = 'status-warning';
                             }
@@ -534,6 +769,9 @@ class CheckInPage {
                             if (typeof value === 'boolean') {
                                 displayValue = value ? 'Yes' : 'No';
                                 statusClass = value ? 'status-success' : 'status-warning';
+                            } else if (value === 'None' || value === null || value === '') {
+                                displayValue = 'Not provided';
+                                statusClass = 'status-warning';
                             }
                             
                             outputHTML += `
@@ -547,9 +785,71 @@ class CheckInPage {
                     
                     outputHTML += '</div>';
                     outputContent.innerHTML = outputHTML;
+                } else if (metadata.output_schema_received || (metadata.custom_analysis_data && metadata.custom_analysis_data.output)) {
+                    // We have schema received but no actual extracted data, or output in custom_analysis_data
+                    let outputFromCustom = null;
+                    
+                    // Check if there's output in custom_analysis_data
+                    if (metadata.custom_analysis_data && metadata.custom_analysis_data.output) {
+                        try {
+                            const customOutputData = JSON.parse(metadata.custom_analysis_data.output);
+                            const isCustomSchema = customOutputData.hasOwnProperty('type') && customOutputData.hasOwnProperty('properties');
+                            
+                            if (!isCustomSchema) {
+                                // This is actual data from custom_analysis_data
+                                outputFromCustom = customOutputData;
+                            }
+                        } catch (e) {
+                            console.log('Could not parse custom_analysis_data.output');
+                        }
+                    }
+                    
+                    if (outputFromCustom) {
+                        // Display the data from custom_analysis_data
+                        outputCard.style.display = 'block';
+                        let outputHTML = '<div class="output-grid">';
+                        
+                        Object.entries(outputFromCustom).forEach(([key, value]) => {
+                            const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            let displayValue = value;
+                            let statusClass = '';
+                            
+                            if (typeof value === 'boolean') {
+                                displayValue = value ? 'Yes' : 'No';
+                                statusClass = value ? 'status-success' : 'status-warning';
+                            } else if (value === 'None' || value === null || value === '') {
+                                displayValue = 'Not provided';
+                                statusClass = 'status-warning';
+                            }
+                            
+                            outputHTML += `
+                                <div class="output-item ${statusClass}">
+                                    <span class="output-label">${displayKey}</span>
+                                    <span class="output-value">${this.escapeHtml(String(displayValue))}</span>
+                                </div>
+                            `;
+                        });
+                        
+                        outputHTML += '</div>';
+                        outputContent.innerHTML = outputHTML;
+                    } else {
+                        // Show schema received message
+                        outputCard.style.display = 'block';
+                        outputContent.innerHTML = `
+                            <div class="no-output-data">
+                                <i class="fas fa-exclamation-triangle" style="color: #f6ad55; font-size: 24px; margin-bottom: 12px;"></i>
+                                <p style="color: #a0aec0; font-size: 14px; margin: 0;">Expected data fields defined but no values were extracted.</p>
+                                <p style="color: #718096; font-size: 12px; margin: 8px 0 0 0;">The AI was configured to extract specific information but the call ended before data could be collected.</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    // No output data available at all
+                    outputCard.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error parsing output data:', error);
+                outputCard.style.display = 'none';
             }
         }
     }

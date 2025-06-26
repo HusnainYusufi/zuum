@@ -92,7 +92,8 @@ def create_checkin(
                 "AI_Timestamp": new_checkin.AI_Timestamp,
                 "Issue_Flagged": new_checkin.Issue_Flagged,
                 "call_trasfered": new_checkin.call_trasfered,
-                "is_active": new_checkin.is_active
+                "is_active": new_checkin.is_active,
+                "forms": new_checkin.forms
             }
         }
         
@@ -269,7 +270,8 @@ def get_latest_checkin(db: Session = Depends(get_db)):
                 "call_trasfered": latest_checkin.call_trasfered,
                 "Tags": latest_checkin.Tags,
                 "miles": latest_checkin.miles,
-                "is_active": latest_checkin.is_active
+                "is_active": latest_checkin.is_active,
+                "forms": latest_checkin.forms
             }
         }
         
@@ -346,7 +348,8 @@ def get_checkins_list(
                 "call_trasfered": checkin.call_trasfered,
                 "Tags": checkin.Tags,
                 "miles": checkin.miles,
-                "is_active": checkin.is_active
+                "is_active": checkin.is_active,
+                "forms": checkin.forms
             })
         
         return {
@@ -404,6 +407,7 @@ def get_checkin(checkin_id: int, db: Session = Depends(get_db)):
                 "Tags": checkin.Tags,
                 "miles": checkin.miles,
                 "is_active": checkin.is_active,
+                "forms": checkin.forms,  # Include the forms JSON data
                 "call_id": retell_call.call_id if retell_call else None,
                 "call_transcript": retell_call.call_transcript if retell_call else None,
                 "recording_url": retell_call.recording_url if retell_call else None,
