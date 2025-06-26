@@ -563,4 +563,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+});
+
+// Character counter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('feedbackTextarea');
+    const charCounter = document.getElementById('charCounter');
+    const maxLength = 1600;
+
+    function updateCharCounter() {
+        const currentLength = textarea.value.length;
+        charCounter.textContent = `${currentLength}/${maxLength} characters`;
+
+        // Update counter color based on length
+        charCounter.classList.remove('near-limit', 'at-limit');
+        if (currentLength >= maxLength) {
+            charCounter.classList.add('at-limit');
+        } else if (currentLength >= maxLength * 0.9) { // When 90% full
+            charCounter.classList.add('near-limit');
+        }
+    }
+
+    // Add event listeners
+    textarea.addEventListener('input', updateCharCounter);
+    textarea.addEventListener('keyup', updateCharCounter);
+    textarea.addEventListener('paste', function(e) {
+        setTimeout(updateCharCounter, 0);
+    });
+
+    // Initialize counter
+    updateCharCounter();
 }); 
