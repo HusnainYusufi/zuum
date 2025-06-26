@@ -173,6 +173,13 @@ async def send_feedback(
     db: Session = Depends(get_db)
 ):
     try:
+        # Validate feedback description length
+        if len(feedbackDescription) > 1400:
+            raise HTTPException(
+                status_code=400,
+                detail="Feedback description cannot exceed 1400 characters"
+            )
+
         logger.info(f"Received feedback from {userName} ({userEmail}) - Type: {feedbackType}")
         
         # Check required environment variables for Twilio
@@ -256,7 +263,7 @@ Email: {userEmail}
 Type: {feedbackType}
 
 Message:
-{feedbackDescription[:200]}{"..." if len(feedbackDescription) > 200 else ""}"""
+{feedbackDescription}"""
 
         # Add image links if any (using the host URL if available)
         if image_links:

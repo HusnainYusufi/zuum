@@ -1149,4 +1149,19 @@ label {
         background-size: 16px;
         padding-right: 44px;
     }
+}
+
+.char-counter {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+    text-align: right;
+}
+
+.char-counter.near-limit {
+    color: #ff9900;
+}
+
+.char-counter.at-limit {
+    color: #ff0000;
 } 
