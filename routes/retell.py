@@ -441,7 +441,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
         # Import Supabase service
         from services.supabase import supabase_service
         
-        # Check if this is a call_started event  
+        # Check if this is a call_started event (when user picks up the phone)
         if request.get("event") == "call_started":
             call_data = request.get("call", {})
             call_id = call_data.get("call_id")
@@ -491,7 +491,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                             await notify_check_in_update(websocket_check_in_data)
                             logger.info(f"Sent WebSocket check-in start notification for check-in {check_in_id}")
                         
-                        # Create notification for call start
+                        # Create notification for call start/answered
                         notification_data = {
                             "message": f"Call started for check-in {check_in_id}",
                             "notification_type": "call_started",
@@ -505,39 +505,6 @@ async def retell_recording_webhook(request: dict = Body(...)):
                     logger.error(f"Error handling call start: {e}")
             
             return {"status": "success", "message": "Call start webhook processed successfully"}
-        
-        # Check if this is a call_answered event (when user picks up)
-        elif request.get("event") == "call_started":
-            call_data = request.get("call", {})
-            call_id = call_data.get("call_id")
-            
-            logger.info(f"Call answered - Call ID: {call_id}")
-            
-            if call_id:
-                # Find the retell call and get check_in_id
-                try:
-                    call_result = supabase_service.client.table("retell_calls").select("check_in_id").eq("call_id", call_id).execute()
-                    if call_result.data:
-                        check_in_id = call_result.data[0]["check_in_id"]
-                        
-                        # Update check-in to mark user as picked up
-                        await supabase_service.update_check_in(check_in_id, {"user_picked_up": True})
-                        logger.info(f"Marked check-in {check_in_id} as user picked up (answered) for call {call_id}")
-                        
-                        # Create notification for call answered
-                        notification_data = {
-                            "message": f"Call answered for check-in {check_in_id}",
-                            "notification_type": "call_answered",
-                            "severity": "info",
-                            "check_in_id": check_in_id,
-                            "metadata": {"call_id": call_id}
-                        }
-                        await supabase_service.create_notification(notification_data)
-                        logger.info(f"Sent call answered notification for check-in {check_in_id}")
-                except Exception as e:
-                    logger.error(f"Error handling call answered: {e}")
-            
-            return {"status": "success", "message": "Call answered webhook processed successfully"}
         
         # Check if this is a call_ended event
         elif request.get("event") == "call_ended":
@@ -632,6 +599,53 @@ async def retell_recording_webhook(request: dict = Body(...)):
                         
                         logger.info(f"Sent transfer notification for check-in {check_in_id}")
                         return {"status": "success", "message": "Call transfer webhook processed successfully"}
+                    # Check if call reached voicemail
+                    elif disconnection_reason == "voicemail_reached":
+                        check_in_update["call_status"] = "voicemail"
+                        check_in_update["user_picked_up"] = False
+                        logger.info(f"Marked check-in {check_in_id} as voicemail - user did not pick up")
+                        
+                        # Update check-in and send notification
+                        await supabase_service.update_check_in(check_in_id, check_in_update)
+                        
+                        # Create notification for voicemail
+                        notification_data = {
+                            "message": f"Call reached voicemail for check-in {check_in_id}",
+                            "notification_type": "voicemail_reached",
+                            "severity": "warning",
+                            "check_in_id": check_in_id,
+                            "metadata": {"call_id": call_id, "disconnection_reason": disconnection_reason}
+                        }
+                        await supabase_service.create_notification(notification_data)
+                        
+                        # Send WebSocket notification for voicemail
+                        updated_checkin_result = await supabase_service.get_check_in(check_in_id)
+                        if updated_checkin_result["success"]:
+                            updated_check_in_data = updated_checkin_result["data"]
+                            websocket_check_in_data = {
+                                'id': updated_check_in_data['id'],
+                                'stop_id': updated_check_in_data.get('stop_id'),
+                                'load_id': updated_check_in_data.get('load_id'),
+                                'query': None,
+                                'AI_Response_Summary': updated_check_in_data.get('ai_response_summary'),
+                                'AI_Timestamp': updated_check_in_data.get('ai_timestamp'),
+                                'Issue_Flagged': updated_check_in_data.get('issue_flagged', False),
+                                'Exception_Type': updated_check_in_data.get('exception_type'),
+                                'Call_confidence_score': updated_check_in_data.get('confidence_score'),
+                                'call_trasfered': False,
+                                'is_active': False,
+                                'Tags': updated_check_in_data.get('tags'),
+                                'stop_name': None,
+                                'stop_location': None,
+                                'stop_eta': None,
+                                'call_status': 'voicemail',
+                                'user_picked_up': False  # Explicitly show user didn't pick up
+                            }
+                            await notify_check_in_update(websocket_check_in_data)
+                            logger.info(f"Sent WebSocket voicemail notification for check-in {check_in_id}")
+                        
+                        logger.info(f"Sent voicemail notification for check-in {check_in_id}")
+                        return {"status": "success", "message": "Voicemail webhook processed successfully"}
                     else:
                         # Mark as completed but wait for analysis
                         check_in_update["call_status"] = "completed"
