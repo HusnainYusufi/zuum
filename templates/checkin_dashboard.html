@@ -6,6 +6,9 @@
     <title>Check-in Dashboard</title>
     <link rel="stylesheet" href="/static/css/StakeholderDashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Tailwind CSS  -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"> 
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Modern font system */
@@ -17,7 +20,7 @@
         html, body {
             height: 100%;
             margin: 0;
-            padding: 0;
+     
         }
 
         #app {
@@ -26,6 +29,40 @@
             flex-direction: column;
         }
 
+        #recent-checkins-list {
+        max-height: 150px; /* Adjust this value based on your needs */
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+                /* Custom styles for the glassmorphism effect */
+                .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px; /* More rounded corners */
+        }
+        
+        /* Custom scrollbar for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Custom styling for select dropdowns to match the theme */
+ 
         /* Override specific styles for checkin dashboard */
         .stats-grid {
             display: grid;
@@ -1940,10 +1977,10 @@
         }
     </style>
 </head>
-<body style="overflow-x: hidden; margin: 0; padding: 0;">
-    <div id="app" class="dashboard-container">
+<body class="bg-[#0D0D0D] text-gray-200 lg:p-12" style="overflow-x: hidden; margin: 0; padding: 0;">
+    <div id="app" class="bg-[#0D0D0D] p-12 dashboard-container ">
         <!-- Dashboard Header -->
-        <div class="dashboard-header">
+        <!-- <div class="dashboard-header">
             <h1>
                 <i class="fas fa-clipboard-check header-icon"></i>
                 <span class="header-title">Check-in Dashboard</span>
@@ -1958,117 +1995,125 @@
                     <span class="refresh-text">Refresh</span>
                 </button>
             </div>
-        </div>
+        </div> -->
 
-        <!-- Statistics Cards -->
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-clipboard-list"></i>
-                </div>
-                <div class="stat-number" id="total-checkins">0</div>
-                <div class="stat-label">Total Check-ins</div>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+                <h1 class="text-3xl lg:text-4xl font-bold text-white">
+                    <i class="fas fa-clipboard-check header-icon"></i>
+                    <span class="header-title">Check-in Dashboard</span>
+                </h1>
+                <p class="text-gray-400 mt-1">Real-time monitoring and issue tracking.</p>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-exclamation-triangle" style="color: #ed8936;"></i>
-                </div>
-                <div class="stat-number" id="total-issues">0</div>
-                <div class="stat-label">Issues Flagged</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-phone-alt" style="color: #48bb78;"></i>
-                </div>
-                <div class="stat-number" id="call-transfers">0</div>
-                <div class="stat-label">Call Transfers</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-calendar-day" style="color: #4299e1;"></i>
-                </div>
-                <div class="stat-number" id="today-checkins">0</div>
-                <div class="stat-label">Today's Check-ins</div>
+            <div class="flex items-center space-x-2 mt-4 md:mt-0">
+                <a href="/transit-dashboard" class="glass-card flex items-center px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-all duration-300">
+                    <i class="fas fa-truck mr-2"></i>
+                    <span>Transit Dashboard</span>
+                </a>
+                <button id="refresh-button" class="glass-card flex items-center px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-all duration-300">
+                    <i class="fas fa-sync refresh-icon mr-2 animate-spin-slow"></i>
+                    <span class="refresh-text">Refresh</span>
+                </button>
             </div>
         </div>
 
+ 
+   
         <!-- Main Dashboard Grid -->
-        <div class="dashboard-main-grid">
-            <!-- Left Content -->
-            <div class="dashboard-left-content">
-                <!-- Charts Section -->
-                <div class="charts-section">
-                    <div class="chart-card">
-                        <div class="chart-title">
-                            <i class="fas fa-chart-line"></i>
-                            Check-ins Per Day (Last 30 Days)
+        <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div class="lg:col-span-1 xl:col-span-1 flex flex-col gap-6">
+                <div class="glass-card p-6">
+                    <h3 class="font-bold text-white text-lg mb-4">Overview</h3>
+                    <div class="space-y-4" id="stats-grid">
+                        <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="fas fa-clipboard-list text-blue-400 text-xl w-8"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-300">Total Check-ins</span>
+                            </div>
+                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
                         </div>
-                        <canvas id="checkins-per-day-chart"></canvas>
-                    </div>
-                    
-                    <div class="chart-card">
-                        <div class="chart-title">
-                            <i class="fas fa-chart-area"></i>
-                            Weekly Trends
+                        <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-orange-400 text-xl w-8"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-300">Issues Flagged</span>
+                            </div>
+                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
                         </div>
-                        <canvas id="weekly-trends-chart"></canvas>
+                        <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="fas fa-phone-alt text-green-400 text-xl w-8"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-300">Call Transfers</span>
+                            </div>
+                            <div class="text-2xl font-bold text-white" id="call-transfers">0</div>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-day text-purple-400 text-xl w-8"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-300">Today's Check-ins</span>
+                            </div>
+                            <div class="text-2xl font-bold text-white" id="today-checkins">0</div>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Latest Check-in Details -->
-                <div class="latest-checkin-card" id="latest-checkin-card">
-                    <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 1px; background: linear-gradient(135deg, #4299e1, #63b3ed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                        <i class="fas fa-info-circle" style="color: #4299e1 !important; font-size: 18px;"></i>
-                        Latest Check-in Details
-                    </h3>
-                    <div id="latest-checkin-content">
-                        <p class="no-check-ins">Loading latest check-in...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Check-ins Section -->
-            <div class="check-ins-section">
-                <h3>
-                    <i class="fas fa-clipboard-check section-icon"></i>
-                    RECENT CHECK-INS
-                </h3>
-
-                <!-- Recent Checkins Filters -->
-                <div class="recent-filters">
-                    <div class="filter-group">
-                        <label class="filter-label">Call Status</label>
-                        <select class="filter-input" id="recent-call-status-filter">
+                <div class="glass-card p-6 flex flex-col flex-grow">
+                    <h3 class="font-bold text-white text-lg mb-4">Recent Check-ins</h3>
+                    <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                        <select id="recent-call-status-filter" class=" w-full bg-black/40 border-none rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-lime-400 transition">
                             <option value="">All Calls</option>
                             <option value="answered">Call Answered</option>
                             <option value="not_answered">Call Not Answered</option>
                         </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Issue Status</label>
-                        <select class="filter-input" id="recent-issue-filter">
-                            <option value="">All</option>
+                        <select id="recent-issue-filter" class=" w-full bg-black/40 border-none rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-lime-400 transition">
+                            <option value="">All Issues</option>
                             <option value="true">Issues Only</option>
                             <option value="false">No Issues</option>
                         </select>
                     </div>
-                </div>
-
-                <!-- Recent Checkins List (Limited to 5) -->
-                <div class="check-ins-container" id="recent-checkins-list">
-                    <p class="no-check-ins">Loading recent check-ins...</p>
-                </div>
-
-                <!-- View All Button -->
-                <div class="view-all-container">
-                    <button class="view-all-button" id="view-all-button">
+                    <div class="space-y-3 custom-scrollbar pr-2 flex-grow overflow-y-auto h-64 lg:h-auto" id="recent-checkins-list">
+                        <p class="no-check-ins">Loading recent check-ins...</p>
+                    </div>
+                    <button id="view-all-button" class="w-full mt-4 bg-lime-400/20 text-lime-300 font-semibold py-3 rounded-lg hover:bg-lime-400/40 transition-all duration-300">
+                   
+                    <!-- <button id="view-all-button" class="w-full mt-4 bg-lime-400/20 text-lime-300 font-semibold py-3 rounded-lg hover:bg-lime-400/40 transition-all duration-300"> -->
                         <i class="fas fa-list"></i>
                         <span>View All Check-ins</span>
                     </button>
                 </div>
             </div>
+            <div class="lg:col-span-2 xl:col-span-3 flex flex-col gap-6">
+                <div class="glass-card p-6 xl:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-white text-lg">Daily Check-ins</h3>
+                        <span class="text-xs text-gray-400 font-medium">Last 30 Days</span>
+                    </div>
+                    <div class="h-60 lg:h-56">
+                        <canvas id="checkins-per-day-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <div class="glass-card p-6 xl:col-span-2" id="latest-checkin-card">
+                        <h3 class="font-bold text-white text-lg mb-4 flex items-center">
+                            <i class="fas fa-info-circle text-lime-400 mr-3"></i>
+                            Latest Check-in Details
+                        </h3>
+                        <div class="space-y-4 p-4 bg-black/20 rounded-xl" id="latest-checkin-content">
+                            <p class="no-check-ins">Loading latest check-in...</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-6">
+                        <h3 class="font-bold text-white text-lg mb-4">Weekly Trends</h3>
+                        <div class="h-48">
+                            <canvas id="weekly-trends-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
+
+     
         <!-- Loading Spinner -->
         <div class="loading-spinner" id="loading-spinner" style="display: none;">
             <div class="spinner"></div>
@@ -2693,166 +2738,255 @@
         }
 
         function displayLatestCheckin(checkin) {
-            const content = document.getElementById('latest-checkin-content');
-            
-            // Debug logging for latest checkin
-            console.log('Latest checkin user_picked_up:', JSON.stringify({
-                id: checkin.id,
-                user_picked_up: checkin.user_picked_up,
-                type: typeof checkin.user_picked_up,
-                Issue_Flagged: checkin.Issue_Flagged,
-                raw_value: checkin.user_picked_up
-            }, null, 2));
-            const date = new Date(checkin.AI_Timestamp);
-            const dateStr = date.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
-            });
-            const timeStr = date.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit',
-                hour12: true 
-            });
-            const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-            
-            content.innerHTML = `
-                <div class="latest-checkin-header">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="latest-checkin-id-badge">
-                            <i class="fas fa-clipboard-check"></i>
-                            <span>#${checkin.id}</span>
-                        </div>
-                        ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? `
-                        <div class="active-indicator">
-                            <div class="active-spinner"></div>
-                            <span>Call Active</span>
-                        </div>
-                        ` : ''}
-                    </div>
-                    <div class="latest-checkin-timestamp">
-                        <i class="fas fa-clock"></i>
-                        <span>${dateStr} at ${timeStr}</span>
-                    </div>
+    const content = document.getElementById('latest-checkin-content');
+
+    // Debug logging for latest checkin
+    console.log('Latest checkin user_picked_up:', JSON.stringify({
+        id: checkin.id,
+        user_picked_up: checkin.user_picked_up,
+        type: typeof checkin.user_picked_up,
+        Issue_Flagged: checkin.Issue_Flagged,
+        raw_value: checkin.user_picked_up
+    }, null, 2));
+
+    const date = new Date(checkin.AI_Timestamp);
+    const dateStr = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+
+    const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+
+    // Determine status classes and icons based on checkin status
+    let statusClass, statusText;
+    if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
+        statusClass = 'text-gray-400 bg-gray-900/50';
+        statusText = 'NO ANSWER';
+    } else if (checkin.Issue_Flagged) {
+        statusClass = 'text-orange-400 bg-orange-900/50';
+        statusText = 'ISSUE FLAGGED';
+    } else {
+        statusClass = 'text-green-400 bg-green-900/50';
+        statusText = 'NO ISSUE';
+    }
+
+    content.innerHTML = `
+        <div class="space-y-4 p-4 bg-black/20 rounded-xl">
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Check-in ID</span>
+                <span class="font-bold text-white">#${checkin.id}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Timestamp</span>
+                <span class="font-medium text-gray-300">${dateStr} at ${timeStr}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Load ID</span>
+                <span class="font-medium text-gray-300">${checkin.load_id || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Call Status</span>
+                <span class="text-xs font-bold ${checkin.call_trasfered ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 bg-gray-900/50'} px-2 py-1 rounded-full">
+                    ${checkin.call_trasfered ? 'TRANSFERRED' : 'NOT TRANSFERRED'}
+                </span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Status</span>
+                <span class="text-xs font-bold ${statusClass} px-2 py-1 rounded-full">${statusText}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Tags</span>
+                <span class="font-medium text-gray-300">${tags.length > 0 ? tags.join(', ') : 'No tags'}</span>
+            </div>
+            ${checkin.AI_Response_Summary ? `
+                <div class="pt-4 border-t border-white/10">
+                    <p class="text-sm font-medium text-gray-400 mb-2">AI Summary</p>
+                    <p class="text-gray-300 text-sm">${checkin.AI_Response_Summary}</p>
                 </div>
-                <div class="latest-checkin-body">
-                    <div class="latest-checkin-info-grid">
-                        <div class="latest-checkin-info-item">
-                            <div class="latest-checkin-info-label">
-                                <i class="fas fa-truck" style="color: #63b3ed; font-size: 10px;"></i>
-                                Load ID
-                            </div>
-                            <div class="latest-checkin-info-value">${checkin.load_id || 'N/A'}</div>
-                        </div>
-                        <div class="latest-checkin-info-item">
-                            <div class="latest-checkin-info-label">
-                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
-                                    '<i class="fas fa-phone-slash" style="color: #fc8181; font-size: 10px;"></i>' : 
-                                    checkin.Issue_Flagged ? 
-                                        '<i class="fas fa-exclamation-triangle" style="color: #f6ad55; font-size: 10px;"></i>' : 
-                                        '<i class="fas fa-check-circle" style="color: #68d391; font-size: 10px;"></i>'}
-                                Status
-                            </div>
-                            <div class="latest-checkin-info-value">
-                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
-                                    '<span class="status-indicator issue">No Pickup</span>' : 
-                                    checkin.Issue_Flagged ? 
-                                        '<span class="status-indicator issue">Issue Flagged</span>' : 
-                                        '<span class="status-indicator no-issue">No Issues</span>'}
-                            </div>
-                        </div>
-                        <div class="latest-checkin-info-item">
-                            <div class="latest-checkin-info-label">
-                                <i class="fas fa-phone-alt" style="color: #a0aec0; font-size: 10px;"></i>
-                                Call Status
-                            </div>
-                            <div class="latest-checkin-info-value">
-                                ${checkin.call_trasfered ? 
-                                    '<span class="status-indicator transfer">Transferred</span>' : 
-                                    'Not Transferred'}
-                            </div>
-                        </div>
-                        <div class="latest-checkin-info-item">
-                            <div class="latest-checkin-info-label">
-                                <i class="fas fa-tags" style="color: #63b3ed; font-size: 10px;"></i>
-                                Tags
-                            </div>
-                            <div class="latest-checkin-info-value">
-                                ${tags.length > 0 ? 
-                                    `<div class="latest-checkin-tags">${tags.map(tag => 
-                                        `<span class="latest-checkin-tag">${tag}</span>`
-                                    ).join('')}</div>` : 
-                                    'No tags'}
-                            </div>
-                        </div>
-                    </div>
-                    ${checkin.AI_Response_Summary ? `
-                        <div class="latest-checkin-summary">
-                            <div class="latest-checkin-summary-label">AI Summary</div>
-                            <div class="latest-checkin-summary-text">${checkin.AI_Response_Summary}</div>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-        }
+            ` : ''}
+        </div>
+    `;
+}
+
+        // function displayRecentCheckins(checkins) {
+        //     const container = document.getElementById('recent-checkins-list');
+            
+        //     if (!checkins || checkins.length === 0) {
+        //         container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
+        //         return;
+        //     }
+            
+        //     // Debug logging to check user_picked_up values
+        //     console.log('Recent checkins with user_picked_up values:', 
+        //         JSON.stringify(checkins.map(c => ({
+        //             id: c.id,
+        //             user_picked_up: c.user_picked_up,
+        //             type: typeof c.user_picked_up,
+        //             Issue_Flagged: c.Issue_Flagged,
+        //             raw_value: c.user_picked_up
+        //         })), null, 2)
+        //     );
+            
+        //     const checkinsHtml = checkins.map(checkin => {
+        //         const date = new Date(checkin.AI_Timestamp);
+        //         const day = date.getDate();
+        //         const month = date.toLocaleDateString('en-US', { month: 'short' });
+        //         const year = date.getFullYear();
+        //         const time = date.toLocaleTimeString('en-US', { 
+        //             hour: 'numeric', 
+        //             minute: '2-digit',
+        //             hour12: true 
+        //         });
+        //         const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
+                
+        //         return `
+        //             <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
+        //                 <div class="check-in-header">
+        //                     <div class="check-in-id-wrapper">
+        //                         <i class="fas fa-clipboard-check check-in-icon"></i>
+        //                         <span class="check-in-id">#${checkin.id}</span>
+        //                         <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
+        //                     </div>
+        //                     <div class="check-in-status">
+        //                         ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
+        //                             '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+        //                         ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+        //                             '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
+        //                             checkin.Issue_Flagged ? 
+        //                                 '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
+        //                                 '<i class="fas fa-check-circle status-icon success"></i>'}
+        //                         ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
+        //                             '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
+        //                     </div>
+        //                 </div>
+        //             </div>
+        //         `;
+        //     }).join('');
+            
+        //     container.innerHTML = checkinsHtml;
+        // }
 
         function displayRecentCheckins(checkins) {
-            const container = document.getElementById('recent-checkins-list');
-            
-            if (!checkins || checkins.length === 0) {
-                container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
-                return;
-            }
-            
-            // Debug logging to check user_picked_up values
-            console.log('Recent checkins with user_picked_up values:', 
-                JSON.stringify(checkins.map(c => ({
-                    id: c.id,
-                    user_picked_up: c.user_picked_up,
-                    type: typeof c.user_picked_up,
-                    Issue_Flagged: c.Issue_Flagged,
-                    raw_value: c.user_picked_up
-                })), null, 2)
-            );
-            
-            const checkinsHtml = checkins.map(checkin => {
-                const date = new Date(checkin.AI_Timestamp);
-                const day = date.getDate();
-                const month = date.toLocaleDateString('en-US', { month: 'short' });
-                const year = date.getFullYear();
-                const time = date.toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                });
-                const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
-                
-                return `
-                    <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
-                        <div class="check-in-header">
-                            <div class="check-in-id-wrapper">
-                                <i class="fas fa-clipboard-check check-in-icon"></i>
-                                <span class="check-in-id">#${checkin.id}</span>
-                                <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
-                            </div>
-                            <div class="check-in-status">
-                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
-                                    '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
-                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
-                                    '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
-                                    checkin.Issue_Flagged ? 
-                                        '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
-                                        '<i class="fas fa-check-circle status-icon success"></i>'}
-                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
-                                    '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            container.innerHTML = checkinsHtml;
+    const container = document.getElementById('recent-checkins-list');
+
+    if (!checkins || checkins.length === 0) {
+        container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
+        return;
+    }
+
+    // Debug logging to check user_picked_up values
+    console.log('Recent checkins with user_picked_up values:',
+        JSON.stringify(checkins.map(c => ({
+            id: c.id,
+            user_picked_up: c.user_picked_up,
+            type: typeof c.user_picked_up,
+            Issue_Flagged: c.Issue_Flagged,
+            raw_value: c.user_picked_up
+        })), null, 2)
+    );
+
+    const checkinsHtml = checkins.map(checkin => {
+        const date = new Date(checkin.AI_Timestamp);
+        const timeAgo = calculateTimeAgo(date);
+
+        // Determine status classes and icons based on checkin status
+        let statusClass, statusText;
+        if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
+            statusClass = 'text-gray-400 bg-gray-900/50';
+            statusText = 'No Answer';
+        } else if (checkin.Issue_Flagged) {
+            statusClass = 'text-orange-400 bg-orange-900/50';
+            statusText = 'Issue';
+        } else {
+            statusClass = 'text-green-400 bg-green-900/50';
+            statusText = 'Answered';
         }
+
+        return `
+        <div
+  onclick="window.location.href='/checkin/${checkin.id}'"
+  class="p-3 bg-black/20 rounded-lg flex items-center justify-between hover:bg-black/40 transition-colors cursor-pointer"
+  role="button"
+  tabindex="0"
+  onkeydown="if(event.key==='Enter'){window.location.href='/checkin/${checkin.id}'}"
+>
+  <div>
+    <p class="font-semibold text-white">ID: #${checkin.id}</p>
+    <p class="text-xs text-gray-400">${timeAgo}</p>
+  </div>
+  <div class="flex items-center space-x-3">
+    <span class="text-xs font-bold ${statusClass} px-2 py-1 rounded-full">${statusText}</span>
+    <i class="fas fa-chevron-right text-gray-500"></i>
+  </div>
+</div>
+
+        `;
+    }).join('');
+
+    container.innerHTML = checkinsHtml;
+}
+
+// Helper function to calculate time ago
+function calculateTimeAgo(date) {
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = Math.floor(seconds / 31536000);
+    if (interval >= 1) {
+        return interval + " year" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 2592000);
+    if (interval >= 1) {
+        return interval + " month" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 86400);
+    if (interval >= 1) {
+        return interval + " day" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 3600);
+    if (interval >= 1) {
+        return interval + " hour" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 60);
+    if (interval >= 1) {
+        return interval + " minute" + (interval === 1 ? "" : "s") + " ago";
+    }
+    return Math.floor(seconds) + " second" + (seconds === 1 ? "" : "s") + " ago";
+}
+
+// Helper function to calculate time ago
+function calculateTimeAgo(date) {
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = Math.floor(seconds / 31536000);
+    if (interval >= 1) {
+        return interval + " year" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 2592000);
+    if (interval >= 1) {
+        return interval + " month" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 86400);
+    if (interval >= 1) {
+        return interval + " day" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 3600);
+    if (interval >= 1) {
+        return interval + " hour" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 60);
+    if (interval >= 1) {
+        return interval + " minute" + (interval === 1 ? "" : "s") + " ago";
+    }
+    return Math.floor(seconds) + " second" + (seconds === 1 ? "" : "s") + " ago";
+}
 
         function displayModalCheckins(checkins) {
             const container = document.getElementById('modal-checkins-list');
@@ -2988,59 +3122,130 @@
                 charts.checkinsPerDay.destroy();
             }
             
+            const mockData = {
+        labels: Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`),
+        values: Array.from({ length: 30 }, () => Math.floor(Math.random() * 100) + 20)
+    };
+
+            // charts.checkinsPerDay = new Chart(ctx, {
+            //     type: 'line',
+            //     data: {
+            //         labels: data.labels || [],
+            //         datasets: [{
+            //             // label: 'Check-ins',
+            //             label :  mockData.labels,
+            //             data : mockData.values ,
+            //             // data: data.values || [45, 38, 52, 67, 42, 59, 73, 61, 39, 48, 55, 60, 47, 50, 66, 43, 57, 70, 44, 49, 63, 56, 40, 68, 46, 62, 58, 53, 64, 51],
+            //             borderColor: '#63b3ed',
+            //             backgroundColor: 'rgba(99, 179, 237, 0.1)',
+            //             tension: 0.4,
+            //             borderWidth: 2
+            //         }]
+            //     },
+            //     options: {
+            //         responsive: true,
+            //         maintainAspectRatio: false,
+            //         aspectRatio: 2,
+            //         plugins: {
+            //             legend: {
+            //                 display: false
+            //             }
+            //         },
+            //         scales: {
+            //             y: {
+            //                 beginAtZero: true,
+            //                 grid: {
+            //                     color: 'rgba(74, 85, 104, 0.15)',
+            //                     drawBorder: false
+            //                 },
+            //                 ticks: {
+            //                     color: '#718096',
+            //                     font: {
+            //                         size: 10
+            //                     }
+            //                 }
+            //             },
+            //             x: {
+            //                 grid: {
+            //                     color: 'rgba(74, 85, 104, 0.15)',
+            //                     drawBorder: false
+            //                 },
+            //                 ticks: {
+            //                     display: false // Hide x-axis labels
+            //                 }
+            //             }
+            //         }
+            //     }
+            // });
+
+            const checkinsGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            checkinsGradient.addColorStop(0, 'rgba(163, 230, 53, 0.4)');
+            checkinsGradient.addColorStop(1, 'rgba(163, 230, 53, 0)');
+
+            // if we want to display real time data then use data.labels and data.values
             charts.checkinsPerDay = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels || [],
-                    datasets: [{
-                        label: 'Check-ins',
-                        data: data.values || [],
-                        borderColor: '#63b3ed',
-                        backgroundColor: 'rgba(99, 179, 237, 0.1)',
-                        tension: 0.4,
-                        borderWidth: 2
-                    }]
+            type: 'line',
+            data: {
+                labels:  mockData.labels,
+                datasets: [{
+                    label: 'Check-ins',
+                    data:  mockData.values,
+                    borderColor: '#A3E635',
+                    backgroundColor: checkinsGradient,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                aspectRatio: 2,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    aspectRatio: 2,
-                    plugins: {
-                        legend: {
-                            display: false
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(74, 85, 104, 0.15)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#718096',
+                            font: {
+                                size: 10
+                            }
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(74, 85, 104, 0.15)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#718096',
-                                font: {
-                                    size: 10
-                                }
-                            }
+                    x: {
+                        grid: {
+                            color: 'rgba(74, 85, 104, 0.15)',
+                            drawBorder: false
                         },
-                        x: {
-                            grid: {
-                                color: 'rgba(74, 85, 104, 0.15)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                display: false // Hide x-axis labels
-                            }
+                        ticks: {
+                            display: false // Hide x-axis labels
                         }
                     }
                 }
-            });
+            }
+        });
+
         }
 
 
 
         function createWeeklyTrendsChart(data) {
+
+            const mockWeeklyData = {
+        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        issues: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
+        transfers: Array.from({ length: 7 }, () => Math.floor(Math.random() * 15) + 3)
+    };
+
+    
             const ctx = document.getElementById('weekly-trends-chart').getContext('2d');
             
             if (charts.weeklyTrends) {
