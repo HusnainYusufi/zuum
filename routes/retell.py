@@ -31,6 +31,7 @@ import json
 from db_models import RetellCall
 from services.notification_service import notify_stop_update, notify_check_in_update, notify_journey_state_update, send_notification
 from services.supabase import SupabaseService
+import traceback
 
 class ChangeStateRequest(BaseModel):
     state: int
@@ -429,9 +430,6 @@ def update_reported_location_eta(request: dict = Body(...)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
 
 
-
-
-
 @router.post("/webhook/call-ended")
 async def retell_recording_webhook(request: dict = Body(...)):
     """Handle Retell webhook events, specifically call_ended and call_transferred events."""
@@ -599,6 +597,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                         
                         logger.info(f"Sent transfer notification for check-in {check_in_id}")
                         return {"status": "success", "message": "Call transfer webhook processed successfully"}
+                        
                     # Check if call reached voicemail
                     elif disconnection_reason == "voicemail_reached":
                         check_in_update["call_status"] = "voicemail"
@@ -1005,160 +1004,156 @@ def get_check_in_status(check_in_id: int):
         logger.error(f"Error getting check-in status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/test/inbound-call")
+async def test_inbound_call(
+    from_number: str = "+18609937628",
+    to_number: str = "+18005551234",
+    call_id: str = "test_call_123"
+):
+    """
+    Test endpoint to simulate an inbound call webhook.
+    Use this to test the call resumption logic without needing actual phone calls.
+    """
+    try:
+        # Create test request
+        test_request = {
+            "from_number": from_number,
+            "to_number": to_number,
+            "call_id": call_id
+        }
+        
+        logger.info(f"Testing inbound call webhook with: {test_request}")
+        
+        # Call the actual webhook handler
+        result = await retell_inbound_call_webhook(test_request)
+        
+        return {
+            "status": "success",
+            "message": "Test completed successfully",
+            "test_input": test_request,
+            "webhook_response": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing inbound call webhook: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Test failed: {str(e)}",
+            "test_input": {
+                "from_number": from_number,
+                "to_number": to_number,
+                "call_id": call_id
+            }
+        }
 
-# @router.post("/update_checkIn")
-# def check_in(request: dict = Body(...)):
-#     """Update an existing checkIn by extracting chat_summary and other fields from the request."""
-#     try:
-#         logger.info(f"Received in update_checkIn: {request}")
-        
-#         # Initialize variables with defaults
-#         check_in_data = {
-#             'chat_summary': None,
-#             'query': None,
-#             'issue_flagged': False,
-#             'exception_type': None,
-#             'call_confidence_score': None,
-#             'requires_human_review': False,
-#             'tags': None,
-#             'miles': None,
-#             'call_id': None
-#         }
-        
-#         # Extract call_id from the call object if present
-#         if 'call' in request and 'call_id' in request['call']:
-#             check_in_data['call_id'] = request['call']['call_id']
-            
-#             # Extract dynamic variables if present
-#             if 'retell_llm_dynamic_variables' in request['call']:
-#                 dynamic_vars = request['call']['retell_llm_dynamic_variables']
-                
-#                 # Extract other fields
-#                 if 'query' in dynamic_vars:
-#                     check_in_data['query'] = dynamic_vars['query']
-#                 if 'miles' in dynamic_vars:
-#                     check_in_data['miles'] = dynamic_vars['miles']
-        
-#         # Extract args - this is the main source of check-in data
-#         if 'args' in request and isinstance(request['args'], dict):
-#             args = request['args']
-            
-#             # Map the args to our check_in_data
-#             check_in_data['chat_summary'] = args.get('chat_summary') or args.get('AI_Response_Summary')
-#             check_in_data['query'] = args.get('query', check_in_data['query'])
-#             check_in_data['issue_flagged'] = args.get('issue_flagged', False)
-#             check_in_data['exception_type'] = args.get('exception_type')
-#             check_in_data['call_confidence_score'] = args.get('call_confidence_score')
-#             check_in_data['requires_human_review'] = args.get('requires_human_review', False)
-#             check_in_data['tags'] = args.get('tags')
-#             check_in_data['miles'] = args.get('miles', check_in_data['miles'])
-        
-#         # Find existing CheckIn record by call_id
-#         if not check_in_data['call_id']:
-#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="call_id is required to update check-in")
-        
-#         # Find the RetellCall record to get the check_in_id
-#         retell_call = db.query(RetellCall).filter(RetellCall.call_id == check_in_data['call_id']).first()
-#         if not retell_call or not retell_call.check_in_id:
-#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No existing check-in found for this call_id")
-        
-#         # Find and update the existing CheckIn record
-#         check_in_record = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
-#         if not check_in_record:
-#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Check-in record not found")
-        
-#         # Create timestamp for AI response
-#         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        
-#         # Update the existing CheckIn record with non-null values
-#         if check_in_data['query'] is not None:
-#             check_in_record.query = check_in_data['query']
-#         if check_in_data['chat_summary'] is not None:
-#             check_in_record.AI_Response_Summary = check_in_data['chat_summary']
-#             check_in_record.AI_Timestamp = timestamp  # Update timestamp when AI response is provided
-#         if check_in_data['exception_type'] is not None:
-#             check_in_record.Exception_Type = check_in_data['exception_type']
-#         if check_in_data['call_confidence_score'] is not None:
-#             check_in_record.Call_confidence_score = check_in_data['call_confidence_score']
-#         if check_in_data['tags'] is not None:
-#             check_in_record.Tags = check_in_data['tags']
-#         if check_in_data['miles'] is not None:
-#             check_in_record.miles = check_in_data['miles']
-        
-#         # Always update these boolean fields
-#         check_in_record.Issue_Flagged = check_in_data['issue_flagged']
-#         check_in_record.Requires_Human_Review = check_in_data['requires_human_review']
-        
-#         db.commit()
-#         db.refresh(check_in_record)
-        
-#         # Send notification
-#         send_checkin_notification(check_in_record, check_in_record.stop_id)
-        
-#         logger.info(f"Updated check-in #{check_in_record.id} for call_id {check_in_data['call_id']}")
-        
-#         return {
-#             'message': 'Check-in updated successfully',
-#             'check_in_id': check_in_record.id
-#         }
+@router.post("/webhook/inbound")
+async def retell_inbound_webhook(request: dict = Body(...)):
+    """
+    Handle Retell inbound call webhook according to official documentation.
+    This webhook is called when someone calls your Retell phone number.
     
-#     except HTTPException:
-#         # Re-raise HTTPExceptions
-#         raise
+    Documentation: https://docs.retellai.com/features/inbound-call-webhook#inbound-call-webhook
+    """
+    try:
+        logger.info(f"=== RETELL INBOUND CALL WEBHOOK ===")
+        logger.info(f"Received inbound call webhook payload: {json.dumps(request, indent=2)}")
+        
+        # Extract the event type and call_inbound data according to Retell spec
+        event = request.get("event")
+        call_inbound_data = request.get("call_inbound", {})
+        
+        if event != "call_inbound":
+            logger.warning(f"Unexpected event type: {event}")
+            return {"error": "Invalid event type"}
+        
+        # Extract caller information from the payload
+        agent_id = call_inbound_data.get("agent_id")
+        from_number = call_inbound_data.get("from_number", "")
+        to_number = call_inbound_data.get("to_number", "")
+        
+        logger.info(f"Inbound call details:")
+        logger.info(f"  - Agent ID: {agent_id}")
+        logger.info(f"  - From Number: {from_number}")
+        logger.info(f"  - To Number: {to_number}")
+        logger.info(f"  - Timestamp: {datetime.now().isoformat()}")
+        
+        # Log the raw payload for debugging
+        logger.info(f"Raw webhook payload: {request}")
+        
+        # According to Retell docs, we need to return a response with call_inbound object
+        # For now, just return a basic response that accepts the call
+        response = {
+            "call_inbound": {
+                # "override_agent_id": "your_agent_id",
+                # "override_agent_version": 1,
+                # "dynamic_variables": {},
+                # "metadata": {}
+            }
+        }
+        
+        logger.info(f"Returning inbound webhook response: {json.dumps(response, indent=2)}")
+        logger.info(f"=== END INBOUND CALL WEBHOOK ===")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing inbound call webhook: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Return a valid response even on error to avoid call rejection
+        return {
+            "call_inbound": {}
+        }
+
+@router.post("/webhook/inbound-simple")
+async def retell_inbound_webhook_simple(request: dict = Body(...)):
+    """
+    Simple Retell inbound call webhook that just logs the event.
+    This webhook is called when someone calls your Retell phone number.
     
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         logger.error(f"Database error in update_checkIn: {str(e)}")
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
-    
-#     except Exception as e:
-#         logger.error(f"Unexpected error in update_checkIn: {str(e)}")
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
-
-
-
-# @router.post('/check_in/set_metadata')
-# def set_metadata(request: dict = Body(...)):
-#     """Set the metadata for the check-in."""
-#     try:
-#         logger.info(f"Received in set_metadata: \n {request}")
+    Documentation: https://docs.retellai.com/features/inbound-call-webhook#inbound-call-webhook
+    """
+    try:
+        logger.info(f"=== SIMPLE RETELL INBOUND CALL WEBHOOK ===")
+        logger.info(f"Received inbound call webhook payload: {json.dumps(request, indent=2)}")
         
-#         # Extract call_id and args from the request
-#         call_id = None
-#         args = None
+        # Extract the event type and call_inbound data according to Retell spec
+        event = request.get("event")
+        call_inbound_data = request.get("call_inbound", {})
         
-#         if isinstance(request, dict):
-#             # Extract call_id from the call object
-#             if 'call' in request and 'call_id' in request['call']:
-#                 call_id = request['call']['call_id']
-            
-#             # Extract args
-#             if 'args' in request:
-#                 args = request['args']
+        if event != "call_inbound":
+            logger.warning(f"Unexpected event type: {event}")
+            return {"error": "Invalid event type"}
         
-#         # If we have both call_id and args, update or create RetellCall record
-#         if call_id and args:
-#             retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-#             if retell_call:
-#                 # Update existing RetellCall with metadata
-#                 retell_call.check_in_metadata = json.dumps(args)
-#                 db.commit()
-#                 logger.info(f"Updated existing RetellCall with metadata for call_id: {call_id}")
-#                 return {"status": "success", "message": "Metadata updated in existing RetellCall record"}
-#             else:
-#                 # Create new RetellCall record with metadata
-#                 new_retell_call = RetellCall(
-#                     call_id=call_id,
-#                     check_in_metadata=json.dumps(args)
-#                 )
-#                 db.add(new_retell_call)
-#                 db.commit()
-#                 logger.info(f"Created new RetellCall with metadata for call_id: {call_id}")
-#                 return {"status": "success", "message": "Metadata stored in new RetellCall record"}
-#         else:
-#             logger.warning(f"Missing call_id or args in request")
-#             return {"status": "warning", "message": "Missing call_id or args in request"}
-            
-#     except Exception as e:
-#         logger.error(f"Error in set_metadata: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+        # Extract caller information from the payload
+        agent_id = call_inbound_data.get("agent_id")
+        from_number = call_inbound_data.get("from_number", "")
+        to_number = call_inbound_data.get("to_number", "")
+        
+        logger.info(f"📞 INBOUND CALL RECEIVED:")
+        logger.info(f"   🔢 From: {from_number}")
+        logger.info(f"   🔢 To: {to_number}")
+        logger.info(f"   🤖 Agent ID: {agent_id}")
+        logger.info(f"   ⏰ Time: {datetime.now().isoformat()}")
+        
+        # Just log - no Supabase updates as requested
+        logger.info(f"✅ Inbound call logged successfully - No database updates performed")
+        logger.info(f"=== END SIMPLE INBOUND CALL WEBHOOK ===")
+        
+        # Return basic response that accepts the call with default agent
+        response = {
+            "call_inbound": {
+                # Empty response means use default agent settings
+            }
+        }
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing simple inbound call webhook: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Return a valid response even on error to avoid call rejection
+        return {
+            "call_inbound": {}
+        }
