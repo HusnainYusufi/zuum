@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request, Form, HTTPException
+from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from .auth import get_current_user
 from typing import Optional
 import json
 import os
@@ -15,8 +16,10 @@ router = APIRouter(
 templates = Jinja2Templates(directory="templates")
 
 @router.get("/", response_class=HTMLResponse)
-async def show_form(request: Request, active_tab: str = "default"):
+async def show_form(request: Request, active_tab: str = "default", current_user: dict = Depends(get_current_user)):
     """Display the load check-in form with specified active tab"""
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=302)
     # Map URL parameters to actual tab names
     tab_mapping = {
         "default": "Default Form",

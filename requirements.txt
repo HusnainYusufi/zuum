@@ -12,3 +12,5 @@ pyngrok
 twilio
 supabase==2.7.4
 boto3
+passlib[bcrypt]
+itsdangerous
