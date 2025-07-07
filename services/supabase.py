@@ -11,6 +11,16 @@ from datetime import datetime
 import asyncio
 import boto3
 from botocore.exceptions import ClientError
+from supabase import create_client, Client
+from dotenv import load_dotenv
+import logging
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -21,7 +31,6 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     supabase_client = None
 else:
     try:
-        from supabase import create_client, Client
         supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
         logger.info("Supabase client initialized successfully")
     except Exception as e:
@@ -65,7 +74,6 @@ class SupabaseService:
                 "ai_timestamp": data.get("AI_Timestamp", datetime.now().isoformat()),
                 "tags": data.get("tags", []),
                 "issue_flagged": data.get("Issue_Flagged", False),
-                "exception_type": data.get("Exception_Type"),
                 "confidence_score": data.get("Confidence_score"),
                 "forms": data.get("forms", {}),
                 "call_status": data.get("call_status", "in_progress"),
@@ -100,7 +108,6 @@ class SupabaseService:
                 "AI_Timestamp": "ai_timestamp",
                 "tags": "tags",
                 "Issue_Flagged": "issue_flagged",
-                "Exception_Type": "exception_type",
                 "Confidence_score": "confidence_score",
                 "forms": "forms",
                 "call_status": "call_status",
@@ -309,6 +316,29 @@ class SupabaseService:
             logger.error(f"Error updating retell call {call_id}: {e}")
             return {"success": False, "error": str(e)}
 
+    async def get_retell_call_by_id(self, call_id: str) -> Dict[str, Any]:
+        """
+        Fetch a RetellCall record by its call_id
+        
+        Args:
+            call_id: The Retell call ID to fetch
+            
+        Returns:
+            Dictionary containing success status and data/error
+        """
+        try:
+            response = self.client.table('retell_calls').select('*').eq('call_id', call_id).execute()
+            data = response.data
+            
+            if not data:
+                return {"success": False, "error": f"No call found with ID: {call_id}"}
+                
+            return {"success": True, "data": data[0]}
+            
+        except Exception as e:
+            logger.error(f"Error fetching RetellCall {call_id}: {str(e)}")
+            return {"success": False, "error": str(e)}
+
     # Notification operations
     async def create_notification(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new notification"""
@@ -502,3 +532,4 @@ create_notification = supabase_service.create_notification
 get_notifications_paginated = supabase_service.get_notifications_paginated
 mark_notification_read = supabase_service.mark_notification_read
 create_feedback = supabase_service.create_feedback
+get_retell_call_by_id = supabase_service.get_retell_call_by_id
