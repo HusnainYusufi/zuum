@@ -28,6 +28,9 @@ class CheckInPage {
         // Fetch check-in data first to determine current state
         await this.fetchCheckIn();
         
+        // Add loading animation delay to simulate processing
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
         // Debug logging
         console.log('Check-in data loaded:', {
             id: this.checkIn?.id,
@@ -514,11 +517,16 @@ class CheckInPage {
 
     render() {
 
-        // Update page title
+        // Update page title and document title
         const pageTitle = document.getElementById('page-title');
+        const titleText = `Check-in #${this.checkIn.id.toString().padStart(2, '0')}`;
+        
         if (pageTitle) {
-            pageTitle.textContent = `Check-in #${this.checkIn.id.toString().padStart(2, '0')}`;
+            pageTitle.textContent = titleText;
         }
+        
+        // Update the document title (browser tab title)
+        document.title = titleText;
 
         // Render check-in details
         this.renderCheckInDetails();
@@ -546,102 +554,96 @@ class CheckInPage {
     }
 
     renderCheckInDetails() {
+        // ---- 1. Populate the "Check-in Details" Card ----
         const detailsContainer = document.getElementById('checkin-details');
-        if (!detailsContainer) return;
-
-        let detailsHTML = '';
-
-        // Check-in ID
-        detailsHTML += `
-            <div class="info-item">
-                <span class="info-label">Check-in ID:</span>
-                <span class="info-value">#${this.checkIn.id.toString().padStart(2, '0')}</span>
-            </div>
-        `;
-
-        // Call ID
-        if (this.checkIn.call_id) {
-            detailsHTML += `
-                <div class="info-item">
-                    <span class="info-label">Call ID:</span>
-                    <span class="info-value">${this.checkIn.call_id}</span>
-                </div>
-            `;
-        }
-
-        // Load ID
-        if (this.checkIn.load_id) {
-            detailsHTML += `
-                <div class="info-item">
-                    <span class="info-label">Load ID:</span>
-                    <span class="info-value">${this.checkIn.load_id}</span>
-                </div>
-            `;
-        }
-
-        // Date & Time
-        if (this.checkIn.AI_Timestamp) {
-            const date = new Date(this.checkIn.AI_Timestamp);
-            const dateStr = date.toLocaleDateString('en-US', { 
-                month: '2-digit', 
-                day: '2-digit', 
-                year: 'numeric' 
-            });
-            const timeStr = date.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit', 
-                second: '2-digit', 
-                hour12: true 
-            });
-            detailsHTML += `
-                <div class="info-item">
-                    <span class="info-label">Date & Time:</span>
-                    <span class="info-value">${dateStr} at ${timeStr}</span>
-                </div>
-            `;
-        }
-
-        // Miles
-        if (this.checkIn.miles) {
-            detailsHTML += `
-                <div class="info-item">
-                    <span class="info-label">Miles:</span>
-                    <span class="info-value">${this.checkIn.miles}</span>
-                </div>
-            `;
-        }
-
-        // Recording URL
-        if (this.checkIn.recording_url) {
-            let recordingUrl = this.checkIn.recording_url;
+        if (detailsContainer) {
+            // Clear skeleton loading
+            detailsContainer.innerHTML = '';
             
-            // Ensure the URL is absolute - if it doesn't start with http:// or https://, add https://
-            if (!recordingUrl.startsWith('http://') && !recordingUrl.startsWith('https://')) {
-                recordingUrl = 'https://' + recordingUrl;
+            let detailsHTML = '';
+    
+            // Check-in ID (also set in header)
+            document.getElementById('page-title').textContent = `Check-in #${this.checkIn.id.toString().padStart(2, '0')}`;
+            detailsHTML += `
+                <div class="flex justify-between items-center slide-in-left">
+                    <span class="text-gray-400">ID:</span>
+                    <span class="font-bold text-white">#${this.checkIn.id.toString().padStart(2, '0')}</span>
+                </div>
+            `;
+    
+            // Call ID
+            if (this.checkIn.call_id) {
+                detailsHTML += `
+                    <div class="flex justify-between items-center slide-in-left stagger-1">
+                        <span class="text-gray-400">Call ID:</span>
+                        <span class="font-bold text-white truncate" title="${this.checkIn.call_id}">${this.checkIn.call_id}</span>
+                    </div>
+                `;
+            }
+    
+            // Date & Time
+            if (this.checkIn.AI_Timestamp) {
+                const date = new Date(this.checkIn.AI_Timestamp);
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                detailsHTML += `
+                    <div class="flex justify-between items-center slide-in-left stagger-2">
+                        <span class="text-gray-400">Timestamp:</span>
+                        <span class="font-bold text-white">${dateStr}, ${timeStr}</span>
+                    </div>
+                `;
             }
             
-            // Generate a filename for download
-            const timestamp = this.checkIn.AI_Timestamp ? new Date(this.checkIn.AI_Timestamp).toISOString().split('T')[0] : 'recording';
-            const downloadFilename = `checkin_${this.checkIn.id}_${timestamp}.wav`;
-            
-            detailsHTML += `
-                <div class="info-item">
-                    <span class="info-label">Recording:</span>
-                    <div class="info-value recording-actions">
-                        <a href="${recordingUrl}" download="${downloadFilename}" class="recording-link download-link">
-                            <i class="fas fa-download"></i> Download Recording
+            detailsContainer.innerHTML = detailsHTML || '<p class="text-gray-500">No details available.</p>';
+    
+            // ---- 2. Populate the "Load Information" Card ----
+            const loadInfoCard = document.getElementById('load-info-card');
+            const loadInfoContainer = document.getElementById('load-info-content');
+            if (loadInfoContainer && (this.checkIn.load_id || this.checkIn.miles)) {
+                let loadInfoHTML = '';
+                if (this.checkIn.load_id) {
+                    loadInfoHTML += `
+                        <div class="flex justify-between"><span class="text-gray-400">Load.ID:</span><span class="font-bold text-white">${this.checkIn.load_id}</span></div>
+                    `;
+                }
+                if (this.checkIn.miles) {
+                    loadInfoHTML += `
+                        <div class="flex justify-between"><span class="text-gray-400">Miles:</span><span class="font-bold text-white">${this.checkIn.miles}</span></div>
+                    `;
+                }
+                loadInfoContainer.innerHTML = loadInfoHTML;
+                loadInfoCard.style.display = 'block'; // Show the card
+            }
+    
+            // ---- 3. Handle the Recording URL ----
+            if (this.checkIn.recording_url) {
+                let recordingUrl = this.checkIn.recording_url;
+                if (!recordingUrl.startsWith('http')) {
+                    recordingUrl = 'https://' + recordingUrl;
+                }
+                const timestamp = this.checkIn.AI_Timestamp ? new Date(this.checkIn.AI_Timestamp).toISOString().split('T')[0] : 'recording';
+                const downloadFilename = `checkin_${this.checkIn.id}_${timestamp}.wav`;
+                
+                const recordingHTML = `
+                    <div class="pt-4 mt-4 border-t border-white/10 scale-in">
+                        <a href="${recordingUrl}" download="${downloadFilename}" target="_blank" class="download-recording-btn text-electric-lime w-full block text-center font-semibold py-2 rounded-lg transition-colors">
+                            <i class="fas fa-download mr-2"></i> Download Recording
                         </a>
                     </div>
-                </div>
-            `;
+                `;
+                
+                // Append to the details card
+                detailsContainer.innerHTML += recordingHTML;
+            }
         }
-
-        detailsContainer.innerHTML = detailsHTML;
     }
 
     renderStatusInfo() {
         const statusContainer = document.getElementById('status-info');
         if (!statusContainer) return;
+
+        // Clear skeleton loading
+        statusContainer.innerHTML = '';
 
         const issueFlagged = this.checkIn.Issue_Flagged || false;
         const isCallTransferred = this.checkIn.call_trasfered || false;
@@ -656,7 +658,7 @@ class CheckInPage {
         const didNotPickUp = (userPickedUp === false || userPickedUp === 'false' || userPickedUp === 'False');
         const didPickUp = (userPickedUp === true || userPickedUp === 'true' || userPickedUp === 'True');
         statusHTML += `
-            <div class="info-item">
+            <div class="info-item slide-in-right stagger-1">
                 <span class="info-label">
                     <i class="fas ${didNotPickUp ? 'fa-phone-slash' : 'fa-phone'}" style="margin-right: 6px; color: ${didNotPickUp ? '#fc8181' : '#68d391'};"></i>
                     Phone Pickup:
@@ -667,7 +669,7 @@ class CheckInPage {
 
         // Issue Flagged Status
         statusHTML += `
-            <div class="info-item">
+            <div class="info-item slide-in-right stagger-2">
                 <span class="info-label">Issue Flagged:</span>
                 <span class="info-value ${issueFlagged ? 'status-flagged' : 'status-completed'}">${issueFlagged ? 'Yes' : 'No'}</span>
             </div>
@@ -675,7 +677,7 @@ class CheckInPage {
 
         // Call Transfer Status
         statusHTML += `
-            <div class="info-item">
+            <div class="info-item slide-in-right stagger-3">
                 <span class="info-label">Call Transferred:</span>
                 <span class="info-value ${isCallTransferred ? 'status-transferred' : 'status-completed'}">${isCallTransferred ? 'Yes' : 'No'}</span>
             </div>
@@ -683,7 +685,7 @@ class CheckInPage {
 
         // Call Status (using actual call_status from database)
         statusHTML += `
-            <div class="info-item">
+            <div class="info-item slide-in-right stagger-4">
                 <span class="info-label">Call Status:</span>
                 <span class="info-value ${this.getCallStatusClass(this.checkIn.call_status)}">${callStatusText}</span>
             </div>
@@ -725,9 +727,12 @@ class CheckInPage {
         const transcriptContainer = document.getElementById('transcript-content');
         if (!transcriptContainer) return;
 
+        // Clear skeleton loading
+        transcriptContainer.innerHTML = '';
+
         if (!this.checkIn.call_transcript) {
             transcriptContainer.innerHTML = `
-                <div class="no-transcript">
+                <div class="no-transcript fade-in-up">
                     <i class="fas fa-comment-dots empty-icon"></i>
                     <p>No transcript available for this check-in.</p>
                 </div>
@@ -761,7 +766,7 @@ class CheckInPage {
 
             if (cleanLine) {
                 transcriptHTML += `
-                    <div class="transcript-line-wrapper ${wrapperType}">
+                    <div class="transcript-line-wrapper ${wrapperType} fade-in-up" style="animation-delay: ${index * 0.1}s;">
                         <div class="transcript-line ${messageType}">
                             ${this.escapeHtml(cleanLine)}
                         </div>
