@@ -65,7 +65,7 @@ async def store_call_resumption_context(call_id: str, call_data: dict):
         from services.supabase import supabase_service
         
         # Extract the caller's phone number from call data
-        from_number = call_data.get("from_number", "")
+        from_number = call_data.get("to_number", "")
         
         # Fetch call details from Supabase to get dynamic variables and metadata
         call_result = await supabase_service.get_retell_call_by_id(call_id)
@@ -101,7 +101,6 @@ async def store_call_resumption_context(call_id: str, call_data: dict):
             }
             
             logger.info(f"Fetched call details from Supabase for {call_id}: form_title={dynamic_variables.get('form_title')}")
-            logger.info(f"Previous output extracted: {previous_output}")
         
         # Create resumption context
         resumption_context = {
@@ -119,7 +118,7 @@ async def store_call_resumption_context(call_id: str, call_data: dict):
         
         logger.info(f"Stored call resumption context for call {call_id} (phone: {normalized_phone})")
         logger.info(f"Dynamic variables stored: {json.dumps(dynamic_variables, indent=2)}")
-        logger.info(f"Metadata stored: {json.dumps(metadata, indent=2)}")
+        logger.info(f"Resumption context stored: {json.dumps(resumption_context, indent=2)}")
         
     except Exception as e:
         logger.error(f"Error storing call resumption context: {e}")
@@ -869,15 +868,6 @@ async def retell_recording_webhook(request: dict = Body(...)):
                 custom_analysis_data = call_analysis.get("custom_analysis_data", {})
                 logger.info(f"Call analysis data: {call_analysis}")
                 
-                # Check if purpose_fulfilled is pending - store call context for resumption
-                purpose_fulfilled = custom_analysis_data.get("purpose_fulfilled")
-                if purpose_fulfilled == "pending":
-                    logger.info(f"Call {call_id} has pending purpose_fulfilled - storing context for call resumption")
-                    await store_call_resumption_context(call_id, call_data)
-                elif purpose_fulfilled == "done":
-                    logger.info(f"Call {call_id} has completed purpose_fulfilled - cleaning up any stored context")
-                    await cleanup_call_resumption_context(call_id)
-                
                 check_in_id = None
                 check_in_data = None
                 
@@ -1059,6 +1049,15 @@ async def retell_recording_webhook(request: dict = Body(...)):
                             logger.info(f"Sent check-in analysis notification for call {call_id} with meaningful data")
                         else:
                             logger.info(f"Skipped notification for call {call_id} - no meaningful analysis data")
+                    
+                # Check if purpose_fulfilled is pending - store call context for resumption
+                purpose_fulfilled = custom_analysis_data.get("purpose_fulfilled")
+                if purpose_fulfilled == "pending":
+                    logger.info(f"Call {call_id} has pending purpose_fulfilled - storing context for call resumption")
+                    await store_call_resumption_context(call_id, call_data)
+                elif purpose_fulfilled == "done":
+                    logger.info(f"Call {call_id} has completed purpose_fulfilled - cleaning up any stored context")
+                    await cleanup_call_resumption_context(call_id)
             
             return {"status": "success", "message": "Call analyzed webhook processed successfully"}
         

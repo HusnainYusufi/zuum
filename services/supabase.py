@@ -198,6 +198,7 @@ class SupabaseService:
             ).execute()
             
             if result.data:
+                logger.info(f"Raw Supabase data: {json.dumps(result.data, indent=2, default=str)}")
                 # Format data for compatibility
                 formatted_checkins = []
                 total_count = 0
@@ -205,6 +206,13 @@ class SupabaseService:
                 for item in result.data:
                     total_count = item.get("total_count", 0)
                     formatted_item = self._format_check_in_for_compatibility(item)
+                    
+                    # Add tags to the formatted item
+                    formatted_item["tags"] = item.get("tags", [])
+                    
+                    # Log tags for debugging
+                    logger.info(f"Check-in {item.get('id')} tags: {formatted_item['tags']}")
+                    
                     formatted_checkins.append(formatted_item)
                 
                 total_pages = (total_count + per_page - 1) // per_page

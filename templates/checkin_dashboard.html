@@ -2804,14 +2804,15 @@
                 return;
             }
             
-            // Debug logging to check user_picked_up values
+            // Debug logging to check user_picked_up values and tags[1]
             console.log('Recent checkins with user_picked_up values:', 
                 JSON.stringify(checkins.map(c => ({
                     id: c.id,
                     user_picked_up: c.user_picked_up,
                     type: typeof c.user_picked_up,
                     Issue_Flagged: c.Issue_Flagged,
-                    raw_value: c.user_picked_up
+                    raw_value: c.user_picked_up,
+                    tag_1: c.tags && c.tags.length > 1 ? c.tags[1] : null
                 })), null, 2)
             );
             
@@ -2827,6 +2828,18 @@
                 });
                 const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
                 
+                // Extract call direction from tags
+                let callDirectionSymbol = '';
+                if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
+                    const callDirection = checkin.tags[1];
+                    console.log(callDirection);
+                    if (callDirection === 'inbound') {
+                        callDirectionSymbol = '<i class="fas fa-arrow-down status-icon" style="color: #28a745;" title="Inbound call"></i>';
+                    } else if (callDirection === 'outbound') {
+                        callDirectionSymbol = '<i class="fas fa-arrow-up status-icon" style="color: #28a745;" title="Outbound call"></i>';
+                    }
+                }
+                
                 return `
                     <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
                         <div class="check-in-header">
@@ -2838,6 +2851,7 @@
                             <div class="check-in-status">
                                 ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
                                     '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+                                ${callDirectionSymbol}
                                 ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
                                     '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
                                     checkin.Issue_Flagged ? 
