@@ -852,84 +852,76 @@
       
 
         function displayRecentCheckins(checkins) {
-    const container = document.getElementById('recent-checkins-list');
-
-    if (!checkins || checkins.length === 0) {
-        container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
-        return;
-    }
-
-    // Debug logging to check user_picked_up values
-    console.log('Recent checkins with user_picked_up values:',
-        JSON.stringify(checkins.map(c => ({
-            id: c.id,
-            user_picked_up: c.user_picked_up,
-            type: typeof c.user_picked_up,
-            Issue_Flagged: c.Issue_Flagged,
-            raw_value: c.user_picked_up
-        })), null, 2)
-    );
-
-    const checkinsHtml = checkins.map(checkin => {
-        // Handle different timestamp formats
-        let date;
-        if (checkin.AI_Timestamp) {
-            date = new Date(checkin.AI_Timestamp);
-        } else if (checkin.timestamp) {
-            date = new Date(checkin.timestamp);
-        } else if (checkin.created_at) {
-            date = new Date(checkin.created_at);
-        } else {
-            date = new Date(); // fallback
+            const container = document.getElementById('recent-checkins-list');
+            
+            if (!checkins || checkins.length === 0) {
+                container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
+                return;
+            }
+            
+            // Debug logging to check user_picked_up values and tags[1]
+            console.log('Recent checkins with user_picked_up values:', 
+                JSON.stringify(checkins.map(c => ({
+                    id: c.id,
+                    user_picked_up: c.user_picked_up,
+                    type: typeof c.user_picked_up,
+                    Issue_Flagged: c.Issue_Flagged,
+                    raw_value: c.user_picked_up,
+                    tag_1: c.tags && c.tags.length > 1 ? c.tags[1] : null
+                })), null, 2)
+            );
+            
+            const checkinsHtml = checkins.map(checkin => {
+                const date = new Date(checkin.AI_Timestamp);
+                const day = date.getDate();
+                const month = date.toLocaleDateString('en-US', { month: 'short' });
+                const year = date.getFullYear();
+                const time = date.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                });
+                const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
+                
+                // Extract call direction from tags
+                let callDirectionSymbol = '';
+                if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
+                    const callDirection = checkin.tags[1];
+                    console.log(callDirection);
+                    if (callDirection === 'inbound') {
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #28a745;" title="Inbound call"></i><i class="fas fa-long-arrow-alt-down" style="color: #28a745; font-size: 0.6em; margin-left: 2px;"></i>';
+                    } else if (callDirection === 'outbound') {
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
+                    }
+                }
+                
+                return `
+                    <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
+                        <div class="check-in-header">
+                            <div class="check-in-id-wrapper">
+                                <i class="fas fa-clipboard-check check-in-icon"></i>
+                                <span class="check-in-id">#${checkin.id}</span>
+                                <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
+                            </div>
+                            <div class="check-in-status">
+                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
+                                    '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+                                ${callDirectionSymbol}
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                                    '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
+                                    checkin.Issue_Flagged ? 
+                                        '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
+                                        '<i class="fas fa-check-circle status-icon success"></i>'}
+                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
+                                    '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = checkinsHtml;
         }
-
-        // Check if date is valid
-        if (isNaN(date.getTime())) {
-            date = new Date(); // fallback to current time
-        }
-
-        const timeAgo = calculateTimeAgo(date);
-        const formattedTime = formatTimeDisplay(date);
-
-        // Determine status classes and icons based on checkin status
-        let statusClass, statusText;
-        if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
-            statusClass = 'text-gray-400 bg-gray-900/50';
-            statusText = 'No Answer';
-        } else if (checkin.Issue_Flagged) {
-            statusClass = 'text-orange-400 bg-orange-900/50';
-            statusText = 'Issue';
-        } else {
-            statusClass = 'text-green-400 bg-green-900/50';
-            statusText = 'Answered';
-        }
-
-        return `
-        <div
-  onclick="window.location.href='/checkin/${checkin.id}'"
-  class="p-3 bg-black/20 rounded-lg flex items-center justify-between hover:bg-black/40 transition-colors cursor-pointer"
-  role="button"
-  tabindex="0"
-  onkeydown="if(event.key==='Enter'){window.location.href='/checkin/${checkin.id}'}"
->
-  <div>
-    <p class="font-semibold text-white">ID: #${checkin.id}</p>
-    <div class="time-display">
-      <i class="fas fa-clock"></i>
-      <span>${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-    </div>
-  </div>
-  <div class="flex items-center space-x-3">
-    <span class="text-xs font-bold ${statusClass} px-2 py-1 rounded-full">${statusText}</span>
-    <i class="fas fa-chevron-right text-gray-500"></i>
-  </div>
-</div>
-
-        `;
-    }).join('');
-
-    container.innerHTML = checkinsHtml;
-}
 
 // Helper function to calculate time ago
 function calculateTimeAgo(date) {
@@ -1017,9 +1009,22 @@ function formatTimeDisplay(date) {
                     minute: '2-digit',
                     hour12: true 
                 });
+                
+                // Process tags for display
                 const tags = checkin.Tags ? 
                     checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag).join(', ') : 
                     'No tags';
+                
+                // Extract call direction from tags for symbol
+                let callDirectionSymbol = '';
+                if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
+                    const callDirection = checkin.tags[1];
+                    if (callDirection === 'inbound') {
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #28a745;" title="Inbound call"></i><i class="fas fa-long-arrow-alt-down" style="color: #28a745; font-size: 0.6em; margin-left: 2px;"></i>';
+                    } else if (callDirection === 'outbound') {
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
+                    }
+                }
                 
                 return `
                     <div class="modal-check-in-card" onclick="window.location.href='/checkin/${checkin.id}'">
@@ -1038,6 +1043,7 @@ function formatTimeDisplay(date) {
                                 </span>
                             </div>
                             <div class="modal-check-in-status">
+                                ${callDirectionSymbol}
                                 ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
                                     '<i class="fas fa-phone-slash status-icon error" style="font-size: 20px;" title="User did not pick up phone"></i>' : 
                                     checkin.Issue_Flagged ? 

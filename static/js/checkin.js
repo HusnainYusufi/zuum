@@ -507,6 +507,7 @@ class CheckInPage {
 
             if (result.status === 'success' && result.data) {
                 this.checkIn = result.data;
+                console.log("check-in data", this.checkIn);
             } else {
                 console.error('Check-in not found or invalid response:', result);
             }
@@ -653,6 +654,29 @@ class CheckInPage {
 
         let statusHTML = '';
 
+        // Extract call direction from tags
+        let callDirectionSymbol = '';
+        if (this.checkIn.Tags) {
+            try {
+                // Parse the JSON string into an actual array
+                const tagsArray = JSON.parse(this.checkIn.Tags);
+                console.log('Parsed tags:', tagsArray);  // Debug log
+                
+                const callDirection = tagsArray[1];  // Get second element
+                console.log('Call direction:', callDirection);  // Debug log
+                
+                if (callDirection && callDirection.toLowerCase() === 'inbound') {
+                    console.log('inbound');
+                    callDirectionSymbol = '<span class="call-direction-symbol inbound"><i class="fas fa-phone"></i><i class="fas fa-long-arrow-alt-down"></i></span>';
+                } else if (callDirection && callDirection.toLowerCase() === 'outbound') {
+                    console.log('outbound');
+                    callDirectionSymbol = '<span class="call-direction-symbol outbound"><i class="fas fa-phone"></i><i class="fas fa-long-arrow-alt-up"></i></span>';
+                }
+            } catch (error) {
+                console.error('Error parsing Tags:', error);
+            }
+        }
+
         // Phone Pickup Status
         const userPickedUp = this.checkIn.user_picked_up;
         const didNotPickUp = (userPickedUp === false || userPickedUp === 'false' || userPickedUp === 'False');
@@ -660,6 +684,7 @@ class CheckInPage {
         statusHTML += `
             <div class="info-item slide-in-right stagger-1">
                 <span class="info-label">
+                    ${callDirectionSymbol}
                     <i class="fas ${didNotPickUp ? 'fa-phone-slash' : 'fa-phone'}" style="margin-right: 6px; color: ${didNotPickUp ? '#fc8181' : '#68d391'};"></i>
                     Phone Pickup:
                 </span>
