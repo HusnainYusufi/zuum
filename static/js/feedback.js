@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset form and show form content
         feedbackForm.reset();
         feedbackForm.style.display = 'block';
-        document.querySelector('.modal-content h2').textContent = 'Feedback Form';
     });
 
     // Close modal
@@ -33,6 +32,11 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
 
         const submitButton = feedbackForm.querySelector('.submit-button');
+        if (!submitButton) {
+            console.error('Submit button not found');
+            return;
+        }
+        
         const originalButtonText = submitButton.textContent;
 
         try {
@@ -56,17 +60,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Hide the form and show thank you message
             feedbackForm.style.display = 'none';
-            const modalContent = document.querySelector('.modal-content');
             const thankYouMessage = document.createElement('div');
-            thankYouMessage.className = 'thank-you-message';
+            thankYouMessage.className = 'thank-you-message text-center p-6';
             thankYouMessage.innerHTML = `
-                <h2>Thank You!</h2>
-                <p>Your feedback has been submitted successfully.</p>
-                <div class="thank-you-icon">
+                <h2 class="text-2xl font-bold text-electric-lime mb-4">Thank You!</h2>
+                <p class="text-gray-300 mb-4">Your feedback has been submitted successfully.</p>
+                <div class="thank-you-icon text-4xl text-electric-lime">
                     <i class="fas fa-check-circle"></i>
                 </div>
             `;
-            modalContent.appendChild(thankYouMessage);
+            
+            // Append to the widget-card (parent of the form)
+            const widgetCard = feedbackForm.closest('.widget-card');
+            if (widgetCard) {
+                widgetCard.appendChild(thankYouMessage);
+            }
 
             // Close modal after 2 seconds
             setTimeout(() => {
@@ -78,17 +86,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         } catch (error) {
             // Show error message
-            const modalContent = document.querySelector('.modal-content');
             const errorMessage = document.createElement('div');
-            errorMessage.className = 'error-message';
+            errorMessage.className = 'error-message text-center p-6';
             errorMessage.innerHTML = `
-                <h2>Error</h2>
-                <p>Failed to send feedback. Please try again later.</p>
-                <div class="error-icon">
+                <h2 class="text-2xl font-bold text-red-400 mb-4">Error</h2>
+                <p class="text-gray-300 mb-4">Failed to send feedback. Please try again later.</p>
+                <div class="error-icon text-4xl text-red-400">
                     <i class="fas fa-exclamation-circle"></i>
                 </div>
             `;
-            modalContent.appendChild(errorMessage);
+            
+            // Append to the widget-card (parent of the form)
+            const widgetCard = feedbackForm.closest('.widget-card');
+            if (widgetCard) {
+                widgetCard.appendChild(errorMessage);
+            }
 
             // Remove error message and show form after 3 seconds
             setTimeout(() => {
@@ -99,15 +111,19 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error sending feedback:', error);
         } finally {
             // Reset button state
-            submitButton.textContent = originalButtonText;
-            submitButton.disabled = false;
+            if (submitButton) {
+                submitButton.textContent = originalButtonText;
+                submitButton.disabled = false;
+            }
         }
     });
 
     // Character counter functionality
     function updateCharCounter() {
+        if (!textarea || !charCounter) return;
+        
         const currentLength = textarea.value.length;
-        charCounter.textContent = `${currentLength}/${maxLength} characters`;
+        charCounter.textContent = `${currentLength}/${maxLength}`;
 
         // Update counter color based on length
         charCounter.classList.remove('near-limit', 'at-limit');
