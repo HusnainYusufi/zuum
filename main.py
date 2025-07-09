@@ -26,28 +26,6 @@ load_dotenv()
 FEEDBACK_IMAGES_DIR = Path("static/feedback-images")
 FEEDBACK_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-# Initialize the database only if it's empty
-def init_db_if_empty():
-    """Initialize database only if it doesn't have data already"""
-    # First create tables
-    from db_models import create_tables
-    create_tables()
-    
-    db = next(get_db())
-    try:
-        # Check if we have any stops
-        existing_stops = db.query(StopModel).first()
-        if not existing_stops:
-            print("Database is empty, initializing with dummy data...")
-            init_db()
-        else:
-            print(f"Database already has data, skipping initialization. Found {db.query(StopModel).count()} stops.")
-    finally:
-        db.close()
-
-# Initialize the database only if empty
-init_db_if_empty()
-
 app = FastAPI()
 
 # Mount static files
