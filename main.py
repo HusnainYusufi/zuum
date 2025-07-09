@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from init_db import init_db
-from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router
+from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router, prompt_config_router
 from routes.test_froms import router as test_forms_router
 from dotenv import load_dotenv
 from db_models import CheckIn, Stop as StopModel, get_db, RetellCall, Feedback, FeedbackImage
@@ -76,6 +76,7 @@ app.include_router(checkin_router)
 app.include_router(retell_call_router)
 app.include_router(retell_check_in_router)
 app.include_router(forms_router)
+app.include_router(prompt_config_router)
 
 # Initialize Twilio client
 twilio_client = Client(
