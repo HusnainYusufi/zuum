@@ -2834,9 +2834,9 @@
                     const callDirection = checkin.tags[1];
                     console.log(callDirection);
                     if (callDirection === 'inbound') {
-                        callDirectionSymbol = '<i class="fas fa-arrow-down status-icon" style="color: #28a745;" title="Inbound call"></i>';
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #28a745;" title="Inbound call"></i><i class="fas fa-long-arrow-alt-down" style="color: #28a745; font-size: 0.6em; margin-left: 2px;"></i>';
                     } else if (callDirection === 'outbound') {
-                        callDirectionSymbol = '<i class="fas fa-arrow-up status-icon" style="color: #28a745;" title="Outbound call"></i>';
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
                     }
                 }
                 
@@ -2888,9 +2888,22 @@
                     minute: '2-digit',
                     hour12: true 
                 });
+                
+                // Process tags for display
                 const tags = checkin.Tags ? 
                     checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag).join(', ') : 
                     'No tags';
+                
+                // Extract call direction from tags for symbol
+                let callDirectionSymbol = '';
+                if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
+                    const callDirection = checkin.tags[1];
+                    if (callDirection === 'inbound') {
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #28a745;" title="Inbound call"></i><i class="fas fa-long-arrow-alt-down" style="color: #28a745; font-size: 0.6em; margin-left: 2px;"></i>';
+                    } else if (callDirection === 'outbound') {
+                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
+                    }
+                }
                 
                 return `
                     <div class="modal-check-in-card" onclick="window.location.href='/checkin/${checkin.id}'">
@@ -2909,6 +2922,7 @@
                                 </span>
                             </div>
                             <div class="modal-check-in-status">
+                                ${callDirectionSymbol}
                                 ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
                                     '<i class="fas fa-phone-slash status-icon error" style="font-size: 20px;" title="User did not pick up phone"></i>' : 
                                     checkin.Issue_Flagged ? 

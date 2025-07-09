@@ -187,7 +187,7 @@ class SupabaseService:
             
             # Call the RPC function
             result = self.client.rpc(
-                "get_check_ins_paginated",
+                "get_check_ins_paginated_with_tags",
                 {
                     "page_num": page,
                     "page_size": per_page,
@@ -198,7 +198,6 @@ class SupabaseService:
             ).execute()
             
             if result.data:
-                logger.info(f"Raw Supabase data: {json.dumps(result.data, indent=2, default=str)}")
                 # Format data for compatibility
                 formatted_checkins = []
                 total_count = 0
@@ -209,9 +208,6 @@ class SupabaseService:
                     
                     # Add tags to the formatted item
                     formatted_item["tags"] = item.get("tags", [])
-                    
-                    # Log tags for debugging
-                    logger.info(f"Check-in {item.get('id')} tags: {formatted_item['tags']}")
                     
                     formatted_checkins.append(formatted_item)
                 

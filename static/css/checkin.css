@@ -1770,3 +1770,53 @@ input[type="file"]::-webkit-file-upload-button:hover {
         font-size: 0.9rem;
     }
 } 
+/* Call Direction Symbols */
+.call-direction-symbol {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  font-size: 14px;
+  position: relative;
+}
+
+.call-direction-symbol i:first-child {
+  margin-right: 2px;
+}
+
+.call-direction-symbol i:last-child {
+  font-size: 0.6em;
+  position: absolute;
+  top: -2px;
+  right: -4px;
+}
+
+.call-direction-symbol.inbound i {
+  color: #28a745;
+}
+
+.call-direction-symbol.outbound i {
+  color: #007bff;
+}
+
+/* Responsive adjustments for call direction */
+@media (max-width: 768px) {
+  .call-direction-symbol {
+      font-size: 12px;
+      margin-right: 6px;
+  }
+  
+  .call-direction-symbol i:last-child {
+      font-size: 0.5em;
+      right: -3px;
+  }
+}
+
+/* Ensure proper alignment with existing phone icons */
+.info-label {
+  display: flex;
+  align-items: center;
+}
+
+.info-label .call-direction-symbol + i {
+  margin-left: 4px;
+}
