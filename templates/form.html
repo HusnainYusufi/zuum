@@ -418,6 +418,13 @@
                                 <option value="N" {% if form_data and form_data.tracking_on == 'N' %}selected{% endif %}>No</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="scheduled_drop_time">
+                                Scheduled Date and Time
+                            </label>
+                            <input type="datetime-local" id="scheduled_drop_time" name="scheduled_drop_time"
+                                   value="{{ form_data.scheduled_drop_time if form_data else '' }}">
+                        </div>
                     </div>
                 </div>
                 <div class="button-group">
