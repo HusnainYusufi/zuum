@@ -31,6 +31,7 @@ import json
 from db_models import RetellCall
 from services.notification_service import notify_stop_update, notify_check_in_update, notify_journey_state_update, send_notification
 from services.supabase import SupabaseService
+import traceback
 
 class ChangeStateRequest(BaseModel):
     state: int
@@ -49,10 +50,149 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+INBOUND_CALL_AGENT_ID = os.getenv("INBOUND_CALL_AGENT_ID")
+
 # Get a database session from the generator
 db = next(get_db())
 
+# In-memory storage for call resumption context
+call_resumption_storage = {}
 
+async def store_call_resumption_context(call_id: str, call_data: dict):
+    """Store call context data for resumption when purpose_fulfilled is pending"""
+    try:
+        # Import the supabase service
+        from services.supabase import supabase_service
+        
+        # Extract the caller's phone number from call data
+        from_number = call_data.get("to_number", "")
+        
+        # Fetch call details from Supabase to get dynamic variables and metadata
+        call_result = await supabase_service.get_retell_call_by_id(call_id)
+        
+        if not call_result["success"]:
+            logger.warning(f"Could not fetch call details from Supabase for {call_id}: {call_result['error']}")
+            # Fallback to using data from webhook
+            dynamic_variables = call_data.get("retell_llm_dynamic_variables", {})
+            metadata = call_data.get("metadata", {})
+        else:
+            # Extract dynamic variables and metadata from Supabase
+            supabase_call_data = call_result["data"]
+            output_data = supabase_call_data.get("output_data", {})
+            
+            # Get dynamic variables from output_data
+            dynamic_variables = output_data.get("retell_llm_dynamic_variables", {})
+            
+            # Get the previous output from the call
+            previous_output = output_data.get("output", "")
+            
+            # Add previous_output to dynamic variables
+            if previous_output:
+                dynamic_variables["previous_output"] = previous_output
+            
+            # Create metadata from dynamic variables (similar to retell_check_in.py)
+            metadata = {
+                "form_number": dynamic_variables.get("form_number"),
+                "form_title": dynamic_variables.get("form_title"),
+                "purpose": dynamic_variables.get("purpose"),
+                "form": dynamic_variables.get("form"),
+                "output_schema": dynamic_variables.get("output_schema"),
+                "previous_output": previous_output
+            }
+            
+            logger.info(f"Fetched call details from Supabase for {call_id}: form_title={dynamic_variables.get('form_title')}")
+        
+        # Create resumption context
+        resumption_context = {
+            "call_id": call_id,
+            "from_number": from_number,
+            "dynamic_variables": dynamic_variables,
+            "metadata": metadata,
+            "timestamp": datetime.now().isoformat(),
+            "status": "pending"
+        }
+        
+        # Store in memory (keyed by normalized phone number)
+        normalized_phone = normalize_phone_number(from_number)
+        call_resumption_storage[normalized_phone] = resumption_context
+        
+        logger.info(f"Stored call resumption context for call {call_id} (phone: {normalized_phone})")
+        logger.info(f"Dynamic variables stored: {json.dumps(dynamic_variables, indent=2)}")
+        logger.info(f"Resumption context stored: {json.dumps(resumption_context, indent=2)}")
+        
+    except Exception as e:
+        logger.error(f"Error storing call resumption context: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
+async def cleanup_call_resumption_context(call_id: str):
+    """Clean up stored call context when purpose_fulfilled is done"""
+    try:
+        # Find and remove from memory storage
+        for phone_number, context in list(call_resumption_storage.items()):
+            if context.get("call_id") == call_id:
+                del call_resumption_storage[phone_number]
+                logger.info(f"Cleaned up call resumption context for call {call_id} (phone: {phone_number})")
+                break
+            
+    except Exception as e:
+        logger.error(f"Error cleaning up call resumption context: {e}")
+
+def normalize_phone_number(phone_number: str) -> str:
+    """Normalize phone number for consistent matching"""
+    if not phone_number:
+        return ""
+    
+    # Remove all non-digit characters
+    digits_only = ''.join(filter(str.isdigit, phone_number))
+    
+    # If it starts with 1 and has 11 digits, it's likely a US number with country code
+    if len(digits_only) == 11 and digits_only.startswith('1'):
+        return f"+{digits_only}"
+    # If it has 10 digits, assume US number and add +1
+    elif len(digits_only) == 10:
+        return f"+1{digits_only}"
+    # Otherwise, add + if not present
+    elif digits_only and not phone_number.startswith('+'):
+        return f"+{digits_only}"
+    
+    return phone_number
+
+def cleanup_old_resumption_contexts():
+    """Remove call resumption contexts older than 24 hours"""
+    try:
+        current_time = datetime.now()
+        expired_phones = []
+        
+        for phone_number, context in call_resumption_storage.items():
+            try:
+                # Parse the stored timestamp
+                context_timestamp = datetime.fromisoformat(context.get("timestamp", ""))
+                
+                # Calculate age of the context
+                age = current_time - context_timestamp
+                
+                # If older than 24 hours, mark for removal
+                if age > timedelta(hours=24):
+                    expired_phones.append(phone_number)
+                    logger.info(f"Context for {phone_number} is {age} old - marking for cleanup")
+                    
+            except (ValueError, TypeError) as e:
+                # If timestamp parsing fails, remove the context as it's invalid
+                expired_phones.append(phone_number)
+                logger.warning(f"Invalid timestamp for {phone_number}: {e} - marking for cleanup")
+        
+        # Remove expired contexts
+        for phone_number in expired_phones:
+            context = call_resumption_storage.pop(phone_number, {})
+            call_id = context.get("call_id", "unknown")
+            logger.info(f"Removed expired call resumption context for {phone_number} (call_id: {call_id})")
+        
+        if expired_phones:
+            logger.info(f"Cleaned up {len(expired_phones)} expired call resumption contexts")
+        
+    except Exception as e:
+        logger.error(f"Error during call resumption context cleanup: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 def send_checkin_notification_legacy(check_in_record: CheckIn, stop_id: int, db_session: Session = None):
     """Legacy function - replaced by send_supabase_checkin_notification"""
@@ -429,9 +569,6 @@ def update_reported_location_eta(request: dict = Body(...)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
 
 
-
-
-
 @router.post("/webhook/call-ended")
 async def retell_recording_webhook(request: dict = Body(...)):
     """Handle Retell webhook events, specifically call_ended and call_transferred events."""
@@ -599,6 +736,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                         
                         logger.info(f"Sent transfer notification for check-in {check_in_id}")
                         return {"status": "success", "message": "Call transfer webhook processed successfully"}
+                        
                     # Check if call reached voicemail
                     elif disconnection_reason == "voicemail_reached":
                         check_in_update["call_status"] = "voicemail"
@@ -911,6 +1049,15 @@ async def retell_recording_webhook(request: dict = Body(...)):
                             logger.info(f"Sent check-in analysis notification for call {call_id} with meaningful data")
                         else:
                             logger.info(f"Skipped notification for call {call_id} - no meaningful analysis data")
+                    
+                # Check if purpose_fulfilled is pending - store call context for resumption
+                purpose_fulfilled = custom_analysis_data.get("purpose_fulfilled")
+                if purpose_fulfilled == "pending":
+                    logger.info(f"Call {call_id} has pending purpose_fulfilled - storing context for call resumption")
+                    await store_call_resumption_context(call_id, call_data)
+                elif purpose_fulfilled == "done":
+                    logger.info(f"Call {call_id} has completed purpose_fulfilled - cleaning up any stored context")
+                    await cleanup_call_resumption_context(call_id)
             
             return {"status": "success", "message": "Call analyzed webhook processed successfully"}
         
@@ -1006,159 +1153,99 @@ def get_check_in_status(check_in_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @router.post("/update_checkIn")
-# def check_in(request: dict = Body(...)):
-#     """Update an existing checkIn by extracting chat_summary and other fields from the request."""
-#     try:
-#         logger.info(f"Received in update_checkIn: {request}")
-        
-#         # Initialize variables with defaults
-#         check_in_data = {
-#             'chat_summary': None,
-#             'query': None,
-#             'issue_flagged': False,
-#             'exception_type': None,
-#             'call_confidence_score': None,
-#             'requires_human_review': False,
-#             'tags': None,
-#             'miles': None,
-#             'call_id': None
-#         }
-        
-#         # Extract call_id from the call object if present
-#         if 'call' in request and 'call_id' in request['call']:
-#             check_in_data['call_id'] = request['call']['call_id']
-            
-#             # Extract dynamic variables if present
-#             if 'retell_llm_dynamic_variables' in request['call']:
-#                 dynamic_vars = request['call']['retell_llm_dynamic_variables']
-                
-#                 # Extract other fields
-#                 if 'query' in dynamic_vars:
-#                     check_in_data['query'] = dynamic_vars['query']
-#                 if 'miles' in dynamic_vars:
-#                     check_in_data['miles'] = dynamic_vars['miles']
-        
-#         # Extract args - this is the main source of check-in data
-#         if 'args' in request and isinstance(request['args'], dict):
-#             args = request['args']
-            
-#             # Map the args to our check_in_data
-#             check_in_data['chat_summary'] = args.get('chat_summary') or args.get('AI_Response_Summary')
-#             check_in_data['query'] = args.get('query', check_in_data['query'])
-#             check_in_data['issue_flagged'] = args.get('issue_flagged', False)
-#             check_in_data['exception_type'] = args.get('exception_type')
-#             check_in_data['call_confidence_score'] = args.get('call_confidence_score')
-#             check_in_data['requires_human_review'] = args.get('requires_human_review', False)
-#             check_in_data['tags'] = args.get('tags')
-#             check_in_data['miles'] = args.get('miles', check_in_data['miles'])
-        
-#         # Find existing CheckIn record by call_id
-#         if not check_in_data['call_id']:
-#             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="call_id is required to update check-in")
-        
-#         # Find the RetellCall record to get the check_in_id
-#         retell_call = db.query(RetellCall).filter(RetellCall.call_id == check_in_data['call_id']).first()
-#         if not retell_call or not retell_call.check_in_id:
-#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No existing check-in found for this call_id")
-        
-#         # Find and update the existing CheckIn record
-#         check_in_record = db.query(CheckIn).filter(CheckIn.id == retell_call.check_in_id).first()
-#         if not check_in_record:
-#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Check-in record not found")
-        
-#         # Create timestamp for AI response
-#         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        
-#         # Update the existing CheckIn record with non-null values
-#         if check_in_data['query'] is not None:
-#             check_in_record.query = check_in_data['query']
-#         if check_in_data['chat_summary'] is not None:
-#             check_in_record.AI_Response_Summary = check_in_data['chat_summary']
-#             check_in_record.AI_Timestamp = timestamp  # Update timestamp when AI response is provided
-#         if check_in_data['exception_type'] is not None:
-#             check_in_record.Exception_Type = check_in_data['exception_type']
-#         if check_in_data['call_confidence_score'] is not None:
-#             check_in_record.Call_confidence_score = check_in_data['call_confidence_score']
-#         if check_in_data['tags'] is not None:
-#             check_in_record.Tags = check_in_data['tags']
-#         if check_in_data['miles'] is not None:
-#             check_in_record.miles = check_in_data['miles']
-        
-#         # Always update these boolean fields
-#         check_in_record.Issue_Flagged = check_in_data['issue_flagged']
-#         check_in_record.Requires_Human_Review = check_in_data['requires_human_review']
-        
-#         db.commit()
-#         db.refresh(check_in_record)
-        
-#         # Send notification
-#         send_checkin_notification(check_in_record, check_in_record.stop_id)
-        
-#         logger.info(f"Updated check-in #{check_in_record.id} for call_id {check_in_data['call_id']}")
-        
-#         return {
-#             'message': 'Check-in updated successfully',
-#             'check_in_id': check_in_record.id
-#         }
+@router.post("/webhook/inbound")
+async def retell_inbound_webhook(request: dict = Body(...)):
+    """
+    Handle Retell inbound call webhook for call resumption functionality.
+    This webhook is called when someone calls your Retell phone number.
     
-#     except HTTPException:
-#         # Re-raise HTTPExceptions
-#         raise
-    
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         logger.error(f"Database error in update_checkIn: {str(e)}")
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
-    
-#     except Exception as e:
-#         logger.error(f"Unexpected error in update_checkIn: {str(e)}")
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
-
-
-
-# @router.post('/check_in/set_metadata')
-# def set_metadata(request: dict = Body(...)):
-#     """Set the metadata for the check-in."""
-#     try:
-#         logger.info(f"Received in set_metadata: \n {request}")
+    Documentation: https://docs.retellai.com/features/inbound-call-webhook#inbound-call-webhook
+    """
+    try:
+        logger.info(f"=== RETELL INBOUND CALL WEBHOOK ===")
+        logger.info(f"Received inbound call webhook payload: {json.dumps(request, indent=2)}")
         
-#         # Extract call_id and args from the request
-#         call_id = None
-#         args = None
+        if not INBOUND_CALL_AGENT_ID:
+            logger.error("INBOUND_CALL_AGENT_ID not found in environment variables")
+            raise HTTPException(status_code=500, detail="Missing INBOUND_CALL_AGENT_ID configuration")
         
-#         if isinstance(request, dict):
-#             # Extract call_id from the call object
-#             if 'call' in request and 'call_id' in request['call']:
-#                 call_id = request['call']['call_id']
+        # Extract the event type and call_inbound data according to Retell spec
+        event = request.get("event")
+        call_inbound_data = request.get("call_inbound", {})
+        
+        if event != "call_inbound":
+            logger.warning(f"Unexpected event type: {event}")
+            return {"error": "Invalid event type"}
+        
+        # Extract caller information from the payload
+        agent_id = call_inbound_data.get("agent_id")
+        from_number = call_inbound_data.get("from_number", "")
+        to_number = call_inbound_data.get("to_number", "")
+        
+        logger.info(f"Inbound call details:")
+        logger.info(f"  - Agent ID: {agent_id}")
+        logger.info(f"  - From Number: {from_number}")
+        logger.info(f"  - To Number: {to_number}")
+        logger.info(f"  - Timestamp: {datetime.now().isoformat()}")
+        
+        # Normalize the incoming phone number for lookup
+        normalized_phone = normalize_phone_number(from_number)
+        logger.info(f"Normalized phone number: {normalized_phone}")
+        
+        # Clean up contexts older than 24 hours before searching
+        cleanup_old_resumption_contexts()
+        
+        # Search for existing call context in resumption storage
+        resumption_context = call_resumption_storage.get(normalized_phone)
+        
+        if resumption_context:
+            # Found existing context - prepare resumption response
+            logger.info(f"Found call resumption context for {normalized_phone}")
+            logger.info(f"Previous call ID: {resumption_context.get('call_id')}")
+            logger.info(f"Form title: {resumption_context.get('dynamic_variables', {}).get('form_title')}")
             
-#             # Extract args
-#             if 'args' in request:
-#                 args = request['args']
-        
-#         # If we have both call_id and args, update or create RetellCall record
-#         if call_id and args:
-#             retell_call = db.query(RetellCall).filter(RetellCall.call_id == call_id).first()
-#             if retell_call:
-#                 # Update existing RetellCall with metadata
-#                 retell_call.check_in_metadata = json.dumps(args)
-#                 db.commit()
-#                 logger.info(f"Updated existing RetellCall with metadata for call_id: {call_id}")
-#                 return {"status": "success", "message": "Metadata updated in existing RetellCall record"}
-#             else:
-#                 # Create new RetellCall record with metadata
-#                 new_retell_call = RetellCall(
-#                     call_id=call_id,
-#                     check_in_metadata=json.dumps(args)
-#                 )
-#                 db.add(new_retell_call)
-#                 db.commit()
-#                 logger.info(f"Created new RetellCall with metadata for call_id: {call_id}")
-#                 return {"status": "success", "message": "Metadata stored in new RetellCall record"}
-#         else:
-#             logger.warning(f"Missing call_id or args in request")
-#             return {"status": "warning", "message": "Missing call_id or args in request"}
+            # Extract dynamic variables and metadata from stored context
+            dynamic_variables = resumption_context.get("dynamic_variables", {})
+            metadata = resumption_context.get("metadata", {})
             
-#     except Exception as e:
-#         logger.error(f"Error in set_metadata: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+            # Remove the context from storage since it's being resumed
+            del call_resumption_storage[normalized_phone]
+            logger.info(f"Removed call resumption context for {normalized_phone} - call successfully resumed")
+            
+            response = {
+                "call_inbound": {
+                    "override_agent_id": INBOUND_CALL_AGENT_ID,
+                    "dynamic_variables": dynamic_variables,
+                    "metadata": metadata
+                }
+            }
+            
+            logger.info(f"Resuming call with context:")
+            logger.info(f"  - Dynamic variables: {json.dumps(dynamic_variables, indent=2)}")
+            logger.info(f"  - Metadata: {json.dumps(metadata, indent=2)}")
+            
+        else:
+            # No existing context found - handle as new call
+            logger.info(f"No call resumption context found for {normalized_phone} - processing as new call")
+            
+            response = {
+                "call_inbound": {
+                    "override_agent_id": INBOUND_CALL_AGENT_ID
+                }
+            }
+        
+        logger.info(f"Returning inbound webhook response: {json.dumps(response, indent=2)}")
+        logger.info(f"=== END INBOUND CALL WEBHOOK ===")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error processing inbound call webhook: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Return a valid response even on error to avoid call rejection
+        return {
+            "call_inbound": {
+                "override_agent_id": INBOUND_CALL_AGENT_ID
+            }
+        }

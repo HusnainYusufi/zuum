@@ -13,6 +13,11 @@
           "type": "text",
           "required": true
         },
+        "carrier_company": {
+          "label": "Carrier company",
+          "type": "text",
+          "required": true
+        },
         "contact_phone": {
           "label": "Driver phone",
           "type": "tel",
@@ -23,12 +28,26 @@
           "type": "text",
           "required": true
         },
+        "appointment_time": {
+          "label": "Appointment time/window",
+          "type": "text",
+          "required": true
+        },
         "driver_type": {
           "label": "Driver type",
           "type": "select",
           "options": [
             "Local",
             "OTR"
+          ],
+          "required": true
+        },
+        "load_type": {
+          "label": "Load type",
+          "type": "select",
+          "options": [
+            "Live load",
+            "Drop trailer"
           ],
           "required": true
         },
@@ -67,55 +86,77 @@
         }
       },
       "voice_questions": [
-        "I'm calling on Zuum load ###—are you the driver assigned?",
-        "Are you empty now or still getting offloaded?",
-        "if not empty ask what is the city and state you are getting offloaded and what time was your apointment. if empty, ask what is your ETA to the shipper?",
-        "Please confirm tractor, trailer and that you have the right equipment for this load.",
-        "I've sent the Zuum tracking link—can you open it so tracking starts?",
-        "Ask if they have already gotten a door or still waiting for a door number",
-        "If they have door number then ask what it is?",
-        "if driver does not give an eta then ask if they have reached the shipper?."
+        "Hi, this is Zuum calling on load ### - am I speaking with [driver name] from [carrier company]?",
+        "Have you checked in at the shipper yet? If not, what's your ETA to [pickup address]?",
+        "If still getting offloaded from previous load, ask what city/state and how long until you'll be empty to proceed to the shipper",
+        "Please confirm your tractor number, trailer number, and that you have the right equipment for this load",
+        "I've sent the Zuum tracking link - can you open it so tracking starts?",
+        "Have you already gotten a door number or are you still waiting for one?",
+        "If they have a door number, ask what door number was assigned"
       ],
       "output_schema": {
         "type": "object",
         "properties": {
-          "Driver_empty": {
-            "type": "boolean",
-            "description": "Whether the driver is currently empty"
-          },
-          "ETA_to_shipper": {
+          "Driver_name_confirmed": {
             "type": "string",
-            "description": "Estimated time of arrival to the shipper, stated by the driver.  If driver has reached, then 'reached'."
+            "description": "The confirmed name of the driver"
           },
-          "off_loading_location": {
+          "Carrier_company_confirmed": {
             "type": "string",
-            "description": "The driver's off loading location."
-          },
-          "Confirmed_equipment": {
-            "type": "boolean",
-            "description": "Whether the driver confirmed they have the correct tractor, trailer, and required equipment"
+            "description": "The confirmed carrier company name"
           },
           "Is_assigned_driver": {
             "type": "boolean",
             "description": "Whether the person on the call is the driver assigned to the load"
           },
+          "Checked_in_at_shipper": {
+            "type": "boolean",
+            "description": "Whether the driver has already checked in at the shipper"
+          },
+          "ETA_to_shipper": {
+            "type": "string",
+            "description": "Estimated time of arrival to the shipper, or 'checked in' if already there"
+          },
+          "Still_getting_offloaded": {
+            "type": "boolean",
+            "description": "Whether the driver is still getting offloaded from previous load"
+          },
+          "Offloading_location": {
+            "type": "string",
+            "description": "City and state where driver is getting offloaded (if applicable)"
+          },
+          "Time_until_empty": {
+            "type": "string",
+            "description": "How long until driver will be empty from current offload (if applicable)"
+          },
+          "Confirmed_equipment": {
+            "type": "boolean",
+            "description": "Whether the driver confirmed they have the correct tractor, trailer, and required equipment"
+          },
           "Tracking_started": {
             "type": "boolean",
             "description": "Whether the driver confirmed they opened the tracking link and tracking has started"
           },
-          "door_number": {
+          "Door_number": {
             "type": "string",
-            "description": "The door number provided by the trucker"
+            "description": "The door number assigned to the driver, or 'waiting' if not yet assigned"
+          },
+          "Will_be_late": {
+            "type": "boolean",
+            "description": "Based on ETA vs appointment time, whether driver will be late"
           }
         },
         "required": [
-          "Driver_empty",
-          "ETA_to_shipper",
-          "off_loading_location",
-          "Confirmed_equipment",
+          "Driver_name_confirmed",
+          "Carrier_company_confirmed",
           "Is_assigned_driver",
+          "Checked_in_at_shipper",
+          "ETA_to_shipper",
+          "Still_getting_offloaded",
+          "Confirmed_equipment",
           "Tracking_started",
-          "door_number"
+          "Door_number",
+          "Will_be_late"
         ]
       }
     },
@@ -134,6 +175,11 @@
         },
         "trucker_name": {
           "label": "Driver name",
+          "type": "text",
+          "required": true
+        },
+        "carrier_company": {
+          "label": "Carrier company",
           "type": "text",
           "required": true
         },
@@ -173,11 +219,14 @@
         }
       },
       "voice_questions": [
+        "Hi [driver name] with [carrier company], this is Zuum calling about load ###",
         "Have you been loaded and left the dock?",
-        "If they have left the dock, then ask what time did they pull out?",
-        "Does the PO or BOL on your paperwork match the rate-con?",
-        "where are you heading next ? Will you go straight to the next stop or their yard for another driver to delivery the load ?",
-        "if driver says either direction, then ask when do you expect to arrive"
+        "If they have left the dock, ask what time did you pull out?",
+        "Does the PO or BOL on your paperwork match the rate confirmation? If not, please stay at the shipper - do not leave until this is corrected and you get Zuum's approval",
+        "Are you the local/OTR driver who will be delivering this load, or will another driver take over?",
+        "Where are you heading next - please confirm the delivery location",
+        "What is your estimated time of arrival to that destination?",
+        "Is there anything else you need assistance with regarding this load?"
       ],
       "output_schema": {
         "type": "object",
@@ -186,39 +235,48 @@
             "type": "boolean",
             "description": "Whether the driver has been loaded and left the dock"
           },
-          "ETA_to_next": {
-            "type": "string",
-            "description": "Estimated time of arrival to the next destination"
-          },
-          "Shipper_issues_reported": {
-            "type": "boolean",
-            "description": "Whether the driver reported any problems at the shipper"
-          },
           "Departure_time": {
             "type": "string",
             "description": "Time the driver pulled out from the shipper, as stated by the driver"
-          },
-          "Next_destination": {
-            "type": "string",
-            "description": "Where the driver is headed next (typically delivery location or stop)"
           },
           "PO_BOL_matches_rate_con": {
             "type": "boolean",
             "description": "Whether the PO or BOL on the paperwork matches the rate confirmation"
           },
-          "eta_to_destination": {
+          "BOL_issue_resolved": {
+            "type": "boolean",
+            "description": "If BOL doesn't match, whether the driver will stay to resolve the issue"
+          },
+          "Driver_will_deliver": {
+            "type": "boolean",
+            "description": "Whether this driver will deliver the load or hand off to another driver"
+          },
+          "Next_destination_confirmed": {
             "type": "string",
-            "description": "Driver's eta to the destination."
+            "description": "The confirmed delivery location where driver is headed"
+          },
+          "ETA_to_destination": {
+            "type": "string",
+            "description": "Driver's estimated time of arrival to the destination"
+          },
+          "Shipper_issues_reported": {
+            "type": "boolean",
+            "description": "Whether the driver reported any problems at the shipper"
+          },
+          "Additional_assistance_needed": {
+            "type": "boolean",
+            "description": "Whether the driver needs any additional assistance"
           }
         },
         "required": [
           "Loaded_and_left_dock",
-          "ETA_to_next",
-          "Shipper_issues_reported",
           "Departure_time",
-          "Next_destination",
           "PO_BOL_matches_rate_con",
-          "eta_to_destination"
+          "Driver_will_deliver",
+          "Next_destination_confirmed",
+          "ETA_to_destination",
+          "Shipper_issues_reported",
+          "Additional_assistance_needed"
         ]
       }
     },
@@ -331,6 +389,15 @@
           "type": "text",
           "required": false
         },
+        "delivery_type": {
+          "label": "Delivery type",
+          "type": "select",
+          "options": [
+            "Live unload",
+            "Drop trailer"
+          ],
+          "required": true
+        },
         "arrival_time": {
           "label": "Arrival time stamp",
           "type": "datetime-local",
@@ -371,36 +438,54 @@
         }
       },
       "voice_questions": [
-        "Have you checked in and what dock number did they assign?",
-        "Has unloading started, and how long did they quote you?",
-        "Do you need a lumper code?",
-        "If they need lumper code, then ask how much and what payment type do they accept?"
+        "I'm calling to check on your delivery at [receiver address] - have you arrived and checked in?",
+        "What dock number did they assign you?",
+        "Has unloading started, and how long did they quote you for completion?",
+        "Only ask if delivery type is live unload and lumper field is not 'N': Do you need a lumper code?",
+        "If they need lumper code, ask how much and what payment type do they accept?"
       ],
       "output_schema": {
         "type": "object",
         "properties": {
-          "Dock_number": {
-            "type": "string",
-            "description": "The dock number assigned to the driver"
-          },
-          "Unloading_duration_estimate": {
-            "type": "string",
-            "description": "Estimated time to complete unloading as quoted to the driver"
+          "Arrived_at_receiver": {
+            "type": "boolean",
+            "description": "Whether the driver has arrived at the receiver address"
           },
           "Checked_in": {
             "type": "boolean",
             "description": "Whether the driver has checked in at the receiver"
           },
+          "Dock_number": {
+            "type": "string",
+            "description": "The dock number assigned to the driver"
+          },
           "Unloading_started": {
             "type": "boolean",
             "description": "Whether unloading has started"
+          },
+          "Unloading_duration_estimate": {
+            "type": "string",
+            "description": "Estimated time to complete unloading as quoted to the driver"
+          },
+          "Lumper_code_needed": {
+            "type": "boolean",
+            "description": "Whether the driver needs a lumper code (only applicable for live unload)"
+          },
+          "Lumper_amount": {
+            "type": "string",
+            "description": "Amount for lumper service if needed"
+          },
+          "Lumper_payment_type": {
+            "type": "string",
+            "description": "Payment type accepted for lumper service if needed"
           }
         },
         "required": [
-          "Dock_number",
-          "Unloading_duration_estimate",
+          "Arrived_at_receiver",
           "Checked_in",
-          "Unloading_started"
+          "Dock_number",
+          "Unloading_started",
+          "Unloading_duration_estimate"
         ]
       }
     },
@@ -465,7 +550,7 @@
         "Ask for any overages, shortages or damages noted by the warehouse ?",
         "have you uploaded the signed POD, sent it to your dispatcher or can you text a photo now",
         "Any lumper receipts or scale tickets we still need?",
-        "Ask the turker if he needs any further assistence."
+        "Ask the trucker if he needs any further assistance."
       ],
       "output_schema": {
         "type": "object",
