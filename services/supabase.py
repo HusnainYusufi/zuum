@@ -265,6 +265,40 @@ class SupabaseService:
             logger.error(f"Error getting dashboard stats: {e}")
             return {"success": False, "error": str(e)}
 
+    async def get_checkins_per_day_chart(self) -> Dict[str, Any]:
+        """Get check-ins per day for chart visualization"""
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+
+            result = self.client.rpc("get_checkins_per_day_chart").execute()
+            
+            if result.data:
+                labels = []
+                values = []
+                
+                for row in result.data:
+                    labels.append(row.get("date_label", ""))
+                    values.append(row.get("checkin_count", 0))
+                
+                return {
+                    "success": True,
+                    "labels": labels,
+                    "values": values,
+                    "data": result.data  # Full data for detailed tooltips
+                }
+            else:
+                return {
+                    "success": True,
+                    "labels": [],
+                    "values": [],
+                    "data": []
+                }
+
+        except Exception as e:
+            logger.error(f"Error getting chart data: {e}")
+            return {"success": False, "error": str(e)}
+
     # Retell call operations
     async def create_retell_call(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new retell call record"""
