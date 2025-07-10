@@ -37,7 +37,6 @@
         </div>
 
  
-   
         <!-- Main Dashboard Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div class="lg:col-span-1 xl:col-span-1 flex flex-col gap-6">
@@ -92,7 +91,6 @@
                         <p class="no-check-ins">Loading recent check-ins...</p>
                     </div>
                     <button id="view-all-button" class="w-full mt-4 bg-blue-600  font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300">
-                   
                     <!-- <button id="view-all-button" class="w-full mt-4 bg-lime-400/20 text-lime-300 font-semibold py-3 rounded-lg hover:bg-lime-400/40 transition-all duration-300"> -->
                         <i class="fas fa-list"></i>
                         <span>View All Check-ins</span>
@@ -773,30 +771,30 @@
         }
 
         function displayLatestCheckin(checkin) {
-    const content = document.getElementById('latest-checkin-content');
+            const content = document.getElementById('latest-checkin-content');
+            
+            // Debug logging for latest checkin
+            console.log('Latest checkin user_picked_up:', JSON.stringify({
+                id: checkin.id,
+                user_picked_up: checkin.user_picked_up,
+                type: typeof checkin.user_picked_up,
+                Issue_Flagged: checkin.Issue_Flagged,
+                raw_value: checkin.user_picked_up
+            }, null, 2));
 
-    // Debug logging for latest checkin
-    console.log('Latest checkin user_picked_up:', JSON.stringify({
-        id: checkin.id,
-        user_picked_up: checkin.user_picked_up,
-        type: typeof checkin.user_picked_up,
-        Issue_Flagged: checkin.Issue_Flagged,
-        raw_value: checkin.user_picked_up
-    }, null, 2));
+            const date = new Date(checkin.AI_Timestamp);
+            const dateStr = date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const timeStr = date.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
 
-    const date = new Date(checkin.AI_Timestamp);
-    const dateStr = date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-    });
-    const timeStr = date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-    });
-
-    const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+            const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
 
     // Determine status classes and icons based on checkin status
     let statusClass, statusText;
@@ -1137,70 +1135,122 @@ function formatTimeDisplay(date) {
                 charts.checkinsPerDay.destroy();
             }
             
-            const mockData = {
-        labels: Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`),
-        values: Array.from({ length: 30 }, () => Math.floor(Math.random() * 100) + 20)
-    };
-
-      
+            // Fallback data if no real data is provided
+            const fallbackData = {
+                labels: Array.from({ length: 30 }, (_, i) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (29 - i));
+                    return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + 
+                           date.getDate().toString().padStart(2, '0');
+                }),
+                values: Array.from({ length: 30 }, () => 0)
+            };
 
             const checkinsGradient = ctx.createLinearGradient(0, 0, 0, 300);
             checkinsGradient.addColorStop(0, 'rgba(66, 153, 225, 0.4)');
             checkinsGradient.addColorStop(1, 'rgba(66, 153, 225, 0)');
 
-            // if we want to display real time data then use data.labels and data.values
+            // Use real data if available, otherwise fallback
+            const chartLabels = data && data.labels && data.labels.length > 0 ? data.labels : fallbackData.labels;
+            const chartValues = data && data.values && data.values.length > 0 ? data.values : fallbackData.values;
+            const chartData = data && data.data ? data.data : [];
+
             charts.checkinsPerDay = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels:  mockData.labels,
-                datasets: [{
-                    label: 'Check-ins',
-                    data:  data.values || mockData.values,
-                    borderColor: '#4299e1',
-                    backgroundColor: checkinsGradient,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                aspectRatio: 2,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Check-ins',
+                        data: chartValues,
+                        borderColor: '#4299e1',
+                        backgroundColor: checkinsGradient,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#4299e1',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(74, 85, 104, 0.15)',
-                            drawBorder: false
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    aspectRatio: 2,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
                         },
-                        ticks: {
-                            color: '#718096',
-                            font: {
-                                size: 10
+                        tooltip: {
+                            backgroundColor: 'rgba(26, 32, 44, 0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e2e8f0',
+                            borderColor: '#4299e1',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) {
+                                    const index = context[0].dataIndex;
+                                    if (chartData[index] && chartData[index].check_date) {
+                                        const date = new Date(chartData[index].check_date);
+                                        return date.toLocaleDateString('en-US', { 
+                                            weekday: 'long', 
+                                            year: 'numeric', 
+                                            month: 'long', 
+                                            day: 'numeric' 
+                                        });
+                                    }
+                                    return chartLabels[index];
+                                },
+                                label: function(context) {
+                                    const count = context.parsed.y;
+                                    return `Check-ins: ${count}`;
+                                }
                             }
                         }
                     },
-                    x: {
-                        grid: {
-                            color: 'rgba(74, 85, 104, 0.15)',
-                            drawBorder: false
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#718096',
+                                font: {
+                                    size: 10
+                                },
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return Number.isInteger(value) ? value : '';
+                                }
+                            }
                         },
-                        ticks: {
-                            display: false // Hide x-axis labels
+                        x: {
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#718096',
+                                font: {
+                                    size: 9
+                                },
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
                         }
                     }
                 }
-            }
-        });
-
+            });
         }
-
 
 
         function createWeeklyTrendsChart(data) {

@@ -145,8 +145,12 @@ async def get_chart_data():
         if not stats_result["success"]:
             raise HTTPException(status_code=500, detail=f"Failed to get chart data: {stats_result['error']}")
         
-        # For now, return simplified chart data
-        # TODO: Implement more sophisticated chart data queries
+        # Get daily chart data
+        chart_result = await supabase_service.get_checkins_per_day_chart()
+        
+        if not chart_result["success"]:
+            raise HTTPException(status_code=500, detail=f"Failed to get daily chart data: {chart_result['error']}")
+        
         total_checkins = stats_result["total_checkins"]
         issues_count = stats_result["total_issues"]
         no_issues_count = total_checkins - issues_count
@@ -157,8 +161,9 @@ async def get_chart_data():
         return {
             "status": "success",
             "checkins_per_day": {
-                "labels": ["Today"],
-                "values": [stats_result["today_checkins"]]
+                "labels": chart_result["labels"],
+                "values": chart_result["values"],
+                "data": chart_result["data"]  # Full data for tooltips
             },
             "issue_distribution": {
                 "no_issues": no_issues_count,
