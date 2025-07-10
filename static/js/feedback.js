@@ -42,6 +42,16 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const formData = new FormData(feedbackForm);
             
+            // Get the current feedback description
+            const originalDescription = formData.get('feedbackDescription');
+            
+            // Append the current page URL to the description
+            const currentUrl = window.location.href;
+            const updatedDescription = `${originalDescription}\n\nCheck In Url: ${currentUrl}`;
+            
+            // Update the FormData with the new description
+            formData.set('feedbackDescription', updatedDescription);
+            
             // Show loading state
             submitButton.textContent = 'Sending...';
             submitButton.disabled = true;
