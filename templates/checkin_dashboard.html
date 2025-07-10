@@ -19,9 +19,9 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
                 <h1 class="text-3xl lg:text-4xl font-bold text-white">
-                    <i class="fas fa-clipboard-check header-icon"></i>
-                    <span class="header-title">Check-in Dashboard</span>
-                </h1>
+                <i class="fas fa-clipboard-check header-icon"></i>
+                <span class="header-title">Check-in Dashboard</span>
+            </h1>
                 <p class="text-gray-400 mt-1">Real-time monitoring and issue tracking.</p>
             </div>
             <div class="flex items-center space-x-2 mt-4 md:mt-0">
@@ -36,6 +36,7 @@
             </div>
         </div>
 
+
         <!-- Main Dashboard Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div class="lg:col-span-1 xl:col-span-1 flex flex-col gap-6">
@@ -46,30 +47,30 @@
                             <div class="flex items-center">
                                 <i class="fas fa-clipboard-list text-blue-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Total Check-ins</span>
-                            </div>
-                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
                         </div>
+                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-exclamation-triangle text-orange-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Issues Flagged</span>
-                            </div>
-                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
                         </div>
+                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-phone-alt text-green-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Call Transfers</span>
-                            </div>
+                </div>
                             <div class="text-2xl font-bold text-white" id="call-transfers">0</div>
-                        </div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-calendar-day text-purple-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Today's Check-ins</span>
-                            </div>
+                </div>
                             <div class="text-2xl font-bold text-white" id="today-checkins">0</div>
-                        </div>
+            </div>
                     </div>
                 </div>
                 <div class="glass-card p-6 flex flex-col flex-grow">
@@ -87,8 +88,8 @@
                         </select>
                     </div>
                     <div class="space-y-3 custom-scrollbar pr-2 flex-grow overflow-y-auto h-64 lg:h-auto" id="recent-checkins-list">
-                        <p class="no-check-ins">Loading recent check-ins...</p>
-                    </div>
+                    <p class="no-check-ins">Loading recent check-ins...</p>
+                </div>
                     <button id="view-all-button" class="w-full mt-4 bg-blue-600  font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300">
                     <!-- <button id="view-all-button" class="w-full mt-4 bg-lime-400/20 text-lime-300 font-semibold py-3 rounded-lg hover:bg-lime-400/40 transition-all duration-300"> -->
                         <i class="fas fa-list"></i>
@@ -104,10 +105,8 @@
                     </div>
                     <div class="h-72 lg:h-64">
                         <canvas id="checkins-per-day-chart"></canvas>
-                    </div>
-                </div>
             </div>
-
+        </div>
 
                 <div class="glass-card p-6" id="latest-checkin-card">
                     <h3 class="font-bold text-white text-lg mb-4 flex items-center">
@@ -120,6 +119,7 @@
                 </div>
             </div>
         </div>
+
 
 
         <!-- Loading Spinner -->
@@ -786,7 +786,7 @@
             });
 
             const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-
+            
     // Determine status classes and icons based on checkin status
     let statusClass, statusText;
     if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
@@ -800,43 +800,43 @@
         statusText = 'NO ISSUE';
     }
 
-    content.innerHTML = `
+            content.innerHTML = `
         <div class="space-y-4 p-4 bg-black/20 rounded-xl">
             <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-400">Check-in ID</span>
                 <span class="font-bold text-white">#${checkin.id}</span>
-            </div>
+                        </div>
             <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-400">Timestamp</span>
                 <span class="font-medium text-gray-300">${dateStr} at ${timeStr}</span>
-            </div>
+                        </div>
             <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-400">Load ID</span>
                 <span class="font-medium text-gray-300">${checkin.load_id || 'N/A'}</span>
-            </div>
+                    </div>
             <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-400">Call Status</span>
                 <span class="text-xs font-bold ${checkin.call_trasfered ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 bg-gray-900/50'} px-2 py-1 rounded-full">
                     ${checkin.call_trasfered ? 'TRANSFERRED' : 'NOT TRANSFERRED'}
                 </span>
-            </div>
+                    </div>
             <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-400">Status</span>
                 <span class="text-xs font-bold ${statusClass} px-2 py-1 rounded-full">${statusText}</span>
-            </div>
+                </div>
             <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-400">Tags</span>
                 <span class="font-medium text-gray-300">${tags.length > 0 ? tags.join(', ') : 'No tags'}</span>
-            </div>
-            ${checkin.AI_Response_Summary ? `
+                    </div>
+                    ${checkin.AI_Response_Summary ? `
                 <div class="pt-4 border-t border-white/10">
                     <p class="text-sm font-medium text-gray-400 mb-2">AI Summary</p>
                     <p class="text-gray-300 text-sm">${checkin.AI_Response_Summary}</p>
+                        </div>
+                    ` : ''}
                 </div>
-            ` : ''}
-        </div>
-    `;
-}
+            `;
+        }
 
       
 
@@ -976,7 +976,7 @@ function formatTimeDisplay(date) {
         minute: '2-digit',
         hour12: true
     });
-}
+        }
 
         function displayModalCheckins(checkins) {
             const container = document.getElementById('modal-checkins-list');
@@ -1318,6 +1318,79 @@ function formatTimeDisplay(date) {
         issues: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
         transfers: Array.from({ length: 7 }, () => Math.floor(Math.random() * 15) + 3)
     };
+
+    
+            const ctx = document.getElementById('weekly-trends-chart').getContext('2d');
+            
+            if (charts.weeklyTrends) {
+                charts.weeklyTrends.destroy();
+            }
+            
+            charts.weeklyTrends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels || [],
+                    datasets: [{
+                        label: 'Issues',
+                        data: data.issues || [],
+                        borderColor: '#f6ad55',
+                        backgroundColor: 'rgba(246, 173, 85, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2
+                    }, {
+                        label: 'Call Transfers',
+                        data: data.transfers || [],
+                        borderColor: '#68d391',
+                        backgroundColor: 'rgba(104, 211, 145, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    aspectRatio: 2,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#e2e8f0',
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(74, 85, 104, 0.15)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function openModal() {
