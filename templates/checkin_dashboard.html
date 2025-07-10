@@ -36,7 +36,6 @@
             </div>
         </div>
 
- 
         <!-- Main Dashboard Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div class="lg:col-span-1 xl:col-span-1 flex flex-col gap-6">
@@ -103,34 +102,26 @@
                         <h3 class="font-bold text-white text-lg">Daily Check-ins</h3>
                         <span class="text-xs text-gray-400 font-medium">Last 30 Days</span>
                     </div>
-                    <div class="h-60 lg:h-56">
+                    <div class="h-72 lg:h-64">
                         <canvas id="checkins-per-day-chart"></canvas>
                     </div>
                 </div>
+            </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    <div class="glass-card p-6 xl:col-span-2" id="latest-checkin-card">
-                        <h3 class="font-bold text-white text-lg mb-4 flex items-center">
-                            <i class="fas fa-info-circle text-blue-600 mr-3"></i>
-                            Latest Check-in Details
-                        </h3>
-                        <div class="space-y-4 p-4 bg-black/20 rounded-xl" id="latest-checkin-content">
-                            <p class="no-check-ins">Loading latest check-in...</p>
-                        </div>
-                    </div>
 
-                    <div class="glass-card p-6">
-                        <h3 class="font-bold text-white text-lg mb-4">Weekly Trends</h3>
-                        <div class="h-48">
-                            <canvas id="weekly-trends-chart"></canvas>
-                        </div>
+                <div class="glass-card p-6" id="latest-checkin-card">
+                    <h3 class="font-bold text-white text-lg mb-4 flex items-center">
+                        <i class="fas fa-info-circle text-blue-600 mr-3"></i>
+                        Latest Check-in Details
+                    </h3>
+                    <div class="space-y-4 p-4 bg-black/20 rounded-xl" id="latest-checkin-content">
+                        <p class="no-check-ins">Loading latest check-in...</p>
                     </div>
                 </div>
             </div>
         </div>
 
 
-     
         <!-- Loading Spinner -->
         <div class="loading-spinner" id="loading-spinner" style="display: none;">
             <div class="spinner"></div>
@@ -1143,36 +1134,79 @@ function formatTimeDisplay(date) {
                     return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + 
                            date.getDate().toString().padStart(2, '0');
                 }),
-                values: Array.from({ length: 30 }, () => 0)
+                datasets: {
+                    checkins: Array.from({ length: 30 }, () => 0),
+                    issues: Array.from({ length: 30 }, () => 0),
+                    transfers: Array.from({ length: 30 }, () => 0)
+                }
             };
 
+            // Create gradients for each dataset
             const checkinsGradient = ctx.createLinearGradient(0, 0, 0, 300);
-            checkinsGradient.addColorStop(0, 'rgba(66, 153, 225, 0.4)');
+            checkinsGradient.addColorStop(0, 'rgba(66, 153, 225, 0.2)');
             checkinsGradient.addColorStop(1, 'rgba(66, 153, 225, 0)');
+
+            const issuesGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            issuesGradient.addColorStop(0, 'rgba(245, 101, 101, 0.2)');
+            issuesGradient.addColorStop(1, 'rgba(245, 101, 101, 0)');
+
+            const transfersGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            transfersGradient.addColorStop(0, 'rgba(72, 187, 120, 0.2)');
+            transfersGradient.addColorStop(1, 'rgba(72, 187, 120, 0)');
 
             // Use real data if available, otherwise fallback
             const chartLabels = data && data.labels && data.labels.length > 0 ? data.labels : fallbackData.labels;
-            const chartValues = data && data.values && data.values.length > 0 ? data.values : fallbackData.values;
+            const chartDatasets = data && data.datasets ? data.datasets : fallbackData.datasets;
             const chartData = data && data.data ? data.data : [];
-
+            
             charts.checkinsPerDay = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: chartLabels,
-                    datasets: [{
+                    datasets: [
+                        {
                         label: 'Check-ins',
-                        data: chartValues,
-                        borderColor: '#4299e1',
-                        backgroundColor: checkinsGradient,
-                        fill: true,
+                            data: chartDatasets.checkins,
+                            borderColor: '#4299e1',
+                            backgroundColor: checkinsGradient,
+                            fill: true,
                         tension: 0.4,
-                        borderWidth: 2,
-                        pointBackgroundColor: '#4299e1',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
+                            borderWidth: 2,
+                            pointBackgroundColor: '#4299e1',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Issues Flagged',
+                            data: chartDatasets.issues,
+                            borderColor: '#f56565',
+                            backgroundColor: issuesGradient,
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointBackgroundColor: '#f56565',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Calls Transferred',
+                            data: chartDatasets.transfers,
+                            borderColor: '#48bb78',
+                            backgroundColor: transfersGradient,
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointBackgroundColor: '#48bb78',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -1184,16 +1218,31 @@ function formatTimeDisplay(date) {
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 12,
+                                padding: 15,
+                                color: '#718096',
+                                font: {
+                                    size: 11,
+                                    weight: '500'
+                                },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
                         },
                         tooltip: {
                             backgroundColor: 'rgba(26, 32, 44, 0.95)',
                             titleColor: '#ffffff',
                             bodyColor: '#e2e8f0',
-                            borderColor: '#4299e1',
+                            borderColor: '#4a5568',
                             borderWidth: 1,
                             cornerRadius: 8,
-                            displayColors: false,
+                            displayColors: true,
+                            multiKeyBackground: 'transparent',
                             callbacks: {
                                 title: function(context) {
                                     const index = context[0].dataIndex;
@@ -1206,11 +1255,20 @@ function formatTimeDisplay(date) {
                                             day: 'numeric' 
                                         });
                                     }
-                                    return chartLabels[index];
+                                    return `Date: ${chartLabels[index]}`;
                                 },
                                 label: function(context) {
-                                    const count = context.parsed.y;
-                                    return `Check-ins: ${count}`;
+                                    const label = context.dataset.label;
+                                    const value = context.parsed.y;
+                                    return `${label}: ${value}`;
+                                },
+                                footer: function(tooltipItems) {
+                                    const index = tooltipItems[0].dataIndex;
+                                    if (chartData[index]) {
+                                        const total = chartData[index].checkin_count || 0;
+                                        return `Total Check-ins: ${total}`;
+                                    }
+                                    return '';
                                 }
                             }
                         }
@@ -1260,79 +1318,6 @@ function formatTimeDisplay(date) {
         issues: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
         transfers: Array.from({ length: 7 }, () => Math.floor(Math.random() * 15) + 3)
     };
-
-    
-            const ctx = document.getElementById('weekly-trends-chart').getContext('2d');
-            
-            if (charts.weeklyTrends) {
-                charts.weeklyTrends.destroy();
-            }
-            
-            charts.weeklyTrends = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels || [],
-                    datasets: [{
-                        label: 'Issues',
-                        data: data.issues || [],
-                        borderColor: '#f6ad55',
-                        backgroundColor: 'rgba(246, 173, 85, 0.1)',
-                        tension: 0.4,
-                        borderWidth: 2
-                    }, {
-                        label: 'Call Transfers',
-                        data: data.transfers || [],
-                        borderColor: '#68d391',
-                        backgroundColor: 'rgba(104, 211, 145, 0.1)',
-                        tension: 0.4,
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    aspectRatio: 2,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#e2e8f0',
-                                padding: 15,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(74, 85, 104, 0.15)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#a0aec0',
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(74, 85, 104, 0.15)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#a0aec0',
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        }
-                    }
-                }
-            });
         }
 
         function openModal() {

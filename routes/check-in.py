@@ -162,7 +162,7 @@ async def get_chart_data():
             "status": "success",
             "checkins_per_day": {
                 "labels": chart_result["labels"],
-                "values": chart_result["values"],
+                "datasets": chart_result["datasets"],
                 "data": chart_result["data"]  # Full data for tooltips
             },
             "issue_distribution": {

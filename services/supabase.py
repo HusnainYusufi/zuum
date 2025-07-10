@@ -275,23 +275,35 @@ class SupabaseService:
             
             if result.data:
                 labels = []
-                values = []
+                checkin_values = []
+                issues_values = []
+                transfers_values = []
                 
                 for row in result.data:
                     labels.append(row.get("date_label", ""))
-                    values.append(row.get("checkin_count", 0))
+                    checkin_values.append(row.get("checkin_count", 0))
+                    issues_values.append(row.get("issues_count", 0))
+                    transfers_values.append(row.get("transfers_count", 0))
                 
                 return {
                     "success": True,
                     "labels": labels,
-                    "values": values,
+                    "datasets": {
+                        "checkins": checkin_values,
+                        "issues": issues_values,
+                        "transfers": transfers_values
+                    },
                     "data": result.data  # Full data for detailed tooltips
                 }
             else:
                 return {
                     "success": True,
                     "labels": [],
-                    "values": [],
+                    "datasets": {
+                        "checkins": [],
+                        "issues": [],
+                        "transfers": []
+                    },
                     "data": []
                 }
 
