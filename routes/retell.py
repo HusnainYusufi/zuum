@@ -945,7 +945,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                         update_data['issue_flagged'] = custom_analysis_data['issue_flagged']
                     
                     if 'call_confidence_score' in custom_analysis_data:
-                        update_data['confidence_score'] = custom_analysis_data['call_confidence_score']
+                        update_data['Confidence_score'] = custom_analysis_data['call_confidence_score']
                     
                     if 'exception_type' in custom_analysis_data:
                         exception_type = custom_analysis_data['exception_type']
@@ -964,7 +964,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                             update_data['tags'] = tags
                     
                     if '_a_i__response__summary' in custom_analysis_data:
-                        update_data['ai_response_summary'] = custom_analysis_data['_a_i__response__summary']
+                        update_data['AI_Response_Summary'] = custom_analysis_data['_a_i__response__summary']
                         update_data['ai_timestamp'] = datetime.now().isoformat()
                     
                     # Mark as analyzed

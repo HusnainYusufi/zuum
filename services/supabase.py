@@ -70,6 +70,7 @@ class SupabaseService:
             # Prepare data for insertion
             check_in_data = {
                 "load_id": data.get("load_id"),
+                "Form_type": data.get("form_type"),
                 "ai_response_summary": data.get("AI_Response_Summary"),
                 "ai_timestamp": data.get("AI_Timestamp", datetime.now().isoformat()),
                 "tags": data.get("tags", []),
