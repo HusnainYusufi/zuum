@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Body, File, UploadFile, Form, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, HTTPException, Body, File, UploadFile, Form, Query, Request, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from .auth import get_current_user
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 from loguru import logger
@@ -37,8 +38,10 @@ async def get_journey_state():
     return journey.current_state
 
 @router.get("/transit-dashboard", response_class=HTMLResponse)
-async def dashboard_page(request: Request):
+async def dashboard_page(request: Request, current_user: dict = Depends(get_current_user)):
     """Serve the stakeholder dashboard page"""
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=302)
     return templates.TemplateResponse("transit-dashboard.html", {"request": request})
 
 @router.get("/checkin/{check_in_id}", response_class=HTMLResponse)
@@ -52,8 +55,10 @@ async def test_forms_chat_page(request: Request):
     return templates.TemplateResponse("test_forms_chat.html", {"request": request})
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def checkin_dashboard_page(request: Request):
+async def checkin_dashboard_page(request: Request, current_user: dict = Depends(get_current_user)):
     """Serve the checkin dashboard page"""
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=302)
     return templates.TemplateResponse("checkin_dashboard.html", {"request": request})
 
 

@@ -3,13 +3,15 @@ from typing import List, Dict, Optional
 import os
 from loguru import logger
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Depends, Form, File, UploadFile
+from fastapi import FastAPI, HTTPException, Depends, Form, File, UploadFile, Request, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from init_db import init_db
-from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router, prompt_config_router
+
+from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router, auth_router,prompt_config_router
+
 from routes.test_froms import router as test_forms_router
 from dotenv import load_dotenv
 from db_models import CheckIn, Stop as StopModel, get_db, RetellCall, Feedback, FeedbackImage
@@ -44,6 +46,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(conversation_router)
 app.include_router(ui_router)
 app.include_router(retell_router)
@@ -388,11 +391,17 @@ async def get_check_ins(db: Session = Depends(get_db)):
 
 state_dict = {}
 
-# Root route redirects to dashboard
+# Root route redirects to dashboard if authenticated, login otherwise
 @app.get("/")
-async def root():
-    """Redirect root to dashboard"""
-    return RedirectResponse(url="/dashboard")
+async def root(request: Request, session_token: str = Cookie(None)):
+    """Redirect root to dashboard if authenticated, login otherwise"""
+    from routes.auth import verify_session_token
+    
+    # Check if user is authenticated
+    if session_token and verify_session_token(session_token):
+        return RedirectResponse(url="/dashboard")
+    else:
+        return RedirectResponse(url="/auth/login")
 
 @app.get("/health-check")
 async def health_check():
