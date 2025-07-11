@@ -8,7 +8,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: env
 
     steps:
       - name: Checkout repository
@@ -81,29 +80,29 @@ jobs:
               -e PYTHONPATH=/app \
               -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
               -e NGROK_AUTH_TOKEN="${{ secrets.NGROK_AUTH_TOKEN }}" \
-              -e RETELL_API_KEY="${{ secrets.RETELL_API_KEY }}" \
+              -e RETELL_API_KEY="key_604f51d09f7f3313ba0f83d7bc63" \
               -e DATABASE_URL="sqlite:///./data/transit.db" \
-              -e WORKFLOW_RETELL_AGENT_ID="${{ secrets.WORKFLOW_RETELL_AGENT_ID }}" \
-              -e CHECKIN_RETELL_AGENT_ID="${{ secrets.CHECKIN_RETELL_AGENT_ID }}" \
+              -e WORKFLOW_RETELL_AGENT_ID="agent_6b16ffe7f0177a02f4fd2ebf72" \
+              -e CHECKIN_RETELL_AGENT_ID="agent_6e445fc10ee5db15ae0b442067" \
               -e INBOUND_CALL_AGENT_ID="${{ secrets.INBOUND_CALL_AGENT_ID }}" \
               -e ENVIRONMENT="production" \
               -e LOG_LEVEL="INFO" \
               -e BACKEND_ngrok_LINK="sawfly-relaxing-dog.ngrok-free.app" \
               -e ALLOWED_ORIGINS="*" \
               -e API_RATE_LIMIT="100" \
-              -e RETELL_FROM_NUMBER="${{ secrets.RETELL_FROM_NUMBER }}" \
-              -e FEEDBACK_SENDER_EMAIL="${{ secrets.FEEDBACK_SENDER_EMAIL }}" \
-              -e SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
-              -e SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
-              -e FEEDBACK_RECIPIENT_EMAIL="${{ secrets.FEEDBACK_RECIPIENT_EMAIL }}" \
-              -e TWILIO_ACCOUNT_SID="${{ secrets.TWILIO_ACCOUNT_SID }}" \
-              -e TWILIO_AUTH_TOKEN="${{ secrets.TWILIO_AUTH_TOKEN }}" \
-              -e TWILIO_FROM_NUMBER="${{ secrets.TWILIO_FROM_NUMBER }}" \
-              -e FEEDBACK_RECIPIENT_PHONES="${{ secrets.FEEDBACK_RECIPIENT_PHONES }}" \
-              -e SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
-              -e SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}" \
-              -e ADMIN_PASSWORD_HASH="${{ secrets.ADMIN_PASSWORD_HASH }}" \
-              -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+              -e RETELL_FROM_NUMBER="+12708540864" \
+              -e FEEDBACK_SENDER_EMAIL="trotsky@coreedgesolution.com" \
+              -e SMTP_USERNAME="trotsky@coreedgesolution.com" \
+              -e SMTP_PASSWORD="fyzc ovuo jeyy kyty" \
+              -e FEEDBACK_RECIPIENT_EMAIL="saswat@coreedgesolution.com" \
+              -e TWILIO_ACCOUNT_SID="AC9aac0ea30c2d13ba63d7b9833021cbca" \
+              -e TWILIO_AUTH_TOKEN="bef96b283c66f17c9fc594d15a888a9c" \
+              -e TWILIO_FROM_NUMBER="+1540446-2709" \
+              -e FEEDBACK_RECIPIENT_PHONES="+16084404374" \
+              -e SUPABASE_URL="https://jiugpwfdwvewmrryiqpt.supabase.co" \
+              -e SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWdwd2Zkd3Zld21ycnlpcXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwOTI4NTEsImV4cCI6MjA2NzY2ODg1MX0.gQiXUdzio-96-QO11RR68cFf_DDs_rx886My_8nbpYU" \
+              -e ADMIN_PASSWORD_HASH="2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu" \
+              -e SECRET_KEY="talkwithtruckers-session" \
               -v /root/data:/app/data \
               -v /root/feedback-images:/app/static/feedback-images \
               ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
