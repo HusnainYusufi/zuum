@@ -83,21 +83,13 @@ async def store_call_resumption_context(call_id: str, call_data: dict):
             # Get dynamic variables from output_data
             dynamic_variables = output_data.get("retell_llm_dynamic_variables", {})
             
-            # Get the previous output from the call
-            previous_output = output_data.get("output", "")
-            
-            # Add previous_output to dynamic variables
-            if previous_output:
-                dynamic_variables["previous_output"] = previous_output
-            
             # Create metadata from dynamic variables (similar to retell_check_in.py)
             metadata = {
                 "form_number": dynamic_variables.get("form_number"),
                 "form_title": dynamic_variables.get("form_title"),
                 "purpose": dynamic_variables.get("purpose"),
                 "form": dynamic_variables.get("form"),
-                "output_schema": dynamic_variables.get("output_schema"),
-                "previous_output": previous_output
+                "output_schema": dynamic_variables.get("output_schema")
             }
             
             logger.info(f"Fetched call details from Supabase for {call_id}: form_title={dynamic_variables.get('form_title')}")
@@ -582,8 +574,17 @@ async def retell_recording_webhook(request: dict = Body(...)):
         if request.get("event") == "call_started":
             call_data = request.get("call", {})
             call_id = call_data.get("call_id")
+            direction = call_data.get("direction")
+            to_number = call_data.get("to_number", "")
             
-            logger.info(f"Call started - Call ID: {call_id}")
+            logger.info(f"Call started - Call ID: {call_id}, Direction: {direction}, To Number: {to_number}")
+            
+            # If this is an outbound call, remove any existing call resumption context for the number
+            if direction == "outbound" and to_number:
+                normalized_phone = normalize_phone_number(to_number)
+                if normalized_phone in call_resumption_storage:
+                    del call_resumption_storage[normalized_phone]
+                    logger.info(f"Removed call resumption context for outbound call to {normalized_phone}")
             
             if call_id:
                 # Find the retell call and get check_in_id
@@ -945,7 +946,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                         update_data['issue_flagged'] = custom_analysis_data['issue_flagged']
                     
                     if 'call_confidence_score' in custom_analysis_data:
-                        update_data['confidence_score'] = custom_analysis_data['call_confidence_score']
+                        update_data['Confidence_score'] = custom_analysis_data['call_confidence_score']
                     
                     if 'exception_type' in custom_analysis_data:
                         exception_type = custom_analysis_data['exception_type']
@@ -964,7 +965,7 @@ async def retell_recording_webhook(request: dict = Body(...)):
                             update_data['tags'] = tags
                     
                     if '_a_i__response__summary' in custom_analysis_data:
-                        update_data['ai_response_summary'] = custom_analysis_data['_a_i__response__summary']
+                        update_data['AI_Response_Summary'] = custom_analysis_data['_a_i__response__summary']
                         update_data['ai_timestamp'] = datetime.now().isoformat()
                     
                     # Mark as analyzed

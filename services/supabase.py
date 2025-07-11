@@ -70,6 +70,7 @@ class SupabaseService:
             # Prepare data for insertion
             check_in_data = {
                 "load_id": data.get("load_id"),
+                "Form_type": data.get("form_type"),
                 "ai_response_summary": data.get("AI_Response_Summary"),
                 "ai_timestamp": data.get("AI_Timestamp", datetime.now().isoformat()),
                 "tags": data.get("tags", []),
@@ -187,7 +188,7 @@ class SupabaseService:
             
             # Call the RPC function
             result = self.client.rpc(
-                "get_check_ins_paginated",
+                "get_check_ins_paginated_with_tags",
                 {
                     "page_num": page,
                     "page_size": per_page,
@@ -198,7 +199,6 @@ class SupabaseService:
             ).execute()
             
             if result.data:
-                logger.info(f"Raw Supabase data: {json.dumps(result.data, indent=2, default=str)}")
                 # Format data for compatibility
                 formatted_checkins = []
                 total_count = 0
@@ -209,9 +209,6 @@ class SupabaseService:
                     
                     # Add tags to the formatted item
                     formatted_item["tags"] = item.get("tags", [])
-                    
-                    # Log tags for debugging
-                    logger.info(f"Check-in {item.get('id')} tags: {formatted_item['tags']}")
                     
                     formatted_checkins.append(formatted_item)
                 
@@ -266,6 +263,52 @@ class SupabaseService:
 
         except Exception as e:
             logger.error(f"Error getting dashboard stats: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_checkins_per_day_chart(self) -> Dict[str, Any]:
+        """Get check-ins per day for chart visualization"""
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+
+            result = self.client.rpc("get_checkins_per_day_chart").execute()
+            
+            if result.data:
+                labels = []
+                checkin_values = []
+                issues_values = []
+                transfers_values = []
+                
+                for row in result.data:
+                    labels.append(row.get("date_label", ""))
+                    checkin_values.append(row.get("checkin_count", 0))
+                    issues_values.append(row.get("issues_count", 0))
+                    transfers_values.append(row.get("transfers_count", 0))
+                
+                return {
+                    "success": True,
+                    "labels": labels,
+                    "datasets": {
+                        "checkins": checkin_values,
+                        "issues": issues_values,
+                        "transfers": transfers_values
+                    },
+                    "data": result.data  # Full data for detailed tooltips
+                }
+            else:
+                return {
+                    "success": True,
+                    "labels": [],
+                    "datasets": {
+                        "checkins": [],
+                        "issues": [],
+                        "transfers": []
+                    },
+                    "data": []
+                }
+
+        except Exception as e:
+            logger.error(f"Error getting chart data: {e}")
             return {"success": False, "error": str(e)}
 
     # Retell call operations
