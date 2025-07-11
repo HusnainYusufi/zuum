@@ -73,7 +73,6 @@ jobs:
             # Run new container with the uniquely tagged image
             docker run -d \
               --name voice-freight-broker \
-              --restart unless-stopped \
               -p 8000:8000 \
               -p 4040:4040 \
               -p 5678:5678 \
