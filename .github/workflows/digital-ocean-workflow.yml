@@ -71,22 +71,30 @@ jobs:
               -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
               -e NGROK_AUTH_TOKEN="${{ secrets.NGROK_AUTH_TOKEN }}" \
               -e RETELL_API_KEY="${{ secrets.RETELL_API_KEY }}" \
-              -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+              -e DATABASE_URL="sqlite:///./data/transit.db" \
               -e WORKFLOW_RETELL_AGENT_ID="${{ secrets.WORKFLOW_RETELL_AGENT_ID }}" \
               -e CHECKIN_RETELL_AGENT_ID="${{ secrets.CHECKIN_RETELL_AGENT_ID }}" \
+              -e INBOUND_CALL_AGENT_ID="${{ secrets.INBOUND_CALL_AGENT_ID }}" \
               -e ENVIRONMENT="production" \
               -e LOG_LEVEL="INFO" \
-              -e BACKEND_ngrok_LINK="${{ secrets.BACKEND_ngrok_LINK }}" \
+              -e BACKEND_ngrok_LINK="sawfly-relaxing-dog.ngrok-free.app" \
               -e ALLOWED_ORIGINS="*" \
               -e API_RATE_LIMIT="100" \
               -e RETELL_FROM_NUMBER="${{ secrets.RETELL_FROM_NUMBER }}" \
+              -e FEEDBACK_SENDER_EMAIL="${{ secrets.FEEDBACK_SENDER_EMAIL }}" \
+              -e SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
+              -e SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
+              -e FEEDBACK_RECIPIENT_EMAIL="${{ secrets.FEEDBACK_RECIPIENT_EMAIL }}" \
               -e TWILIO_ACCOUNT_SID="${{ secrets.TWILIO_ACCOUNT_SID }}" \
               -e TWILIO_AUTH_TOKEN="${{ secrets.TWILIO_AUTH_TOKEN }}" \
               -e TWILIO_FROM_NUMBER="${{ secrets.TWILIO_FROM_NUMBER }}" \
               -e FEEDBACK_RECIPIENT_PHONES="${{ secrets.FEEDBACK_RECIPIENT_PHONES }}" \
-              -e BASE_URL="" \
+              -e SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+              -e SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}" \
               -e ADMIN_PASSWORD_HASH="${{ secrets.ADMIN_PASSWORD_HASH }}" \
               -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+              -v /root/data:/app/data \
+              -v /root/feedback-images:/app/static/feedback-images \
               jimc047/voice_freight_broker:latest
             
             # Clean up tar file
