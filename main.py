@@ -597,5 +597,12 @@ if __name__ == "__main__":
         logger.info(f"Server will be accessible at: http://localhost:{port}")
     
     # Start FastAPI application - use 0.0.0.0 for Docker compatibility
+    # Disable reload in production to prevent restart loops
+    environment = os.getenv("ENVIRONMENT", "development")
+    # Force disable reload if we're in a Docker container or production
+    in_docker = os.path.exists("/.dockerenv")
+    reload_enabled = environment == "development" and not in_docker
+    
     logger.info(f"🚀 Starting FastAPI server on http://0.0.0.0:{port}")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    logger.info(f"🔧 Environment: {environment}, Docker: {in_docker}, Reload: {reload_enabled}")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload_enabled)
