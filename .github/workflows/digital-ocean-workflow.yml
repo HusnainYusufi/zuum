@@ -51,7 +51,7 @@ jobs:
         with:
           host: 167.172.141.198
           username: root
-          password: ${{ secrets.DO_DROPLET_PASSWORD }}
+          password: e3capital@AI
           port: 22
           source: "voice_freight_broker_image.tar"
           target: "/root/voice_freight_broker_image.tar"
@@ -61,7 +61,7 @@ jobs:
         with:
           host: 167.172.141.198
           username: root
-          password: ${{ secrets.DO_DROPLET_PASSWORD }}
+          password: e3capital@AI
           port: 22
           script: |
             echo "Starting deployment for voice-freight-broker..."
