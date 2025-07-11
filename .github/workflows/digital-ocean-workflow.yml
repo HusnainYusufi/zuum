@@ -49,7 +49,7 @@ jobs:
       - name: Copy Docker image to DigitalOcean Droplet
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: 167.172.141.198
+          host: 137.184.193.18
           username: root
           password: e3capital@AI
           port: 22
@@ -59,7 +59,7 @@ jobs:
       - name: Deploy on DigitalOcean Droplet
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: 167.172.141.198
+          host: 137.184.193.18
           username: root
           password: e3capital@AI
           port: 22
