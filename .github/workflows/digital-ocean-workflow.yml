@@ -30,6 +30,22 @@ jobs:
           # Save the image to tar file for transfer
           docker save -o voice_freight_broker_image.tar jimc047/voice_freight_broker:latest
 
+      # Fix file permissions and verify file before SCP transfer
+      - name: Fix permissions and verify Docker image tar
+        run: |
+          # Check if file exists and show current permissions
+          ls -la voice_freight_broker_image.tar
+          
+          # Set readable permissions for the file
+          chmod 644 voice_freight_broker_image.tar
+          
+          # Verify file is accessible and not empty
+          test -r voice_freight_broker_image.tar && echo "File is readable"
+          test -s voice_freight_broker_image.tar && echo "File is not empty"
+          
+          # Show final permissions
+          ls -la voice_freight_broker_image.tar
+
       - name: Copy Docker image to DigitalOcean Droplet
         uses: appleboy/scp-action@v0.1.7
         with:
