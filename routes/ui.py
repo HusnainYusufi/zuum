@@ -33,9 +33,13 @@ templates = Jinja2Templates(directory="templates")
 db = next(get_db())
 
 @router.get("/journey_state")
-async def get_journey_state():
+async def get_journey_state(current_user: dict = Depends(get_current_user)):
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=302)
     journey = db.query(Journey).filter(Journey.id == 1).first()
-    return journey.current_state
+    if not journey:
+        return {"current_state": None}
+    return {"current_state": journey.current_state}
 
 @router.get("/transit-dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request, current_user: dict = Depends(get_current_user)):
@@ -45,13 +49,17 @@ async def dashboard_page(request: Request, current_user: dict = Depends(get_curr
     return templates.TemplateResponse("transit-dashboard.html", {"request": request})
 
 @router.get("/checkin/{check_in_id}", response_class=HTMLResponse)
-async def checkin_page(request: Request, check_in_id: int):
+async def checkin_page(request: Request, check_in_id: int, current_user: dict = Depends(get_current_user)):
     """Serve the check-in page for a specific check-in"""
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=302)
     return templates.TemplateResponse("checkin.html", {"request": request})
 
 @router.get("/test-forms-chat", response_class=HTMLResponse)
-async def test_forms_chat_page(request: Request):
+async def test_forms_chat_page(request: Request, current_user: dict = Depends(get_current_user)):
     """Serve the test forms chat interface page"""
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=302)
     return templates.TemplateResponse("test_forms_chat.html", {"request": request})
 
 @router.get("/dashboard", response_class=HTMLResponse)
