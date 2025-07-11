@@ -424,7 +424,8 @@ function fillTestData() {
             trailer_number: "TR-8976",
             required_equipment: "53ft dry van, load bars, straps",
             preferred_comms: "text",
-            tracking_on: "Y"
+            tracking_on: "Y",
+            scheduled_drop_time: formatDate(futureDate)
         },
         'pickup-complete-tab': {
             pc_load_id: `LD-${Math.floor(Math.random() * 1000)}`,

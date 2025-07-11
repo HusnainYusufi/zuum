@@ -217,6 +217,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
         # Prepare check-in data for Supabase
         check_in_data = {
             "load_id": load_id,
+            "form_type": form_type,
             "AI_Response_Summary": None,
             "AI_Timestamp": datetime.now().isoformat(),
             "Issue_Flagged": False,
