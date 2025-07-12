@@ -46,6 +46,16 @@ jobs:
           
           echo "Successfully pushed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
 
+      - name: Copy docker-compose.yml to DigitalOcean Droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 137.184.193.18
+          username: root
+          password: e3capital@AI
+          port: 22
+          source: "docker-compose.yml"
+          target: "/root/"
+
       - name: Deploy on DigitalOcean Droplet
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -57,9 +67,46 @@ jobs:
             echo "Starting deployment for voice-freight-broker..."
             echo "Deploying image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
             
-            # Stop and remove existing container
-            docker stop voice-freight-broker || true
-            docker rm voice-freight-broker || true
+            # Create .env file with all environment variables
+            cat > /root/.env << 'EOF'
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            NGROK_AUTH_TOKEN=${{ secrets.NGROK_AUTH_TOKEN }}
+            RETELL_API_KEY=key_604f51d09f7f3313ba0f83d7bc63
+            DATABASE_URL=sqlite:///./data/transit.db
+            WORKFLOW_RETELL_AGENT_ID=agent_6b16ffe7f0177a02f4fd2ebf72
+            CHECKIN_RETELL_AGENT_ID=agent_6e445fc10ee5db15ae0b442067
+            INBOUND_CALL_AGENT_ID=${{ secrets.INBOUND_CALL_AGENT_ID }}
+            ENVIRONMENT=production
+            LOG_LEVEL=INFO
+            BACKEND_ngrok_LINK=sawfly-relaxing-dog.ngrok-free.app
+            ALLOWED_ORIGINS=*
+            API_RATE_LIMIT=100
+            RETELL_FROM_NUMBER=+12708540864
+            FEEDBACK_SENDER_EMAIL=trotsky@coreedgesolution.com
+            SMTP_USERNAME=trotsky@coreedgesolution.com
+            SMTP_PASSWORD=fyzc ovuo jeyy kyty
+            FEEDBACK_RECIPIENT_EMAIL=saswat@coreedgesolution.com
+            TWILIO_ACCOUNT_SID=AC9aac0ea30c2d13ba63d7b9833021cbca
+            TWILIO_AUTH_TOKEN=bef96b283c66f17c9fc594d15a888a9c
+            TWILIO_FROM_NUMBER=+1540446-2709
+            FEEDBACK_RECIPIENT_PHONES=+16084404374
+            SUPABASE_URL=https://jiugpwfdwvewmrryiqpt.supabase.co
+            SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWdwd2Zkd3Zld21ycnlpcXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwOTI4NTEsImV4cCI6MjA2NzY2ODg1MX0.gQiXUdzio-96-QO11RR68cFf_DDs_rx886My_8nbpYU
+            ADMIN_PASSWORD_HASH=2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
+            SECRET_KEY=talkwithtruckers-session
+            EOF
+            
+            # Update the docker-compose.yml to use the specific image tag
+            sed -i "s|image: jimc047/voice_freight_broker:latest|image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}|g" /root/docker-compose.yml
+            
+            # Install docker-compose if not already installed
+            if ! command -v docker-compose &> /dev/null; then
+              curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
+            
+            # Stop existing containers
+            docker-compose -f /root/docker-compose.yml down || true
             
             # Remove old images to free up space
             docker images | grep "jimc047/voice_freight_broker" | awk '{print $3}' | xargs -r docker rmi -f || true
@@ -70,41 +117,12 @@ jobs:
             # Verify the image was pulled correctly
             docker images | grep "jimc047/voice_freight_broker"
             
-            # Run new container with the uniquely tagged image
-            docker run -d \
-              --name voice-freight-broker \
-              -p 8000:8000 \
-              -p 4040:4040 \
-              -p 5678:5678 \
-              -e PYTHONPATH=/app \
-              -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
-              -e NGROK_AUTH_TOKEN="${{ secrets.NGROK_AUTH_TOKEN }}" \
-              -e RETELL_API_KEY="key_604f51d09f7f3313ba0f83d7bc63" \
-              -e DATABASE_URL="sqlite:///./data/transit.db" \
-              -e WORKFLOW_RETELL_AGENT_ID="agent_6b16ffe7f0177a02f4fd2ebf72" \
-              -e CHECKIN_RETELL_AGENT_ID="agent_6e445fc10ee5db15ae0b442067" \
-              -e INBOUND_CALL_AGENT_ID="${{ secrets.INBOUND_CALL_AGENT_ID }}" \
-              -e ENVIRONMENT="production" \
-              -e LOG_LEVEL="INFO" \
-              -e BACKEND_ngrok_LINK="sawfly-relaxing-dog.ngrok-free.app" \
-              -e ALLOWED_ORIGINS="*" \
-              -e API_RATE_LIMIT="100" \
-              -e RETELL_FROM_NUMBER="+12708540864" \
-              -e FEEDBACK_SENDER_EMAIL="trotsky@coreedgesolution.com" \
-              -e SMTP_USERNAME="trotsky@coreedgesolution.com" \
-              -e SMTP_PASSWORD="fyzc ovuo jeyy kyty" \
-              -e FEEDBACK_RECIPIENT_EMAIL="saswat@coreedgesolution.com" \
-              -e TWILIO_ACCOUNT_SID="AC9aac0ea30c2d13ba63d7b9833021cbca" \
-              -e TWILIO_AUTH_TOKEN="bef96b283c66f17c9fc594d15a888a9c" \
-              -e TWILIO_FROM_NUMBER="+1540446-2709" \
-              -e FEEDBACK_RECIPIENT_PHONES="+16084404374" \
-              -e SUPABASE_URL="https://jiugpwfdwvewmrryiqpt.supabase.co" \
-              -e SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWdwd2Zkd3Zld21ycnlpcXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwOTI4NTEsImV4cCI6MjA2NzY2ODg1MX0.gQiXUdzio-96-QO11RR68cFf_DDs_rx886My_8nbpYU" \
-              -e ADMIN_PASSWORD_HASH="2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu" \
-              -e SECRET_KEY="talkwithtruckers-session" \
-              -v /root/data:/app/data \
-              -v /root/feedback-images:/app/static/feedback-images \
-              ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
+            # Create required directories
+            mkdir -p /root/data
+            mkdir -p /root/feedback-images
+            
+            # Start the application using docker-compose
+            docker-compose -f /root/docker-compose.yml up -d
             
             echo "Deployment completed successfully!"
             echo "Deployed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
