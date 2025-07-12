@@ -92,7 +92,7 @@ jobs:
             FEEDBACK_RECIPIENT_PHONES=+16084404374
             SUPABASE_URL=https://jiugpwfdwvewmrryiqpt.supabase.co
             SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWdwd2Zkd3Zld21ycnlpcXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwOTI4NTEsImV4cCI6MjA2NzY2ODg1MX0.gQiXUdzio-96-QO11RR68cFf_DDs_rx886My_8nbpYU
-            ADMIN_PASSWORD_HASH=2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
+            ADMIN_PASSWORD_HASH=$2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
             SECRET_KEY=talkwithtruckers-session
             EOF
             
