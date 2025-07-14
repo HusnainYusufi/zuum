@@ -69,5 +69,13 @@ async def checkin_dashboard_page(request: Request, current_user: dict = Depends(
         return RedirectResponse(url="/auth/login", status_code=302)
     return templates.TemplateResponse("checkin_dashboard.html", {"request": request})
 
+@router.get("/all-checkins")
+async def all_checkins_page(current_user: dict = Depends(get_current_user)):
+    """All Check-ins page"""
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=302)
+    
+    return templates.TemplateResponse("all_checkins.html", {"request": {}})
+
 
 
