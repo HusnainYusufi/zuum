@@ -46,16 +46,6 @@ jobs:
           
           echo "Successfully pushed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
 
-      - name: Copy docker-compose.yml to DigitalOcean Droplet
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 137.184.193.18
-          username: root
-          password: e3capital@AI
-          port: 22
-          source: "docker-compose.yml"
-          target: "/root/"
-
       - name: Deploy on DigitalOcean Droplet
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -92,12 +82,9 @@ jobs:
             FEEDBACK_RECIPIENT_PHONES=+16084404374
             SUPABASE_URL=https://jiugpwfdwvewmrryiqpt.supabase.co
             SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWdwd2Zkd3Zld21ycnlpcXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwOTI4NTEsImV4cCI6MjA2NzY2ODg1MX0.gQiXUdzio-96-QO11RR68cFf_DDs_rx886My_8nbpYU
-            ADMIN_PASSWORD_HASH=$2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
+            ADMIN_PASSWORD_HASH=2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
             SECRET_KEY=talkwithtruckers-session
             EOF
-            
-            # Update the docker-compose.yml to use the specific image tag
-            sed -i "s|image: jimc047/voice_freight_broker:latest|image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}|g" /root/docker-compose.yml
             
             # Install docker-compose if not already installed
             if ! command -v docker-compose &> /dev/null; then
@@ -106,7 +93,8 @@ jobs:
             fi
             
             # Stop existing containers
-            docker-compose -f /root/docker-compose.yml down || true
+            docker stop voice-freight-broker || true
+            docker rm voice-freight-broker || true
             
             # Remove old images to free up space
             docker images | grep "jimc047/voice_freight_broker" | awk '{print $3}' | xargs -r docker rmi -f || true
@@ -121,8 +109,15 @@ jobs:
             mkdir -p /root/data
             mkdir -p /root/feedback-images
             
-            # Start the application using docker-compose
-            docker-compose -f /root/docker-compose.yml up -d
+            # Run the container with necessary configurations
+            docker run -d \
+              --name voice-freight-broker \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              -v /root/data:/app/data \
+              -v /root/feedback-images:/app/static/feedback-images \
+              --env-file /root/.env \
+              ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
             
             echo "Deployment completed successfully!"
             echo "Deployed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
