@@ -86,6 +86,9 @@ jobs:
             SECRET_KEY=talkwithtruckers-session
             EOF
             
+            # Ensure environment file has correct permissions
+            chmod 600 /root/.env
+            
             # Install docker-compose if not already installed
             if ! command -v docker-compose &> /dev/null; then
               curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -105,19 +108,31 @@ jobs:
             # Verify the image was pulled correctly
             docker images | grep "jimc047/voice_freight_broker"
             
-            # Create required directories
+            # Create required directories and set permissions
             mkdir -p /root/data
             mkdir -p /root/feedback-images
+            chmod 755 /root/data
+            chmod 755 /root/feedback-images
             
             # Run the container with necessary configurations
             docker run -d \
               --name voice-freight-broker \
               --restart unless-stopped \
               -p 8000:8000 \
+              -p 4040:4040 \
+              -p 5678:5678 \
               -v /root/data:/app/data \
               -v /root/feedback-images:/app/static/feedback-images \
               --env-file /root/.env \
+              --health-cmd "curl -f http://localhost:8000/docs || exit 1" \
+              --health-interval 30s \
+              --health-timeout 10s \
+              --health-retries 3 \
               ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
+            
+            # Wait for container to be healthy
+            echo "Waiting for container to be healthy..."
+            timeout 60s bash -c 'while [[ "$(docker inspect -f {{.State.Health.Status}} voice-freight-broker)" != "healthy" ]]; do sleep 2; done' || (echo "Container failed to become healthy" && exit 1)
             
             echo "Deployment completed successfully!"
             echo "Deployed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
@@ -127,3 +142,7 @@ jobs:
             # Show container logs to verify it started correctly
             echo "Container logs (last 20 lines):"
             docker logs --tail 20 voice-freight-broker
+            
+            # Verify environment variables are set
+            echo "Verifying environment variables..."
+            docker exec voice-freight-broker env
