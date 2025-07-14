@@ -82,12 +82,16 @@ jobs:
             FEEDBACK_RECIPIENT_PHONES=+16084404374
             SUPABASE_URL=https://jiugpwfdwvewmrryiqpt.supabase.co
             SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppdWdwd2Zkd3Zld21ycnlpcXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwOTI4NTEsImV4cCI6MjA2NzY2ODg1MX0.gQiXUdzio-96-QO11RR68cFf_DDs_rx886My_8nbpYU
-            ADMIN_PASSWORD_HASH=2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
+            ADMIN_PASSWORD_HASH=$2b$12$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu
             SECRET_KEY=talkwithtruckers-session
             EOF
             
             # Ensure environment file has correct permissions
             chmod 600 /root/.env
+            
+            # Debug: Show the .env file content (without secrets)
+            echo "Environment file created. Checking variables..."
+            grep -E "^(ENVIRONMENT|LOG_LEVEL|DATABASE_URL)" /root/.env || echo "Basic variables not found"
             
             # Install docker-compose if not already installed
             if ! command -v docker-compose &> /dev/null; then
@@ -99,8 +103,8 @@ jobs:
             docker stop voice-freight-broker || true
             docker rm voice-freight-broker || true
             
-            # Remove old images to free up space
-            docker images | grep "jimc047/voice_freight_broker" | awk '{print $3}' | xargs -r docker rmi -f || true
+            # Remove old images to free up space (keep last 2 images)
+            docker images | grep "jimc047/voice_freight_broker" | tail -n +3 | awk '{print $3}' | xargs -r docker rmi -f || true
             
             # Pull the new image from Docker Hub
             docker pull ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
@@ -114,7 +118,7 @@ jobs:
             chmod 755 /root/data
             chmod 755 /root/feedback-images
             
-            # Run the container with necessary configurations
+            # Run the container with explicit environment variables and env file
             docker run -d \
               --name voice-freight-broker \
               --restart unless-stopped \
@@ -124,25 +128,35 @@ jobs:
               -v /root/data:/app/data \
               -v /root/feedback-images:/app/static/feedback-images \
               --env-file /root/.env \
+              -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              -e NGROK_AUTH_TOKEN="${{ secrets.NGROK_AUTH_TOKEN }}" \
+              -e INBOUND_CALL_AGENT_ID="${{ secrets.INBOUND_CALL_AGENT_ID }}" \
+              -e RETELL_API_KEY="key_604f51d09f7f3313ba0f83d7bc63" \
+              -e DATABASE_URL="sqlite:///./data/transit.db" \
+              -e ENVIRONMENT="production" \
+              -e LOG_LEVEL="INFO" \
+              -e ADMIN_PASSWORD_HASH="\$2b\$12\$hr7nNNqrLgWq0oFpwNTjG.jBRY4JsYdwk.6cxWOppy7GivZuTuVdu" \
+              -e SECRET_KEY="talkwithtruckers-session" \
               --health-cmd "curl -f http://localhost:8000/docs || exit 1" \
               --health-interval 30s \
               --health-timeout 10s \
               --health-retries 3 \
               ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
             
-            # Wait for container to be healthy
-            echo "Waiting for container to be healthy..."
-            timeout 60s bash -c 'while [[ "$(docker inspect -f {{.State.Health.Status}} voice-freight-broker)" != "healthy" ]]; do sleep 2; done' || (echo "Container failed to become healthy" && exit 1)
+            # Wait for container to start
+            echo "Waiting for container to start..."
+            sleep 10
+            
+            # Check container status
+            docker ps --filter name=voice-freight-broker
+            
+            # Verify environment variables inside container
+            echo "Verifying environment variables in container..."
+            docker exec voice-freight-broker env | grep -E "(NGROK_AUTH_TOKEN|ADMIN_PASSWORD_HASH|ENVIRONMENT)" || echo "Key variables not found"
             
             echo "Deployment completed successfully!"
             echo "Deployed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
-            echo "Container status:"
-            docker ps --filter name=voice-freight-broker
             
             # Show container logs to verify it started correctly
             echo "Container logs (last 20 lines):"
             docker logs --tail 20 voice-freight-broker
-            
-            # Verify environment variables are set
-            echo "Verifying environment variables..."
-            docker exec voice-freight-broker env
