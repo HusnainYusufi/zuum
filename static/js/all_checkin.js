@@ -16,6 +16,8 @@ function setupEventListeners() {
     document.getElementById('issue-filter').addEventListener('change', applyFilters);
     document.getElementById('review-filter').addEventListener('change', applyFilters);
     document.getElementById('time-filter').addEventListener('change', applyFilters);
+    document.getElementById('start-date-filter').addEventListener('change', applyFilters);
+    document.getElementById('end-date-filter').addEventListener('change', applyFilters);
     document.getElementById('tags-filter').addEventListener('input', debounce(applyFilters, 300));
     document.getElementById('name-filter').addEventListener('input', debounce(applyFilters, 300));
     document.getElementById('phone-filter').addEventListener('input', debounce(applyFilters, 300));
@@ -98,6 +100,12 @@ function getFilters() {
     const timeFilter = document.getElementById('time-filter').value;
     if (timeFilter) filters.sort_by_time = timeFilter;
     
+    const startDateFilter = document.getElementById('start-date-filter').value;
+    if (startDateFilter) filters.start_date = startDateFilter;
+    
+    const endDateFilter = document.getElementById('end-date-filter').value;
+    if (endDateFilter) filters.end_date = endDateFilter;
+    
     const tagsFilter = document.getElementById('tags-filter').value.trim();
     if (tagsFilter) filters.tags = tagsFilter;
     
@@ -117,7 +125,8 @@ function applyFilters() {
     // Update filter visual state
     const filterElements = [
         'call-status-filter', 'issue-filter', 'review-filter', 'time-filter',
-        'tags-filter', 'name-filter', 'phone-filter', 'load-id-filter'
+        'start-date-filter', 'end-date-filter', 'tags-filter', 'name-filter', 
+        'phone-filter', 'load-id-filter'
     ];
     
     filterElements.forEach(id => {

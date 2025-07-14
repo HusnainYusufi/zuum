@@ -43,7 +43,9 @@ class SupabaseClient {
                 filter_call_status: filters.call_status || null,
                 search_name: filters.search_name || null,
                 search_phone: filters.search_phone || null,
-                search_load_id: filters.search_load_id || null
+                search_load_id: filters.search_load_id || null,
+                start_date: filters.start_date || null,
+                end_date: filters.end_date || null
             });
             
             if (error) throw error;
