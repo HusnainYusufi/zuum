@@ -1,0 +1,997 @@
+/* All Checkins Page Styles */
+
+:root {
+    --bg-dark: #0f1419;
+    --card-dark: #1a202c;
+    --text-light: #e2e8f0;
+    --text-muted: #a0aec0;
+    --primary-color: #4299e1;
+    --primary-light: #63b3ed;
+    --border-radius: 12px;
+    --box-shadow-dark: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition-speed: 0.3s;
+}
+
+body {
+    background: linear-gradient(135deg, #0f1419 0%, #1a202c 100%);
+    color: var(--text-light);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.all-checkins-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.all-checkins-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(66, 153, 225, 0.2);
+}
+
+.all-checkins-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #4299e1, #63b3ed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.back-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+}
+
+.back-button:hover {
+    background: linear-gradient(135deg, #60a5fa 0%, #4299e1 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+}
+
+.all-checkins-filters {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    padding: 20px;
+    background: var(--card-dark);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(66, 153, 225, 0.2);
+    box-shadow: var(--box-shadow-dark);
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 80px;
+    justify-content: flex-start;
+}
+
+.filter-label {
+    font-size: 0.75rem;
+    color: #a0aec0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.filter-input {
+    padding: 10px 14px;
+    background-color: #1a202c;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-light);
+    transition: all 0.3s ease;
+    width: 100%;
+    height: 42px;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+.filter-input:hover {
+    border-color: #60a5fa;
+}
+
+.filter-input.active {
+    border-color: var(--primary-color);
+    background-color: rgba(66, 153, 225, 0.1);
+}
+
+.all-checkins-list {
+    background: var(--card-dark);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(66, 153, 225, 0.2);
+    box-shadow: var(--box-shadow-dark);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.all-checkins-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 300px);
+}
+
+.all-checkins-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.all-checkins-content::-webkit-scrollbar-track {
+    background: #1a202c;
+}
+
+.all-checkins-content::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+}
+
+.all-checkins-content::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+.all-checkins-pagination {
+    padding: 20px;
+    border-top: 1px solid #4a5568;
+    background: rgba(26, 32, 44, 0.5);
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.pagination button {
+    padding: 8px 16px;
+    background: rgba(45, 55, 72, 0.8);
+    border: 1px solid #4a5568;
+    color: var(--text-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #4299e1;
+    border-color: #4299e1;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination button.active {
+    background: #4299e1;
+    border-color: #4299e1;
+}
+
+.no-check-ins {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+    padding: 60px 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-radius: 10px;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive filter layout */
+@media (max-width: 1200px) {
+    .all-checkins-filters {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .all-checkins-container {
+        padding: 15px;
+    }
+
+    .all-checkins-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .all-checkins-title {
+        font-size: 24px;
+    }
+
+    .all-checkins-filters {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 15px;
+    }
+
+    .filter-group {
+        min-height: 70px;
+    }
+
+    .filter-input {
+        height: 38px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+
+    .all-checkins-content {
+        padding: 15px;
+        max-height: calc(100vh - 250px);
+    }
+
+    .all-checkins-pagination {
+        padding: 15px;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .pagination button {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .all-checkins-container {
+        padding: 10px;
+    }
+
+    .all-checkins-title {
+        font-size: 20px;
+    }
+
+    .back-button {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    .all-checkins-filters {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .filter-label {
+        font-size: 0.7rem;
+    }
+
+    .filter-input {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+
+    .all-checkins-content {
+        padding: 12px;
+    }
+}
+
+/* Modal Styles for All Checkins Page */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--bg-dark);
+    border-radius: var(--border-radius);
+    width: 100%;
+    max-width: 1200px;
+    height: 90vh;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(66, 153, 225, 0.2);
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 25px;
+    border-bottom: 1px solid #4a5568;
+    background: var(--card-dark);
+}
+
+.modal-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: 0.5px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #718096;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    color: var(--text-light);
+    background: rgba(113, 128, 150, 0.1);
+}
+
+.modal-body {
+    flex: 1;
+    padding: 25px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 12px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #1a202c;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 6px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+.modal-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    background: var(--card-dark);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(66, 153, 225, 0.2);
+    box-shadow: var(--box-shadow-dark);
+}
+
+.modal-checkins-container {
+    flex: 1;
+    background: var(--card-dark);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(66, 153, 225, 0.2);
+    box-shadow: var(--box-shadow-dark);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-checkins-list {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.modal-checkins-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-checkins-list::-webkit-scrollbar-track {
+    background: #1a202c;
+}
+
+.modal-checkins-list::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+}
+
+.modal-checkins-list::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+.modal-pagination {
+    padding: 20px;
+    border-top: 1px solid #4a5568;
+    background: rgba(26, 32, 44, 0.5);
+}
+
+/* Modal Check-in Card Styles */
+.modal-check-in-card {
+    background: linear-gradient(135deg, rgba(26, 32, 44, 0.8) 0%, rgba(45, 55, 72, 0.6) 100%);
+    border: 1px solid rgba(66, 153, 225, 0.3);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    cursor: pointer;
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.2),
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.modal-check-in-card:hover {
+    background: linear-gradient(135deg, rgba(66, 153, 225, 0.2) 0%, rgba(45, 55, 72, 0.8) 100%);
+    border-color: rgba(66, 153, 225, 0.5);
+    transform: translateY(-4px);
+    box-shadow: 
+        0 16px 40px rgba(66, 153, 225, 0.25),
+        0 8px 24px rgba(0, 0, 0, 0.3),
+        0 4px 12px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.modal-check-in-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(66, 153, 225, 0.2);
+}
+
+.modal-check-in-id {
+    font-weight: 800;
+    background: linear-gradient(135deg, #4299e1, #63b3ed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 16px;
+    margin-right: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.modal-check-in-timestamp {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    font-weight: 500;
+    background: rgba(66, 153, 225, 0.12);
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(66, 153, 225, 0.25);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    backdrop-filter: blur(4px);
+}
+
+.modal-check-in-timestamp i {
+    color: #63b3ed;
+    font-size: 12px;
+}
+
+.modal-check-in-status {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.modal-check-in-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modal-check-in-field {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.modal-field-label {
+    font-weight: 700;
+    color: #63b3ed;
+    font-size: 11px;
+    min-width: 80px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.modal-field-value {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+    line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.modal-summary-field {
+    background: rgba(66, 153, 225, 0.08);
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(66, 153, 225, 0.2);
+    margin-top: 4px;
+}
+
+.modal-summary-field .modal-field-label {
+    color: #63b3ed;
+    margin-bottom: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.6px;
+}
+
+.modal-summary-field .modal-field-value {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+    line-height: 1.6;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.modal-active-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(66, 153, 225, 0.2);
+    border: 1px solid rgba(66, 153, 225, 0.4);
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #60a5fa;
+    animation: pulse-bg 2s ease-in-out infinite;
+}
+
+.modal-active-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(96, 165, 250, 0.3);
+    border-top-color: #60a5fa;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Modal Mobile Responsive Styles */
+@media (max-width: 1024px) {
+    .modal-content {
+        width: 95%;
+        height: 95vh;
+        margin: 2.5vh auto;
+    }
+    
+    .modal-filters {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        padding: 15px;
+    }
+    
+    .modal-check-in-card {
+        padding: 15px;
+    }
+    
+    .modal-check-in-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .modal-check-in-id {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 10px;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+    
+    .modal-content {
+        width: 100%;
+        height: calc(100vh - 40px);
+        max-height: none;
+        margin: 0;
+        border-radius: 12px;
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+        flex-wrap: wrap;
+    }
+    
+    .modal-title {
+        font-size: 18px;
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .modal-close {
+        order: 2;
+    }
+    
+    .modal-body {
+        padding: 20px 15px;
+        gap: 15px;
+    }
+    
+    .modal-filters {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 12px;
+    }
+    
+    .filter-group {
+        gap: 4px;
+    }
+    
+    .filter-label {
+        font-size: 0.7rem;
+    }
+    
+    .filter-input {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .modal-checkins-container {
+        border-radius: 8px;
+    }
+    
+    .modal-checkins-list {
+        padding: 15px;
+    }
+    
+    .modal-check-in-card {
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+    }
+    
+    .modal-check-in-header {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+    }
+    
+    .modal-check-in-id {
+        font-size: 16px;
+        margin-right: 8px;
+    }
+    
+    .modal-check-in-timestamp {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    
+    .modal-check-in-content {
+        gap: 10px;
+    }
+    
+    .modal-check-in-field {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        padding: 6px 0;
+    }
+    
+    .modal-field-label {
+        font-size: 10px;
+        min-width: auto;
+        margin-bottom: 2px;
+    }
+    
+    .modal-field-value {
+        font-size: 13px;
+        width: 100%;
+    }
+    
+    .modal-summary-field {
+        padding: 10px;
+        margin-top: 6px;
+    }
+    
+    .modal-summary-field .modal-field-label {
+        font-size: 11px;
+        margin-bottom: 6px;
+    }
+    
+    .modal-summary-field .modal-field-value {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    
+    .modal-pagination {
+        padding: 15px;
+    }
+    
+    .pagination {
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+    }
+    
+    .pagination button {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        min-width: 44px;
+        border-radius: 6px;
+    }
+    
+    .modal-active-indicator {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+    
+    .modal-active-spinner {
+        width: 12px;
+        height: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-overlay {
+        padding: 5px;
+        padding-top: 10px;
+    }
+    
+    .modal-content {
+        width: 100%;
+        height: calc(100vh - 20px);
+        border-radius: 8px;
+    }
+    
+    .modal-header {
+        padding: 12px 15px;
+    }
+    
+    .modal-title {
+        font-size: 16px;
+        gap: 8px;
+    }
+    
+    .modal-title i {
+        font-size: 16px;
+    }
+    
+    .modal-close {
+        font-size: 20px;
+        padding: 4px;
+    }
+    
+    .modal-body {
+        padding: 15px 12px;
+        gap: 12px;
+    }
+    
+    .modal-filters {
+        padding: 10px;
+        gap: 8px;
+    }
+    
+    .filter-label {
+        font-size: 0.65rem;
+        margin-bottom: 3px;
+    }
+    
+    .filter-input {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+    
+    .modal-checkins-list {
+        padding: 12px;
+    }
+    
+    .modal-check-in-card {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .modal-check-in-header {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        gap: 8px;
+    }
+    
+    .modal-check-in-id {
+        font-size: 14px;
+        margin-right: 6px;
+    }
+    
+    .modal-check-in-timestamp {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+    
+    .modal-check-in-timestamp i {
+        font-size: 10px;
+    }
+    
+    .modal-check-in-status {
+        gap: 4px;
+    }
+    
+    .modal-check-in-status .status-icon {
+        font-size: 16px;
+    }
+    
+    .modal-check-in-content {
+        gap: 8px;
+    }
+    
+    .modal-check-in-field {
+        padding: 4px 0;
+        gap: 3px;
+    }
+    
+    .modal-field-label {
+        font-size: 9px;
+    }
+    
+    .modal-field-value {
+        font-size: 12px;
+    }
+    
+    .modal-summary-field {
+        padding: 8px;
+        margin-top: 4px;
+    }
+    
+    .modal-summary-field .modal-field-label {
+        font-size: 10px;
+        margin-bottom: 4px;
+    }
+    
+    .modal-summary-field .modal-field-value {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    
+    .modal-pagination {
+        padding: 12px;
+    }
+    
+    .pagination {
+        gap: 4px;
+    }
+    
+    .pagination button {
+        padding: 6px 8px;
+        font-size: 0.7rem;
+        min-width: 36px;
+    }
+    
+    .pagination span {
+        font-size: 0.7rem;
+        padding: 0 4px;
+    }
+    
+    .modal-active-indicator {
+        padding: 3px 8px;
+        font-size: 10px;
+    }
+    
+    .modal-active-spinner {
+        width: 10px;
+        height: 10px;
+        border-width: 1.5px;
+    }
+}
+
+@media (max-width: 360px) {
+    .modal-content {
+        height: 100vh;
+        border-radius: 0;
+    }
+    
+    .modal-header {
+        padding: 10px 12px;
+    }
+    
+    .modal-title {
+        font-size: 14px;
+        gap: 6px;
+    }
+    
+    .modal-body {
+        padding: 12px 10px;
+        gap: 10px;
+    }
+    
+    .modal-filters {
+        grid-template-columns: 1fr;
+        padding: 8px;
+        gap: 6px;
+    }
+    
+    .filter-input {
+        padding: 5px 8px;
+        font-size: 0.7rem;
+    }
+    
+    .modal-checkins-list {
+        padding: 10px;
+    }
+    
+    .modal-check-in-card {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .modal-check-in-id {
+        font-size: 13px;
+    }
+    
+    .modal-check-in-timestamp {
+        font-size: 10px;
+        padding: 2px 5px;
+    }
+    
+    .modal-field-value {
+        font-size: 11px;
+    }
+    
+    .modal-summary-field .modal-field-value {
+        font-size: 10px;
+    }
+    
+    .pagination button {
+        padding: 5px 6px;
+        font-size: 0.65rem;
+        min-width: 32px;
+    }
+} 

@@ -35,12 +35,15 @@ class SupabaseClient {
     // Paginated Check-ins
     async getCheckInsPaginated(page = 1, pageSize = 10, filters = {}) {
         try {
-            const { data, error } = await this.client.rpc('get_check_ins_paginated', {
+            const { data, error } = await this.client.rpc('get_check_ins_paginated_enhanced', {
                 page_num: page,
                 page_size: pageSize,
                 filter_issue_flagged: filters.issue_flagged || null,
                 filter_tags: filters.tags || null,
-                filter_call_status: filters.call_status || null
+                filter_call_status: filters.call_status || null,
+                search_name: filters.search_name || null,
+                search_phone: filters.search_phone || null,
+                search_load_id: filters.search_load_id || null
             });
             
             if (error) throw error;
@@ -48,6 +51,7 @@ class SupabaseClient {
             // Process the data to separate checkins from total count
             const checkins = data || [];
             const totalCount = checkins.length > 0 ? checkins[0].total_count : 0;
+            console.log("checkins", checkins);
             const totalPages = Math.ceil(totalCount / pageSize);
             
             return {

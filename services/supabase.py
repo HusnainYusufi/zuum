@@ -179,22 +179,25 @@ class SupabaseService:
 
     async def get_check_ins_paginated(self, page: int = 1, per_page: int = 10, 
                                     filters: Optional[Dict] = None) -> Dict[str, Any]:
-        """Get paginated list of check-ins using RPC function"""
+        """Get paginated list of check-ins using enhanced RPC function"""
         try:
             if not self.client:
                 return {"success": False, "error": "Supabase client not initialized"}
 
             filters = filters or {}
             
-            # Call the RPC function
+            # Call the enhanced RPC function
             result = self.client.rpc(
-                "get_check_ins_paginated_with_tags",
+                "get_check_ins_paginated_enhanced",
                 {
                     "page_num": page,
                     "page_size": per_page,
                     "filter_issue_flagged": filters.get("issue_flagged"),
                     "filter_tags": filters.get("tags"),
-                    "filter_call_status": filters.get("call_status")
+                    "filter_call_status": filters.get("call_status"),
+                    "search_name": filters.get("search_name"),
+                    "search_phone": filters.get("search_phone"),
+                    "search_load_id": filters.get("search_load_id")
                 }
             ).execute()
             

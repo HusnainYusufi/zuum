@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,12 @@
     <link rel="stylesheet" href="/static/css/StakeholderDashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Tailwind CSS  -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"> 
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/checkin_dashboard.css">
 </head>
+
 <body class=" text-gray-200 lg:p-12" style="overflow-x: hidden; margin: 0; padding: 0;">
     <div id="app" class=" dashboard-container ">
 
@@ -19,17 +21,19 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
                 <h1 class="text-3xl lg:text-4xl font-bold text-white">
-                <i class="fas fa-clipboard-check header-icon"></i>
-                <span class="header-title">Check-in Dashboard</span>
-            </h1>
+                    <i class="fas fa-clipboard-check header-icon"></i>
+                    <span class="header-title">Check-in Dashboard</span>
+                </h1>
                 <p class="text-gray-400 mt-1">Real-time monitoring and issue tracking.</p>
             </div>
             <div class="flex items-center space-x-2 mt-4 md:mt-0">
-                <a href="/transit-dashboard" class="glass-card flex items-center px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-all duration-300">
+                <a href="/transit-dashboard"
+                    class="glass-card flex items-center px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-all duration-300">
                     <i class="fas fa-truck mr-2"></i>
                     <span>Transit Dashboard</span>
                 </a>
-                <button id="refresh-button" class="refresh-button glass-card flex items-center px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-all duration-300">
+                <button id="refresh-button"
+                    class="refresh-button glass-card flex items-center px-4 py-2 text-sm font-semibold hover:bg-white/10 transition-all duration-300">
                     <i class="fas fa-sync refresh-icon mr-2"></i>
                     <span class="refresh-text">Refresh</span>
                 </button>
@@ -47,54 +51,57 @@
                             <div class="flex items-center">
                                 <i class="fas fa-clipboard-list text-blue-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Total Check-ins</span>
-                        </div>
+                            </div>
                             <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
-                    </div>
+                        </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-exclamation-triangle text-orange-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Issues Flagged</span>
-                        </div>
+                            </div>
                             <div class="text-2xl font-bold text-white" id="total-issues">0</div>
-                    </div>
+                        </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-phone-alt text-green-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Call Transfers</span>
-                </div>
+                            </div>
                             <div class="text-2xl font-bold text-white" id="call-transfers">0</div>
-                    </div>
+                        </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-calendar-day text-purple-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Today's Check-ins</span>
-                </div>
+                            </div>
                             <div class="text-2xl font-bold text-white" id="today-checkins">0</div>
-            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="glass-card p-6 flex flex-col flex-grow">
                     <h3 class="font-bold text-white text-lg mb-4">Recent Check-ins</h3>
                     <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                        <select id="recent-call-status-filter" class=" w-full bg-black/40 border-none rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-blue-400 transition">
+                        <select id="recent-call-status-filter"
+                            class=" w-full bg-black/40 border-none rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-blue-400 transition">
                             <option value="">All Calls</option>
                             <option value="answered">Call Answered</option>
                             <option value="not_answered">Call Not Answered</option>
                         </select>
-                        <select id="recent-issue-filter" class=" w-full bg-black/40 border-none rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-blue-400 transition">
+                        <select id="recent-issue-filter"
+                            class=" w-full bg-black/40 border-none rounded-lg text-sm px-4 py-2.5 focus:ring-2 focus:ring-blue-400 transition">
                             <option value="">All Issues</option>
                             <option value="true">Issues Only</option>
                             <option value="false">No Issues</option>
                         </select>
                     </div>
-                    <div class="space-y-3 custom-scrollbar pr-2 flex-grow overflow-y-auto h-64 lg:h-auto" id="recent-checkins-list">
-                    <p class="no-check-ins">Loading recent check-ins...</p>
-                </div>
-                    <button id="view-all-button" class="w-full mt-4 bg-blue-600  font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300">
-                    <!-- <button id="view-all-button" class="w-full mt-4 bg-lime-400/20 text-lime-300 font-semibold py-3 rounded-lg hover:bg-lime-400/40 transition-all duration-300"> -->
+                    <div class="space-y-3 custom-scrollbar pr-2 flex-grow overflow-y-auto h-64 lg:h-auto"
+                        id="recent-checkins-list">
+                        <p class="no-check-ins">Loading recent check-ins...</p>
+                    </div>
+                    <a href="/all-checkins" id="view-all-button"
+                        class="w-full mt-4 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 no-underline">
                         <i class="fas fa-list"></i>
                         <span>View All Check-ins</span>
-                    </button>
+                    </a>
                 </div>
             </div>
             <div class="lg:col-span-2 xl:col-span-3 flex flex-col gap-6">
@@ -105,8 +112,8 @@
                     </div>
                     <div class="h-72 lg:h-64">
                         <canvas id="checkins-per-day-chart"></canvas>
-            </div>
-        </div>
+                    </div>
+                </div>
 
                 <div class="glass-card p-6" id="latest-checkin-card">
                     <h3 class="font-bold text-white text-lg mb-4 flex items-center">
@@ -127,156 +134,87 @@
             <div class="spinner"></div>
             <p>Loading data...</p>
         </div>
-        
-
     </div>
-
-    <!-- Full Screen Modal for All Check-ins -->
-    <div class="modal-overlay" id="checkins-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">
-                    <i class="fas fa-clipboard-list"></i>
-                    All Check-ins
-                </h2>
-                <button class="modal-close" id="modal-close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <!-- Modal Filters -->
-                <div class="modal-filters">
-                    <div class="filter-group">
-                        <label class="filter-label">Filter by Call Status</label>
-                        <select class="filter-input" id="modal-call-status-filter">
-                            <option value="">All Calls</option>
-                            <option value="answered">Call Answered</option>
-                            <option value="not_answered">Call Not Answered</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Filter by Issue Status</label>
-                        <select class="filter-input" id="modal-issue-filter">
-                            <option value="">All</option>
-                            <option value="true">Issues Only</option>
-                            <option value="false">No Issues</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Filter by Transfer Status</label>
-                        <select class="filter-input" id="modal-review-filter">
-                            <option value="">All</option>
-                            <option value="true">Call Transferred</option>
-                            <option value="false">Not Transferred</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Sort by Time</label>
-                        <select class="filter-input" id="modal-time-filter">
-                            <option value="desc">Newest First</option>
-                            <option value="asc">Oldest First</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Search Tags</label>
-                        <input type="text" class="filter-input" id="modal-tags-filter" placeholder="Enter tag name...">
-                    </div>
-                </div>
-
-                <!-- Modal Checkins Container -->
-                <div class="modal-checkins-container">
-                    <div class="modal-checkins-list" id="modal-checkins-list">
-                        <p class="no-check-ins">Loading check-ins...</p>
-                    </div>
-                    <div class="modal-pagination" id="modal-pagination">
-                        <!-- Pagination buttons will be generated by JavaScript -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 
 
     <script>
         let currentPage = 1;
         let totalPages = 1;
-        let modalCurrentPage = 1;
-        let modalTotalPages = 1;
         let checkins = [];
-        let modalCheckins = [];
-        let charts = {};
+        let charts = {
+            checkinsPerDay: null
+        };
         let autoRefreshInterval = null;
         let websocket = null;
-        
+
         // WebSocket connection for real-time updates
         function connectWebSocket() {
             try {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-                
+
                 websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = function(event) {
+
+                websocket.onopen = function (event) {
                     console.log('WebSocket connected for real-time updates');
                 };
-                
-                            websocket.onmessage = function(event) {
-                try {
-                    // Skip ping/pong messages
-                    if (event.data === 'pong' || event.data.startsWith('echo:')) {
-                        console.log('WebSocket ping/pong:', event.data);
-                        return;
+
+                websocket.onmessage = function (event) {
+                    try {
+                        // Skip ping/pong messages
+                        if (event.data === 'pong' || event.data.startsWith('echo:')) {
+                            console.log('WebSocket ping/pong:', event.data);
+                            return;
+                        }
+
+                        const notification = JSON.parse(event.data);
+                        console.log('Received notification:', notification);
+
+                        // Handle different types of notifications
+                        if (notification.type === 'check_in_update') {
+                            handleCheckInUpdate(notification.data);
+                        } else if (notification.type === 'stop_update') {
+                            // Optional: handle stop updates if needed
+                            console.log('Stop update received:', notification.data);
+                        } else if (notification.type === 'journey_state_update') {
+                            // Optional: handle journey state updates if needed
+                            console.log('Journey state update received:', notification.data);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
                     }
-                    
-                    const notification = JSON.parse(event.data);
-                    console.log('Received notification:', notification);
-                    
-                    // Handle different types of notifications
-                    if (notification.type === 'check_in_update') {
-                        handleCheckInUpdate(notification.data);
-                    } else if (notification.type === 'stop_update') {
-                        // Optional: handle stop updates if needed
-                        console.log('Stop update received:', notification.data);
-                    } else if (notification.type === 'journey_state_update') {
-                        // Optional: handle journey state updates if needed
-                        console.log('Journey state update received:', notification.data);
-                    }
-                } catch (error) {
-                    console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
-                }
-            };
-                
-                websocket.onclose = function(event) {
+                };
+
+                websocket.onclose = function (event) {
                     console.log('WebSocket connection closed. Attempting to reconnect...');
                     // Attempt to reconnect after 3 seconds
                     setTimeout(connectWebSocket, 3000);
                 };
-                
-                websocket.onerror = function(error) {
+
+                websocket.onerror = function (error) {
                     console.error('WebSocket error:', error);
                 };
-                
+
                 // Send periodic ping to keep connection alive
                 setInterval(() => {
                     if (websocket && websocket.readyState === WebSocket.OPEN) {
                         websocket.send('ping');
                     }
                 }, 30000); // Send ping every 30 seconds
-                
+
             } catch (error) {
                 console.error('Error connecting to WebSocket:', error);
                 // Retry connection after 5 seconds
                 setTimeout(connectWebSocket, 5000);
             }
         }
-        
+
         function handleCheckInUpdate(checkInData) {
             console.log('Check-in update received:', checkInData);
-            
+
             // Refresh dashboard data to reflect the update
             refreshDashboardSilently();
-            
+
             // Show appropriate notification based on the update type
             if (checkInData.call_trasfered) {
                 showTransferNotification(checkInData);
@@ -294,7 +232,7 @@
                 showUpdateNotification(checkInData);
             }
         }
-        
+
         function showCallMadeNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -305,7 +243,7 @@
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
         }
-        
+
         function showCallAnalyzedNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -316,7 +254,7 @@
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
         }
-        
+
         function showUpdateNotification(checkInData) {
             showNotification({
                 icon: 'fas fa-info-circle',
@@ -326,7 +264,7 @@
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
         }
-        
+
         function showTransferNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -337,7 +275,7 @@
                 shadowColor: 'rgba(72, 187, 120, 0.3)'
             });
         }
-        
+
         function showCallEndedNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -348,9 +286,8 @@
                 shadowColor: 'rgba(107, 114, 128, 0.3)'
             });
         }
-        
 
-        
+
         function showNotification({ icon, title, subtitle, background, shadowColor }) {
             // Create a notification
             const notification = document.createElement('div');
@@ -362,7 +299,7 @@
                     ${subtitle ? `<div class="notification-subtitle">${subtitle}</div>` : ''}
                 </div>
             `;
-            
+
             // Add styling for the notification
             notification.style.cssText = `
                 position: fixed;
@@ -385,7 +322,7 @@
                 backdrop-filter: blur(8px);
                 border: 1px solid rgba(255, 255, 255, 0.1);
             `;
-            
+
             // Add CSS animation if not already added
             if (!document.querySelector('#notification-styles')) {
                 const style = document.createElement('style');
@@ -437,9 +374,9 @@
                 `;
                 document.head.appendChild(style);
             }
-            
+
             document.body.appendChild(notification);
-            
+
             // Remove notification after 5 seconds
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -449,7 +386,7 @@
                     }
                 }, 400);
             }, 5000);
-            
+
             // Allow clicking to dismiss
             notification.addEventListener('click', () => {
                 notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -460,7 +397,7 @@
                 }, 400);
             });
         }
-        
+
         async function refreshDashboardSilently() {
             try {
                 // Refresh all dashboard data without showing loading indicators
@@ -469,18 +406,13 @@
                     loadLatestCheckin(),
                     loadRecentCheckins()
                 ]);
-                
-                // If modal is open, refresh it too
-                if (document.getElementById('checkins-modal').classList.contains('active')) {
-                    await loadModalCheckins(modalCurrentPage);
-                }
             } catch (error) {
                 console.error('Error refreshing dashboard:', error);
             }
         }
-        
+
         // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadDashboardData();
             setupEventListeners();
             startAutoRefresh();
@@ -488,7 +420,7 @@
         });
 
         // Clean up WebSocket connection when page unloads
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function () {
             stopAutoRefresh();
             if (websocket) {
                 websocket.close();
@@ -497,32 +429,13 @@
 
         function setupEventListeners() {
             document.getElementById('refresh-button').addEventListener('click', refreshData);
-            document.getElementById('view-all-button').addEventListener('click', openModal);
-            document.getElementById('modal-close').addEventListener('click', closeModal);
-            document.getElementById('checkins-modal').addEventListener('click', function(e) {
-                if (e.target === this) closeModal();
-            });
-            
+
             // Recent checkins filters
             document.getElementById('recent-call-status-filter').addEventListener('change', applyRecentFilters);
             document.getElementById('recent-issue-filter').addEventListener('change', applyRecentFilters);
-            
-            // Modal filters
-            document.getElementById('modal-call-status-filter').addEventListener('change', applyModalFilters);
-            document.getElementById('modal-issue-filter').addEventListener('change', applyModalFilters);
-            document.getElementById('modal-review-filter').addEventListener('change', applyModalFilters);
-            document.getElementById('modal-time-filter').addEventListener('change', applyModalFilters);
-            document.getElementById('modal-tags-filter').addEventListener('input', debounce(applyModalFilters, 300));
-            
-            // ESC key to close modal
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && document.getElementById('checkins-modal').classList.contains('active')) {
-                    closeModal();
-                }
-            });
-            
+
             // Stop auto-refresh when page is unloaded
-            window.addEventListener('beforeunload', function() {
+            window.addEventListener('beforeunload', function () {
                 stopAutoRefresh();
             });
         }
@@ -556,7 +469,7 @@
             try {
                 const response = await fetch('/api/checkin/statistics');
                 const data = await response.json();
-                
+
                 // Update statistics with animation
                 const elements = {
                     'total-checkins': data.total_checkins || 0,
@@ -564,7 +477,7 @@
                     'call-transfers': data.call_transfers || 0,
                     'today-checkins': data.today_checkins || 0
                 };
-                
+
                 Object.entries(elements).forEach(([id, value]) => {
                     const element = document.getElementById(id);
                     if (element) {
@@ -587,9 +500,8 @@
             try {
                 const response = await fetch('/api/checkin/chart-data');
                 const data = await response.json();
-                
+
                 createCheckinsPerDayChart(data.checkins_per_day);
-                createWeeklyTrendsChart(data.weekly_trends);
             } catch (error) {
                 console.error('Error loading chart data:', error);
             }
@@ -599,7 +511,7 @@
             try {
                 const response = await fetch('/api/checkin/latest');
                 const data = await response.json();
-                
+
                 if (data.status === 'success' && data.data) {
                     displayLatestCheckin(data.data);
                 } else {
@@ -615,14 +527,14 @@
             try {
                 const response = await fetch('/api/checkin/list?page=1&per_page=10');
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     checkins = data.data.checkins;
-                    
+
                     // Apply current filters if any are set
                     const callStatusFilter = document.getElementById('recent-call-status-filter').value;
                     const issueFilter = document.getElementById('recent-issue-filter').value;
-                    
+
                     if (callStatusFilter || issueFilter) {
                         applyRecentFilters();
                     } else {
@@ -634,68 +546,21 @@
             }
         }
 
-        async function loadModalCheckins(page = 1) {
-            try {
-                const filters = getModalFilters();
-                const { sort_by_time, call_status, ...apiFilters } = filters; // Extract client-side filters
-                
-                const queryParams = new URLSearchParams({
-                    page: page,
-                    per_page: 15,
-                    ...apiFilters
-                });
-                
-                const response = await fetch(`/api/checkin/list?${queryParams}`);
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    modalCheckins = data.data.checkins;
-                    
-                    // Apply client-side call status filtering
-                    if (call_status) {
-                        modalCheckins = modalCheckins.filter(checkin => {
-                            if (call_status === 'answered') {
-                                return checkin.user_picked_up === true || checkin.user_picked_up === 'true';
-                            } else if (call_status === 'not_answered') {
-                                return checkin.user_picked_up === false || checkin.user_picked_up === 'false';
-                            }
-                            return true;
-                        });
-                    }
-                    
-                    // Apply client-side time sorting (default to descending if not specified)
-                    const sortOrder = sort_by_time || 'desc';
-                    modalCheckins.sort((a, b) => {
-                        const dateA = new Date(a.AI_Timestamp);
-                        const dateB = new Date(b.AI_Timestamp);
-                        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-                    });
-                    
-                    modalCurrentPage = data.data.current_page;
-                    modalTotalPages = data.data.total_pages;
-                    
-                    displayModalCheckins(modalCheckins);
-                    updateModalPagination();
-                }
-            } catch (error) {
-                console.error('Error loading modal check-ins:', error);
-            }
-        }
 
         function applyRecentFilters() {
             const callStatusFilter = document.getElementById('recent-call-status-filter').value;
             const issueFilter = document.getElementById('recent-issue-filter').value;
-            
+
             // Update filter visual state
             const callStatusElement = document.getElementById('recent-call-status-filter');
             const issueElement = document.getElementById('recent-issue-filter');
-            
+
             callStatusElement.classList.toggle('active', !!callStatusFilter);
             issueElement.classList.toggle('active', !!issueFilter);
-            
+
             // Apply filters to current checkins data
             let filteredCheckins = [...checkins];
-            
+
             // Filter by call status (answered/not answered)
             if (callStatusFilter) {
                 filteredCheckins = filteredCheckins.filter(checkin => {
@@ -707,7 +572,7 @@
                     return true;
                 });
             }
-            
+
             // Filter by issue status
             if (issueFilter) {
                 filteredCheckins = filteredCheckins.filter(checkin => {
@@ -719,51 +584,15 @@
                     return true;
                 });
             }
-            
+
             // Display filtered results
             displayRecentCheckins(filteredCheckins);
         }
 
-        function getModalFilters() {
-            const filters = {};
-            
-            const callStatusFilter = document.getElementById('modal-call-status-filter').value;
-            if (callStatusFilter) filters.call_status = callStatusFilter;
-            
-            const issueFilter = document.getElementById('modal-issue-filter').value;
-            if (issueFilter) filters.issue_flagged = issueFilter;
-            
-            const reviewFilter = document.getElementById('modal-review-filter').value;
-            if (reviewFilter) filters.requires_review = reviewFilter;
-            
-            const timeFilter = document.getElementById('modal-time-filter').value;
-            if (timeFilter) filters.sort_by_time = timeFilter;
-            
-            const tagsFilter = document.getElementById('modal-tags-filter').value.trim();
-            if (tagsFilter) filters.tags = tagsFilter;
-            
-            return filters;
-        }
-
-        function applyModalFilters() {
-            // Update modal filter visual state
-            const callStatusElement = document.getElementById('modal-call-status-filter');
-            const issueElement = document.getElementById('modal-issue-filter');
-            const reviewElement = document.getElementById('modal-review-filter');
-            const tagsElement = document.getElementById('modal-tags-filter');
-            
-            callStatusElement.classList.toggle('active', !!callStatusElement.value);
-            issueElement.classList.toggle('active', !!issueElement.value);
-            reviewElement.classList.toggle('active', !!reviewElement.value);
-            tagsElement.classList.toggle('active', !!tagsElement.value.trim());
-            
-            modalCurrentPage = 1;
-            loadModalCheckins(1);
-        }
 
         function displayLatestCheckin(checkin) {
             const content = document.getElementById('latest-checkin-content');
-            
+
             // Debug logging for latest checkin
             console.log('Latest checkin user_picked_up:', JSON.stringify({
                 id: checkin.id,
@@ -774,32 +603,31 @@
             }, null, 2));
 
             const date = new Date(checkin.AI_Timestamp);
-            const dateStr = date.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
+            const dateStr = date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
             });
-            const timeStr = date.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
+            const timeStr = date.toLocaleTimeString('en-US', {
+                hour: 'numeric',
                 minute: '2-digit',
-                hour12: true 
+                hour12: true
             });
 
             const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-            
-    // Determine status classes and icons based on checkin status
-    let statusClass, statusText;
-    if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
-        statusClass = 'text-gray-400 bg-gray-900/50';
-        statusText = 'NO ANSWER';
-    } else if (checkin.Issue_Flagged) {
-        statusClass = 'text-orange-400 bg-orange-900/50';
-        statusText = 'ISSUE FLAGGED';
-    } else {
-        statusClass = 'text-green-400 bg-green-900/50';
-        statusText = 'NO ISSUE';
-    }
 
+            // Determine status classes and icons based on checkin status
+            let statusClass, statusText;
+            if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
+                statusClass = 'text-gray-400 bg-gray-900/50';
+                statusText = 'NO ANSWER';
+            } else if (checkin.Issue_Flagged) {
+                statusClass = 'text-orange-400 bg-orange-900/50';
+                statusText = 'ISSUE FLAGGED';
+            } else {
+                statusClass = 'text-green-400 bg-green-900/50';
+                statusText = 'NO ISSUE';
+            }
             content.innerHTML = `
         <div class="space-y-4 p-4 bg-black/20 rounded-xl">
             <div class="flex justify-between items-center">
@@ -838,18 +666,18 @@
             `;
         }
 
-      
+
 
         function displayRecentCheckins(checkins) {
             const container = document.getElementById('recent-checkins-list');
-            
+
             if (!checkins || checkins.length === 0) {
                 container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
                 return;
             }
-            
+
             // Debug logging to check user_picked_up values and tags[1]
-            console.log('Recent checkins with user_picked_up values:', 
+            console.log('Recent checkins with user_picked_up values:',
                 JSON.stringify(checkins.map(c => ({
                     id: c.id,
                     user_picked_up: c.user_picked_up,
@@ -859,19 +687,19 @@
                     tag_1: c.tags && c.tags.length > 1 ? c.tags[1] : null
                 })), null, 2)
             );
-            
+
             const checkinsHtml = checkins.map(checkin => {
                 const date = new Date(checkin.AI_Timestamp);
                 const day = date.getDate();
                 const month = date.toLocaleDateString('en-US', { month: 'short' });
                 const year = date.getFullYear();
-                const time = date.toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
+                const time = date.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
                     minute: '2-digit',
-                    hour12: true 
+                    hour12: true
                 });
                 const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
-                
+
                 // Extract call direction from tags
                 let callDirectionSymbol = '';
                 if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
@@ -883,7 +711,7 @@
                         callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
                     }
                 }
-                
+
                 return `
                     <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
                         <div class="check-in-header">
@@ -893,246 +721,106 @@
                                 <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
                             </div>
                             <div class="check-in-status">
-                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
-                                    '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ?
+                        '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
                                 ${callDirectionSymbol}
-                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
-                                    '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
-                                    checkin.Issue_Flagged ? 
-                                        '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
-                                        '<i class="fas fa-check-circle status-icon success"></i>'}
-                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
-                                    '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ?
+                        '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' :
+                        checkin.Issue_Flagged ?
+                            '<i class="fas fa-exclamation-triangle status-icon warning"></i>' :
+                            '<i class="fas fa-check-circle status-icon success"></i>'}
+                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ?
+                        '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
-            
+
             container.innerHTML = checkinsHtml;
         }
 
-// Helper function to calculate time ago
-function calculateTimeAgo(date) {
-    const now = new Date();
-    const seconds = Math.floor((now - date) / 1000);
+        // Helper function to calculate time ago
+        function calculateTimeAgo(date) {
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
 
-    let interval = Math.floor(seconds / 31536000);
-    if (interval >= 1) {
-        return interval + " year" + (interval === 1 ? "" : "s") + " ago";
-    }
-    interval = Math.floor(seconds / 2592000);
-    if (interval >= 1) {
-        return interval + " month" + (interval === 1 ? "" : "s") + " ago";
-    }
-    interval = Math.floor(seconds / 86400);
-    if (interval >= 1) {
-        return interval + " day" + (interval === 1 ? "" : "s") + " ago";
-    }
-    interval = Math.floor(seconds / 3600);
-    if (interval >= 1) {
-        return interval + " hour" + (interval === 1 ? "" : "s") + " ago";
-    }
-    interval = Math.floor(seconds / 60);
-    if (interval >= 1) {
-        return interval + " minute" + (interval === 1 ? "" : "s") + " ago";
-    }
-    return Math.floor(seconds) + " second" + (seconds === 1 ? "" : "s") + " ago";
-}
-
-// Helper function to format time display
-function formatTimeDisplay(date) {
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    
-    // If less than 1 minute, show "Just now"
-    if (diffInSeconds < 60) {
-        return "Just now";
-    }
-    
-    // If less than 1 hour, show minutes ago
-    if (diffInSeconds < 3600) {
-        const minutes = Math.floor(diffInSeconds / 60);
-        return `${minutes}m ago`;
-    }
-    
-    // If less than 24 hours, show hours ago
-    if (diffInSeconds < 86400) {
-        const hours = Math.floor(diffInSeconds / 3600);
-        return `${hours}h ago`;
-    }
-    
-    // If less than 7 days, show days ago
-    if (diffInSeconds < 604800) {
-        const days = Math.floor(diffInSeconds / 86400);
-        return `${days}d ago`;
-    }
-    
-    // Otherwise show the date
-    return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-    });
+            let interval = Math.floor(seconds / 31536000);
+            if (interval >= 1) {
+                return interval + " year" + (interval === 1 ? "" : "s") + " ago";
+            }
+            interval = Math.floor(seconds / 2592000);
+            if (interval >= 1) {
+                return interval + " month" + (interval === 1 ? "" : "s") + " ago";
+            }
+            interval = Math.floor(seconds / 86400);
+            if (interval >= 1) {
+                return interval + " day" + (interval === 1 ? "" : "s") + " ago";
+            }
+            interval = Math.floor(seconds / 3600);
+            if (interval >= 1) {
+                return interval + " hour" + (interval === 1 ? "" : "s") + " ago";
+            }
+            interval = Math.floor(seconds / 60);
+            if (interval >= 1) {
+                return interval + " minute" + (interval === 1 ? "" : "s") + " ago";
+            }
+            return Math.floor(seconds) + " second" + (seconds === 1 ? "" : "s") + " ago";
         }
 
-        function displayModalCheckins(checkins) {
-            const container = document.getElementById('modal-checkins-list');
-            
-            if (!checkins || checkins.length === 0) {
-                container.innerHTML = '<p class="no-check-ins">No check-ins found</p>';
-                return;
+        // Helper function to format time display
+        function formatTimeDisplay(date) {
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+
+            // If less than 1 minute, show "Just now"
+            if (diffInSeconds < 60) {
+                return "Just now";
             }
-            
-            const checkinsHtml = checkins.map(checkin => {
-                const date = new Date(checkin.AI_Timestamp);
-                const dateStr = date.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                });
-                const timeStr = date.toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                });
-                
-                // Process tags for display
-                const tags = checkin.Tags ? 
-                    checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag).join(', ') : 
-                    'No tags';
-                
-                // Extract call direction from tags for symbol
-                let callDirectionSymbol = '';
-                if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
-                    const callDirection = checkin.tags[1];
-                    if (callDirection === 'inbound') {
-                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #28a745;" title="Inbound call"></i><i class="fas fa-long-arrow-alt-down" style="color: #28a745; font-size: 0.6em; margin-left: 2px;"></i>';
-                    } else if (callDirection === 'outbound') {
-                        callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
-                    }
-                }
-                
-                return `
-                    <div class="modal-check-in-card" onclick="window.location.href='/checkin/${checkin.id}'">
-                        <div class="modal-check-in-header">
-                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                                <span class="modal-check-in-id">#${checkin.id}</span>
-                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? `
-                                <div class="modal-active-indicator">
-                                    <div class="modal-active-spinner"></div>
-                                    <span>Call Active</span>
-                                </div>
-                                ` : ''}
-                                <span class="modal-check-in-timestamp">
-                                    <i class="fas fa-clock"></i>
-                                    ${dateStr} at ${timeStr}
-                                </span>
-                            </div>
-                            <div class="modal-check-in-status">
-                                ${callDirectionSymbol}
-                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
-                                    '<i class="fas fa-phone-slash status-icon error" style="font-size: 20px;" title="User did not pick up phone"></i>' : 
-                                    checkin.Issue_Flagged ? 
-                                        '<i class="fas fa-exclamation-triangle status-icon warning" style="font-size: 20px;"></i>' : 
-                                        '<i class="fas fa-check-circle status-icon success" style="font-size: 20px;"></i>'}
-                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
-                                    '<i class="fas fa-phone-alt status-icon transfer" style="font-size: 20px;"></i>' : ''}
-                            </div>
-                        </div>
-                        <div class="modal-check-in-content">
-                            ${checkin.AI_Response_Summary ? `
-                            <div class="modal-summary-field">
-                                <div class="modal-field-label">AI Summary</div>
-                                <div class="modal-field-value">${checkin.AI_Response_Summary}</div>
-                            </div>
-                            ` : ''}
-                            <div class="modal-check-in-field">
-                                <span class="modal-field-label">Load ID:</span>
-                                <span class="modal-field-value">${checkin.load_id || 'N/A'}</span>
-                            </div>
-                            ${checkin.Tags ? `
-                            <div class="modal-check-in-field">
-                                <span class="modal-field-label">Tags:</span>
-                                <span class="modal-field-value">${tags}</span>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            container.innerHTML = checkinsHtml;
+
+            // If less than 1 hour, show minutes ago
+            if (diffInSeconds < 3600) {
+                const minutes = Math.floor(diffInSeconds / 60);
+                return `${minutes}m ago`;
+            }
+
+            // If less than 24 hours, show hours ago
+            if (diffInSeconds < 86400) {
+                const hours = Math.floor(diffInSeconds / 3600);
+                return `${hours}h ago`;
+            }
+
+            // If less than 7 days, show days ago
+            if (diffInSeconds < 604800) {
+                const days = Math.floor(diffInSeconds / 86400);
+                return `${days}d ago`;
+            }
+
+            // Otherwise show the date
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
         }
 
-        function updateModalPagination() {
-            const container = document.getElementById('modal-pagination');
-            
-            if (modalTotalPages <= 1) {
-                container.innerHTML = '';
-                return;
-            }
-            
-            let paginationHtml = '<div class="pagination">';
-            
-            // Previous button
-            paginationHtml += `<button ${modalCurrentPage === 1 ? 'disabled' : ''} onclick="changeModalPage(${modalCurrentPage - 1})">
-                <i class="fas fa-chevron-left"></i> Previous
-            </button>`;
-            
-            // Page numbers
-            const startPage = Math.max(1, modalCurrentPage - 2);
-            const endPage = Math.min(modalTotalPages, modalCurrentPage + 2);
-            
-            if (startPage > 1) {
-                paginationHtml += `<button onclick="changeModalPage(1)">1</button>`;
-                if (startPage > 2) {
-                    paginationHtml += `<span style="color: #718096;">...</span>`;
-                }
-            }
-            
-            for (let i = startPage; i <= endPage; i++) {
-                paginationHtml += `<button class="${i === modalCurrentPage ? 'active' : ''}" onclick="changeModalPage(${i})">${i}</button>`;
-            }
-            
-            if (endPage < modalTotalPages) {
-                if (endPage < modalTotalPages - 1) {
-                    paginationHtml += `<span style="color: #718096;">...</span>`;
-                }
-                paginationHtml += `<button onclick="changeModalPage(${modalTotalPages})">${modalTotalPages}</button>`;
-            }
-            
-            // Next button
-            paginationHtml += `<button ${modalCurrentPage === modalTotalPages ? 'disabled' : ''} onclick="changeModalPage(${modalCurrentPage + 1})">
-                Next <i class="fas fa-chevron-right"></i>
-            </button>`;
-            
-            paginationHtml += '</div>';
-            container.innerHTML = paginationHtml;
-        }
-
-        function changeModalPage(page) {
-            if (page >= 1 && page <= modalTotalPages && page !== modalCurrentPage) {
-                loadModalCheckins(page);
-            }
-        }
 
         function createCheckinsPerDayChart(data) {
             const ctx = document.getElementById('checkins-per-day-chart').getContext('2d');
-            
+
             if (charts.checkinsPerDay) {
                 charts.checkinsPerDay.destroy();
             }
-            
+
             // Fallback data if no real data is provided
             const fallbackData = {
                 labels: Array.from({ length: 30 }, (_, i) => {
                     const date = new Date();
                     date.setDate(date.getDate() - (29 - i));
-                    return (date.getMonth() + 1).toString().padStart(2, '0') + '/' + 
-                           date.getDate().toString().padStart(2, '0');
+                    return (date.getMonth() + 1).toString().padStart(2, '0') + '/' +
+                        date.getDate().toString().padStart(2, '0');
                 }),
                 datasets: {
                     checkins: Array.from({ length: 30 }, () => 0),
@@ -1158,19 +846,19 @@ function formatTimeDisplay(date) {
             const chartLabels = data && data.labels && data.labels.length > 0 ? data.labels : fallbackData.labels;
             const chartDatasets = data && data.datasets ? data.datasets : fallbackData.datasets;
             const chartData = data && data.data ? data.data : [];
-            
+
             charts.checkinsPerDay = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: chartLabels,
                     datasets: [
                         {
-                        label: 'Check-ins',
+                            label: 'Check-ins',
                             data: chartDatasets.checkins,
                             borderColor: '#4299e1',
                             backgroundColor: checkinsGradient,
                             fill: true,
-                        tension: 0.4,
+                            tension: 0.4,
                             borderWidth: 2,
                             pointBackgroundColor: '#4299e1',
                             pointBorderColor: '#ffffff',
@@ -1244,25 +932,25 @@ function formatTimeDisplay(date) {
                             displayColors: true,
                             multiKeyBackground: 'transparent',
                             callbacks: {
-                                title: function(context) {
+                                title: function (context) {
                                     const index = context[0].dataIndex;
                                     if (chartData[index] && chartData[index].check_date) {
                                         const date = new Date(chartData[index].check_date);
-                                        return date.toLocaleDateString('en-US', { 
-                                            weekday: 'long', 
-                                            year: 'numeric', 
-                                            month: 'long', 
-                                            day: 'numeric' 
+                                        return date.toLocaleDateString('en-US', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
                                         });
                                     }
                                     return `Date: ${chartLabels[index]}`;
                                 },
-                                label: function(context) {
+                                label: function (context) {
                                     const label = context.dataset.label;
                                     const value = context.parsed.y;
                                     return `${label}: ${value}`;
                                 },
-                                footer: function(tooltipItems) {
+                                footer: function (tooltipItems) {
                                     const index = tooltipItems[0].dataIndex;
                                     if (chartData[index]) {
                                         const total = chartData[index].checkin_count || 0;
@@ -1286,7 +974,7 @@ function formatTimeDisplay(date) {
                                     size: 10
                                 },
                                 stepSize: 1,
-                                callback: function(value) {
+                                callback: function (value) {
                                     return Number.isInteger(value) ? value : '';
                                 }
                             }
@@ -1310,125 +998,16 @@ function formatTimeDisplay(date) {
             });
         }
 
-
-        function createWeeklyTrendsChart(data) {
-
-            const mockWeeklyData = {
-        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-        issues: Array.from({ length: 7 }, () => Math.floor(Math.random() * 20) + 5),
-        transfers: Array.from({ length: 7 }, () => Math.floor(Math.random() * 15) + 3)
-    };
-
-    
-            const ctx = document.getElementById('weekly-trends-chart').getContext('2d');
-            
-            if (charts.weeklyTrends) {
-                charts.weeklyTrends.destroy();
-            }
-            
-            charts.weeklyTrends = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels || [],
-                    datasets: [{
-                        label: 'Issues',
-                        data: data.issues || [],
-                        borderColor: '#f6ad55',
-                        backgroundColor: 'rgba(246, 173, 85, 0.1)',
-                        tension: 0.4,
-                        borderWidth: 2
-                    }, {
-                        label: 'Call Transfers',
-                        data: data.transfers || [],
-                        borderColor: '#68d391',
-                        backgroundColor: 'rgba(104, 211, 145, 0.1)',
-                        tension: 0.4,
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    aspectRatio: 2,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#e2e8f0',
-                                padding: 15,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(74, 85, 104, 0.15)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#a0aec0',
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(74, 85, 104, 0.15)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#a0aec0',
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function openModal() {
-            const modal = document.getElementById('checkins-modal');
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            // Load modal data
-            loadModalCheckins(1);
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('checkins-modal');
-            modal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-            
-            // Reset modal filters
-            document.getElementById('modal-call-status-filter').value = '';
-            document.getElementById('modal-issue-filter').value = '';
-            document.getElementById('modal-review-filter').value = '';
-            document.getElementById('modal-time-filter').value = 'desc';
-            document.getElementById('modal-tags-filter').value = '';
-            
-            // Reset modal pagination
-            modalCurrentPage = 1;
-            modalTotalPages = 1;
-        }
-
         function refreshData() {
             const button = document.getElementById('refresh-button');
             const icon = button.querySelector('.refresh-icon');
-            
+
             // Add refreshing class to button
             button.classList.add('refreshing');
-            
+
             // Disable button during refresh
             button.disabled = true;
-            
+
             loadDashboardData().finally(() => {
                 // Remove refreshing class and re-enable button
                 button.classList.remove('refreshing');
