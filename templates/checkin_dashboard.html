@@ -21,9 +21,9 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
                 <h1 class="text-3xl lg:text-4xl font-bold text-white">
-                    <i class="fas fa-clipboard-check header-icon"></i>
-                    <span class="header-title">Check-in Dashboard</span>
-                </h1>
+                <i class="fas fa-clipboard-check header-icon"></i>
+                <span class="header-title">Check-in Dashboard</span>
+            </h1>
                 <p class="text-gray-400 mt-1">Real-time monitoring and issue tracking.</p>
             </div>
             <div class="flex items-center space-x-2 mt-4 md:mt-0">
@@ -51,30 +51,30 @@
                             <div class="flex items-center">
                                 <i class="fas fa-clipboard-list text-blue-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Total Check-ins</span>
-                            </div>
-                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
                         </div>
+                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-exclamation-triangle text-orange-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Issues Flagged</span>
-                            </div>
-                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
                         </div>
+                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-phone-alt text-green-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Call Transfers</span>
-                            </div>
+                </div>
                             <div class="text-2xl font-bold text-white" id="call-transfers">0</div>
-                        </div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-calendar-day text-purple-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Today's Check-ins</span>
-                            </div>
+                </div>
                             <div class="text-2xl font-bold text-white" id="today-checkins">0</div>
-                        </div>
+            </div>
                     </div>
                 </div>
                 <div class="glass-card p-6 flex flex-col flex-grow">
@@ -95,8 +95,8 @@
                     </div>
                     <div class="space-y-3 custom-scrollbar pr-2 flex-grow overflow-y-auto h-64 lg:h-auto"
                         id="recent-checkins-list">
-                        <p class="no-check-ins">Loading recent check-ins...</p>
-                    </div>
+                    <p class="no-check-ins">Loading recent check-ins...</p>
+                </div>
                     <a href="/all-checkins" id="view-all-button"
                         class="w-full mt-4 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 no-underline">
                         <i class="fas fa-list"></i>
@@ -109,11 +109,11 @@
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-white text-lg">Daily Check-ins</h3>
                         <span class="text-xs text-gray-400 font-medium">Last 30 Days</span>
-                    </div>
+        </div>
                     <div class="h-72 lg:h-64">
                         <canvas id="checkins-per-day-chart"></canvas>
-                    </div>
-                </div>
+        </div>
+    </div>
 
                 <div class="glass-card p-6" id="latest-checkin-card">
                     <h3 class="font-bold text-white text-lg mb-4 flex items-center">
@@ -122,10 +122,10 @@
                     </h3>
                     <div class="space-y-4 p-4 bg-black/20 rounded-xl" id="latest-checkin-content">
                         <p class="no-check-ins">Loading latest check-in...</p>
+            </div>
+                    </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
 
 
@@ -146,75 +146,75 @@
         };
         let autoRefreshInterval = null;
         let websocket = null;
-
+        
         // WebSocket connection for real-time updates
         function connectWebSocket() {
             try {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-
+                
                 websocket = new WebSocket(wsUrl);
-
+                
                 websocket.onopen = function (event) {
                     console.log('WebSocket connected for real-time updates');
                 };
-
+                
                 websocket.onmessage = function (event) {
-                    try {
-                        // Skip ping/pong messages
-                        if (event.data === 'pong' || event.data.startsWith('echo:')) {
-                            console.log('WebSocket ping/pong:', event.data);
-                            return;
-                        }
-
-                        const notification = JSON.parse(event.data);
-                        console.log('Received notification:', notification);
-
-                        // Handle different types of notifications
-                        if (notification.type === 'check_in_update') {
-                            handleCheckInUpdate(notification.data);
-                        } else if (notification.type === 'stop_update') {
-                            // Optional: handle stop updates if needed
-                            console.log('Stop update received:', notification.data);
-                        } else if (notification.type === 'journey_state_update') {
-                            // Optional: handle journey state updates if needed
-                            console.log('Journey state update received:', notification.data);
-                        }
-                    } catch (error) {
-                        console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
+                try {
+                    // Skip ping/pong messages
+                    if (event.data === 'pong' || event.data.startsWith('echo:')) {
+                        console.log('WebSocket ping/pong:', event.data);
+                        return;
                     }
-                };
-
+                    
+                    const notification = JSON.parse(event.data);
+                    console.log('Received notification:', notification);
+                    
+                    // Handle different types of notifications
+                    if (notification.type === 'check_in_update') {
+                        handleCheckInUpdate(notification.data);
+                    } else if (notification.type === 'stop_update') {
+                        // Optional: handle stop updates if needed
+                        console.log('Stop update received:', notification.data);
+                    } else if (notification.type === 'journey_state_update') {
+                        // Optional: handle journey state updates if needed
+                        console.log('Journey state update received:', notification.data);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
+                }
+            };
+                
                 websocket.onclose = function (event) {
                     console.log('WebSocket connection closed. Attempting to reconnect...');
                     // Attempt to reconnect after 3 seconds
                     setTimeout(connectWebSocket, 3000);
                 };
-
+                
                 websocket.onerror = function (error) {
                     console.error('WebSocket error:', error);
                 };
-
+                
                 // Send periodic ping to keep connection alive
                 setInterval(() => {
                     if (websocket && websocket.readyState === WebSocket.OPEN) {
                         websocket.send('ping');
                     }
                 }, 30000); // Send ping every 30 seconds
-
+                
             } catch (error) {
                 console.error('Error connecting to WebSocket:', error);
                 // Retry connection after 5 seconds
                 setTimeout(connectWebSocket, 5000);
             }
         }
-
+        
         function handleCheckInUpdate(checkInData) {
             console.log('Check-in update received:', checkInData);
-
+            
             // Refresh dashboard data to reflect the update
             refreshDashboardSilently();
-
+            
             // Show appropriate notification based on the update type
             if (checkInData.call_trasfered) {
                 showTransferNotification(checkInData);
@@ -232,7 +232,7 @@
                 showUpdateNotification(checkInData);
             }
         }
-
+        
         function showCallMadeNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -243,7 +243,7 @@
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
         }
-
+        
         function showCallAnalyzedNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -254,7 +254,7 @@
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
         }
-
+        
         function showUpdateNotification(checkInData) {
             showNotification({
                 icon: 'fas fa-info-circle',
@@ -264,7 +264,7 @@
                 shadowColor: 'rgba(66, 153, 225, 0.3)'
             });
         }
-
+        
         function showTransferNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -275,7 +275,7 @@
                 shadowColor: 'rgba(72, 187, 120, 0.3)'
             });
         }
-
+        
         function showCallEndedNotification(checkInData) {
             const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
             showNotification({
@@ -287,7 +287,7 @@
             });
         }
 
-
+        
         function showNotification({ icon, title, subtitle, background, shadowColor }) {
             // Create a notification
             const notification = document.createElement('div');
@@ -299,7 +299,7 @@
                     ${subtitle ? `<div class="notification-subtitle">${subtitle}</div>` : ''}
                 </div>
             `;
-
+            
             // Add styling for the notification
             notification.style.cssText = `
                 position: fixed;
@@ -322,7 +322,7 @@
                 backdrop-filter: blur(8px);
                 border: 1px solid rgba(255, 255, 255, 0.1);
             `;
-
+            
             // Add CSS animation if not already added
             if (!document.querySelector('#notification-styles')) {
                 const style = document.createElement('style');
@@ -374,9 +374,9 @@
                 `;
                 document.head.appendChild(style);
             }
-
+            
             document.body.appendChild(notification);
-
+            
             // Remove notification after 5 seconds
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -386,7 +386,7 @@
                     }
                 }, 400);
             }, 5000);
-
+            
             // Allow clicking to dismiss
             notification.addEventListener('click', () => {
                 notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -397,7 +397,7 @@
                 }, 400);
             });
         }
-
+        
         async function refreshDashboardSilently() {
             try {
                 // Refresh all dashboard data without showing loading indicators
@@ -410,7 +410,7 @@
                 console.error('Error refreshing dashboard:', error);
             }
         }
-
+        
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function () {
             loadDashboardData();
@@ -429,11 +429,11 @@
 
         function setupEventListeners() {
             document.getElementById('refresh-button').addEventListener('click', refreshData);
-
+            
             // Recent checkins filters
             document.getElementById('recent-call-status-filter').addEventListener('change', applyRecentFilters);
             document.getElementById('recent-issue-filter').addEventListener('change', applyRecentFilters);
-
+            
             // Stop auto-refresh when page is unloaded
             window.addEventListener('beforeunload', function () {
                 stopAutoRefresh();
@@ -469,7 +469,7 @@
             try {
                 const response = await fetch('/api/checkin/statistics');
                 const data = await response.json();
-
+                
                 // Update statistics with animation
                 const elements = {
                     'total-checkins': data.total_checkins || 0,
@@ -500,7 +500,7 @@
             try {
                 const response = await fetch('/api/checkin/chart-data');
                 const data = await response.json();
-
+                
                 createCheckinsPerDayChart(data.checkins_per_day);
             } catch (error) {
                 console.error('Error loading chart data:', error);
@@ -511,7 +511,7 @@
             try {
                 const response = await fetch('/api/checkin/latest');
                 const data = await response.json();
-
+                
                 if (data.status === 'success' && data.data) {
                     displayLatestCheckin(data.data);
                 } else {
@@ -527,14 +527,14 @@
             try {
                 const response = await fetch('/api/checkin/list?page=1&per_page=10');
                 const data = await response.json();
-
+                
                 if (data.status === 'success') {
                     checkins = data.data.checkins;
-
+                    
                     // Apply current filters if any are set
                     const callStatusFilter = document.getElementById('recent-call-status-filter').value;
                     const issueFilter = document.getElementById('recent-issue-filter').value;
-
+                    
                     if (callStatusFilter || issueFilter) {
                         applyRecentFilters();
                     } else {
@@ -550,17 +550,17 @@
         function applyRecentFilters() {
             const callStatusFilter = document.getElementById('recent-call-status-filter').value;
             const issueFilter = document.getElementById('recent-issue-filter').value;
-
+            
             // Update filter visual state
             const callStatusElement = document.getElementById('recent-call-status-filter');
             const issueElement = document.getElementById('recent-issue-filter');
-
+            
             callStatusElement.classList.toggle('active', !!callStatusFilter);
             issueElement.classList.toggle('active', !!issueFilter);
-
+            
             // Apply filters to current checkins data
             let filteredCheckins = [...checkins];
-
+            
             // Filter by call status (answered/not answered)
             if (callStatusFilter) {
                 filteredCheckins = filteredCheckins.filter(checkin => {
@@ -572,7 +572,7 @@
                     return true;
                 });
             }
-
+            
             // Filter by issue status
             if (issueFilter) {
                 filteredCheckins = filteredCheckins.filter(checkin => {
@@ -584,7 +584,7 @@
                     return true;
                 });
             }
-
+            
             // Display filtered results
             displayRecentCheckins(filteredCheckins);
         }
@@ -592,7 +592,7 @@
 
         function displayLatestCheckin(checkin) {
             const content = document.getElementById('latest-checkin-content');
-
+            
             // Debug logging for latest checkin
             console.log('Latest checkin user_picked_up:', JSON.stringify({
                 id: checkin.id,
@@ -603,19 +603,19 @@
             }, null, 2));
 
             const date = new Date(checkin.AI_Timestamp);
-            const dateStr = date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
+            const dateStr = date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
             });
-            const timeStr = date.toLocaleTimeString('en-US', {
-                hour: 'numeric',
+            const timeStr = date.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
                 minute: '2-digit',
-                hour12: true
+                hour12: true 
             });
 
             const tags = checkin.Tags ? checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-
+            
             // Determine status classes and icons based on checkin status
             let statusClass, statusText;
             if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
@@ -670,14 +670,14 @@
 
         function displayRecentCheckins(checkins) {
             const container = document.getElementById('recent-checkins-list');
-
+            
             if (!checkins || checkins.length === 0) {
                 container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
                 return;
             }
-
+            
             // Debug logging to check user_picked_up values and tags[1]
-            console.log('Recent checkins with user_picked_up values:',
+            console.log('Recent checkins with user_picked_up values:', 
                 JSON.stringify(checkins.map(c => ({
                     id: c.id,
                     user_picked_up: c.user_picked_up,
@@ -687,16 +687,16 @@
                     tag_1: c.tags && c.tags.length > 1 ? c.tags[1] : null
                 })), null, 2)
             );
-
+            
             const checkinsHtml = checkins.map(checkin => {
                 const date = new Date(checkin.AI_Timestamp);
                 const day = date.getDate();
                 const month = date.toLocaleDateString('en-US', { month: 'short' });
                 const year = date.getFullYear();
-                const time = date.toLocaleTimeString('en-US', {
-                    hour: 'numeric',
+                const time = date.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
                     minute: '2-digit',
-                    hour12: true
+                    hour12: true 
                 });
                 const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
 
@@ -711,7 +711,7 @@
                         callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
                     }
                 }
-
+                
                 return `
                     <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
                         <div class="check-in-header">
@@ -721,22 +721,22 @@
                                 <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
                             </div>
                             <div class="check-in-status">
-                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ?
-                        '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+                                ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
+                                    '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
                                 ${callDirectionSymbol}
-                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ?
-                        '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' :
-                        checkin.Issue_Flagged ?
-                            '<i class="fas fa-exclamation-triangle status-icon warning"></i>' :
-                            '<i class="fas fa-check-circle status-icon success"></i>'}
-                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ?
-                        '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
+                                ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                                    '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
+                                    checkin.Issue_Flagged ? 
+                                        '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
+                                        '<i class="fas fa-check-circle status-icon success"></i>'}
+                                ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
+                                    '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
-
+            
             container.innerHTML = checkinsHtml;
         }
 
@@ -809,11 +809,11 @@
 
         function createCheckinsPerDayChart(data) {
             const ctx = document.getElementById('checkins-per-day-chart').getContext('2d');
-
+            
             if (charts.checkinsPerDay) {
                 charts.checkinsPerDay.destroy();
             }
-
+            
             // Fallback data if no real data is provided
             const fallbackData = {
                 labels: Array.from({ length: 30 }, (_, i) => {
@@ -858,7 +858,7 @@
                             borderColor: '#4299e1',
                             backgroundColor: checkinsGradient,
                             fill: true,
-                            tension: 0.4,
+                        tension: 0.4,
                             borderWidth: 2,
                             pointBackgroundColor: '#4299e1',
                             pointBorderColor: '#ffffff',
@@ -883,10 +883,10 @@
                         {
                             label: 'Calls Transferred',
                             data: chartDatasets.transfers,
-                            borderColor: '#48bb78',
+                        borderColor: '#48bb78',
                             backgroundColor: transfersGradient,
                             fill: true,
-                            tension: 0.4,
+                        tension: 0.4,
                             borderWidth: 2,
                             pointBackgroundColor: '#48bb78',
                             pointBorderColor: '#ffffff',
@@ -1001,13 +1001,13 @@
         function refreshData() {
             const button = document.getElementById('refresh-button');
             const icon = button.querySelector('.refresh-icon');
-
+            
             // Add refreshing class to button
             button.classList.add('refreshing');
 
             // Disable button during refresh
             button.disabled = true;
-
+            
             loadDashboardData().finally(() => {
                 // Remove refreshing class and re-enable button
                 button.classList.remove('refreshing');

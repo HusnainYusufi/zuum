@@ -234,7 +234,9 @@ async def get_checkins_list(
     tags: Optional[str] = None,
     search_name: Optional[str] = None,
     search_phone: Optional[str] = None,
-    search_load_id: Optional[str] = None
+    search_load_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
 ):
     """
     Get paginated list of check-ins with filtering.
@@ -248,6 +250,8 @@ async def get_checkins_list(
         search_name: Search by trucker name across all form types
         search_phone: Search by phone number across all form types
         search_load_id: Search by load ID (main column and form fields)
+        start_date: Start date for filtering (ISO format string)
+        end_date: End date for filtering (ISO format string)
         
     Returns:
         Paginated list of check-ins
@@ -276,6 +280,12 @@ async def get_checkins_list(
         
         if search_load_id:
             filters["search_load_id"] = search_load_id
+        
+        if start_date:
+            filters["start_date"] = start_date
+        
+        if end_date:
+            filters["end_date"] = end_date
         
         # Get paginated results using Supabase service
         result = await supabase_service.get_check_ins_paginated(

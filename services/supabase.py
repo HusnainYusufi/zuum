@@ -197,7 +197,9 @@ class SupabaseService:
                     "filter_call_status": filters.get("call_status"),
                     "search_name": filters.get("search_name"),
                     "search_phone": filters.get("search_phone"),
-                    "search_load_id": filters.get("search_load_id")
+                    "search_load_id": filters.get("search_load_id"),
+                    "start_date": filters.get("start_date"),
+                    "end_date": filters.get("end_date")
                 }
             ).execute()
             
