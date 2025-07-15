@@ -9,15 +9,12 @@ from services.whisper_service import whisper_service
 from services.orpheus_service import orpheus_service
 import base64
 from io import BytesIO
-from db_models import get_db
-from db_models import Stop
+from db_models import get_db, Stop
 from services.langrapghs.origin_langraph import origin_langgraph_service
 from services.langrapghs.destination_langrapgh_service import destination_langgraph_service
 import time
 import asyncio
 from datetime import datetime, timedelta
-import os
-import requests
 import os
 import requests
 from dotenv import load_dotenv
