@@ -1,0 +1,884 @@
+// Global variables
+let currentPage = 1;
+let totalPages = 1;
+let checkins = [];
+let charts = {
+    checkinsPerDay: null
+};
+let autoRefreshInterval = null;
+let websocket = null;
+
+// WebSocket connection for real-time updates
+function connectWebSocket() {
+    try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+        
+        websocket = new WebSocket(wsUrl);
+        
+        websocket.onopen = function (event) {
+            console.log('WebSocket connected for real-time updates');
+        };
+        
+        websocket.onmessage = function (event) {
+            try {
+                // Skip ping/pong messages
+                if (event.data === 'pong' || event.data.startsWith('echo:')) {
+                    // console.log('WebSocket ping/pong:', event.data);
+                    return;
+                }
+                
+                const notification = JSON.parse(event.data);
+                console.log('Received notification:', notification);
+                
+                // Handle different types of notifications
+                if (notification.type === 'check_in_update') {
+                    handleCheckInUpdate(notification.data);
+                } else if (notification.type === 'stop_update') {
+                    // Optional: handle stop updates if needed
+                    console.log('Stop update received:', notification.data);
+                } else if (notification.type === 'journey_state_update') {
+                    // Optional: handle journey state updates if needed
+                    console.log('Journey state update received:', notification.data);
+                }
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data);
+            }
+        };
+        
+        websocket.onclose = function (event) {
+            console.log('WebSocket connection closed. Attempting to reconnect...');
+            // Attempt to reconnect after 3 seconds
+            setTimeout(connectWebSocket, 3000);
+        };
+        
+        websocket.onerror = function (error) {
+            console.error('WebSocket error:', error);
+        };
+        
+        // Send periodic ping to keep connection alive
+        setInterval(() => {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send('ping');
+            }
+        }, 30000); // Send ping every 30 seconds
+        
+    } catch (error) {
+        console.error('Error connecting to WebSocket:', error);
+        // Retry connection after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    }
+}
+
+function handleCheckInUpdate(checkInData) {
+    console.log('Check-in update received:', checkInData);
+    
+    // Refresh dashboard data to reflect the update
+    refreshDashboardSilently();
+    
+    // Show appropriate notification based on the update type
+    if (checkInData.call_trasfered) {
+        showTransferNotification(checkInData);
+    } else if (!checkInData.is_active && checkInData.AI_Response_Summary) {
+        // Call has been analyzed (inactive and has summary)
+        showCallAnalyzedNotification(checkInData);
+    } else if (checkInData.is_active && !checkInData.AI_Response_Summary) {
+        // Call was just made (active but no summary yet)
+        showCallMadeNotification(checkInData);
+    } else if (!checkInData.is_active && !checkInData.AI_Response_Summary) {
+        // Call ended but no analysis yet
+        showCallEndedNotification(checkInData);
+    } else {
+        // Generic update
+        showUpdateNotification(checkInData);
+    }
+}
+
+function showCallMadeNotification(checkInData) {
+    const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
+    showNotification({
+        icon: 'fas fa-phone',
+        title: `Call made ${loadId}`,
+        subtitle: 'Call is in progress',
+        background: 'linear-gradient(135deg, #4299e1, #3182ce)',
+        shadowColor: 'rgba(66, 153, 225, 0.3)'
+    });
+}
+
+function showCallAnalyzedNotification(checkInData) {
+    const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
+    showNotification({
+        icon: 'fas fa-brain',
+        title: `Call analysed ${loadId}`,
+        subtitle: 'AI analysis results available',
+        background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
+        shadowColor: 'rgba(66, 153, 225, 0.3)'
+    });
+}
+
+function showUpdateNotification(checkInData) {
+    showNotification({
+        icon: 'fas fa-info-circle',
+        title: `Check-in #${checkInData.id} updated`,
+        subtitle: 'Check-in information updated',
+        background: 'linear-gradient(135deg, #4299e1, #63b3ed)',
+        shadowColor: 'rgba(66, 153, 225, 0.3)'
+    });
+}
+
+function showTransferNotification(checkInData) {
+    const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
+    showNotification({
+        icon: 'fas fa-phone-alt',
+        title: `Call transferred ${loadId}`,
+        subtitle: 'Call successfully transferred to broker',
+        background: 'linear-gradient(135deg, #48bb78, #68d391)',
+        shadowColor: 'rgba(72, 187, 120, 0.3)'
+    });
+}
+
+function showCallEndedNotification(checkInData) {
+    const loadId = checkInData.load_id ? `for Load ID: ${checkInData.load_id}` : '';
+    showNotification({
+        icon: 'fas fa-phone-slash',
+        title: `Call ended ${loadId}`,
+        subtitle: 'Waiting for AI analysis results',
+        background: 'linear-gradient(135deg, #6b7280, #9ca3af)',
+        shadowColor: 'rgba(107, 114, 128, 0.3)'
+    });
+}
+
+function showNotification({ icon, title, subtitle, background, shadowColor }) {
+    // Create a notification
+    const notification = document.createElement('div');
+    notification.className = 'update-notification';
+    notification.innerHTML = `
+        <i class="${icon}"></i>
+        <div class="notification-content">
+            <div class="notification-title">${title}</div>
+            ${subtitle ? `<div class="notification-subtitle">${subtitle}</div>` : ''}
+        </div>
+    `;
+    
+    // Add styling for the notification
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${background};
+        color: white;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px ${shadowColor}, 0 4px 12px rgba(0, 0, 0, 0.2);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        min-width: 280px;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    
+    // Add CSS animation if not already added
+    if (!document.querySelector('#notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+            .notification-content {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .notification-title {
+                font-weight: 600;
+                font-size: 14px;
+            }
+            .notification-subtitle {
+                font-weight: 400;
+                font-size: 12px;
+                opacity: 0.9;
+            }
+            .update-notification i {
+                font-size: 18px;
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+                animation: pulse 2s ease-in-out infinite;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after 5 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 400);
+    }, 5000);
+    
+    // Allow clicking to dismiss
+    notification.addEventListener('click', () => {
+        notification.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 400);
+    });
+}
+
+async function refreshDashboardSilently() {
+    try {
+        // Refresh all dashboard data without showing loading indicators
+        await Promise.all([
+            loadStatistics(),
+            loadLatestCheckin(),
+            loadRecentCheckins()
+        ]);
+    } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+    }
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function () {
+    loadDashboardData();
+    setupEventListeners();
+    startAutoRefresh();
+    connectWebSocket(); // Connect to WebSocket for real-time updates
+});
+
+// Clean up WebSocket connection when page unloads
+window.addEventListener('beforeunload', function () {
+    stopAutoRefresh();
+    if (websocket) {
+        websocket.close();
+    }
+});
+
+function setupEventListeners() {
+    document.getElementById('refresh-button').addEventListener('click', refreshData);
+    
+    // Recent checkins filters
+    document.getElementById('recent-call-status-filter').addEventListener('change', applyRecentFilters);
+    document.getElementById('recent-issue-filter').addEventListener('change', applyRecentFilters);
+    
+    // Stop auto-refresh when page is unloaded
+    window.addEventListener('beforeunload', function () {
+        stopAutoRefresh();
+    });
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+async function loadDashboardData() {
+    try {
+        await Promise.all([
+            loadStatistics(),
+            loadChartData(),
+            loadLatestCheckin(),
+            loadRecentCheckins()
+        ]);
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+    }
+}
+
+async function loadStatistics() {
+    try {
+        const response = await fetch('/api/checkin/statistics');
+        const data = await response.json();
+        
+        // Update statistics with animation
+        const elements = {
+            'total-checkins': data.total_checkins || 0,
+            'total-issues': data.total_issues || 0,
+            'call-transfers': data.call_transfers || 0,
+            'today-checkins': data.today_checkins || 0
+        };
+
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+                // Add a brief highlight animation
+                element.style.transform = 'scale(1.1)';
+                element.style.color = '#4299e1';
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                    element.style.color = '#ffffff';
+                }, 300);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading statistics:', error);
+    }
+}
+
+async function loadChartData() {
+    try {
+        const response = await fetch('/api/checkin/chart-data');
+        const data = await response.json();
+        
+        createCheckinsPerDayChart(data.checkins_per_day);
+    } catch (error) {
+        console.error('Error loading chart data:', error);
+    }
+}
+
+async function loadLatestCheckin() {
+    try {
+        const response = await fetch('/api/checkin/latest');
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.data) {
+            displayLatestCheckin(data.data);
+        } else {
+            document.getElementById('latest-checkin-content').innerHTML = '<p class="no-check-ins">No check-ins found</p>';
+        }
+    } catch (error) {
+        console.error('Error loading latest check-in:', error);
+        document.getElementById('latest-checkin-content').innerHTML = '<p class="no-check-ins">Error loading latest check-in</p>';
+    }
+}
+
+async function loadRecentCheckins() {
+    try {
+        const response = await fetch('/api/checkin/list?page=1&per_page=10');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            checkins = data.data.checkins;
+            
+            // Apply current filters if any are set
+            const callStatusFilter = document.getElementById('recent-call-status-filter').value;
+            const issueFilter = document.getElementById('recent-issue-filter').value;
+            
+            if (callStatusFilter || issueFilter) {
+                applyRecentFilters();
+            } else {
+                displayRecentCheckins(checkins);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading recent check-ins:', error);
+    }
+}
+
+function applyRecentFilters() {
+    const callStatusFilter = document.getElementById('recent-call-status-filter').value;
+    const issueFilter = document.getElementById('recent-issue-filter').value;
+    
+    // Update filter visual state
+    const callStatusElement = document.getElementById('recent-call-status-filter');
+    const issueElement = document.getElementById('recent-issue-filter');
+    
+    callStatusElement.classList.toggle('active', !!callStatusFilter);
+    issueElement.classList.toggle('active', !!issueFilter);
+    
+    // Apply filters to current checkins data
+    let filteredCheckins = [...checkins];
+    
+    // Filter by call status (answered/not answered)
+    if (callStatusFilter) {
+        filteredCheckins = filteredCheckins.filter(checkin => {
+            if (callStatusFilter === 'answered') {
+                return checkin.user_picked_up === true || checkin.user_picked_up === 'true';
+            } else if (callStatusFilter === 'not_answered') {
+                return checkin.user_picked_up === false || checkin.user_picked_up === 'false';
+            }
+            return true;
+        });
+    }
+    
+    // Filter by issue status
+    if (issueFilter) {
+        filteredCheckins = filteredCheckins.filter(checkin => {
+            if (issueFilter === 'true') {
+                return checkin.Issue_Flagged === true || checkin.Issue_Flagged === 'true';
+            } else if (issueFilter === 'false') {
+                return checkin.Issue_Flagged === false || checkin.Issue_Flagged === 'false';
+            }
+            return true;
+        });
+    }
+    
+    // Display filtered results
+    displayRecentCheckins(filteredCheckins);
+}
+
+function displayLatestCheckin(checkin) {
+    const content = document.getElementById('latest-checkin-content');
+
+    const date = new Date(checkin.AI_Timestamp);
+    const dateStr = date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+    });
+    const timeStr = date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+    });
+
+    let tags = [];
+    if (checkin.Tags) {
+        try {
+            // If Tags is a string like '["Delivery check", "outbound"]'
+            tags = JSON.parse(checkin.Tags);
+            if (!Array.isArray(tags)) {
+                tags = [];
+            }
+        } catch (e) {
+            // Fallback: treat as comma-separated string
+            tags = checkin.Tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        }
+    }
+    
+    // Determine status classes and icons based on checkin status
+    let statusClass, statusText;
+    if (checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') {
+        statusClass = 'text-gray-400 bg-gray-900/50';
+        statusText = 'NO ANSWER';
+    } else if (checkin.Issue_Flagged) {
+        statusClass = 'text-orange-400 bg-orange-900/50';
+        statusText = 'ISSUE FLAGGED';
+    } else {
+        statusClass = 'text-green-400 bg-green-900/50';
+        statusText = 'NO ISSUE';
+    }
+    content.innerHTML = `
+        <div class="space-y-4 p-4 bg-black/20 rounded-xl">
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Check-in ID</span>
+                <span class="font-bold text-white">#${checkin.id}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Timestamp</span>
+                <span class="font-medium text-gray-300">${dateStr} at ${timeStr}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Load ID</span>
+                <span class="font-medium text-gray-300">${checkin.load_id || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Call Status</span>
+                <span class="text-xs font-bold ${checkin.call_trasfered ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 bg-gray-900/50'} px-2 py-1 rounded-full">
+                    ${checkin.call_trasfered ? 'TRANSFERRED' : 'NOT TRANSFERRED'}
+                </span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-400">Status</span>
+                <span class="text-xs font-bold ${statusClass} px-2 py-1 rounded-full">${statusText}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-base font-medium text-gray-400">Tags</span>
+                <span class="font-medium text-gray-300">
+                    ${
+                        tags.length > 0
+                        ? tags.map(tag => `<span class="inline-block bg-blue-900/40 text-blue-300 text-sm px-3 py-1 rounded mr-2">${tag}</span>`).join('')
+                        : 'No tags'
+                    }
+                </span>
+            </div>
+            ${checkin.AI_Response_Summary ? `
+                <div class="pt-4 border-t border-white/10">
+                    <p class="text-sm font-medium text-gray-400 mb-2">AI Summary</p>
+                    <p class="text-gray-300 text-sm">${checkin.AI_Response_Summary}</p>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+function displayRecentCheckins(checkins) {
+    const container = document.getElementById('recent-checkins-list');
+    
+    if (!checkins || checkins.length === 0) {
+        container.innerHTML = '<p class="no-check-ins">No recent check-ins found</p>';
+        return;
+    }
+    
+    const checkinsHtml = checkins.map(checkin => {
+        const date = new Date(checkin.AI_Timestamp);
+        const day = date.getDate();
+        const month = date.toLocaleDateString('en-US', { month: 'short' });
+        const year = date.getFullYear();
+        const time = date.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+        });
+        const dateStr = `${day}/ ${month}/ ${year} at ${time}`;
+
+        // Extract call direction from tags
+        let callDirectionSymbol = '';
+        if (checkin.tags && Array.isArray(checkin.tags) && checkin.tags.length > 1) {
+            const callDirection = checkin.tags[1];
+            if (callDirection === 'inbound') {
+                callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #28a745;" title="Inbound call"></i><i class="fas fa-long-arrow-alt-down" style="color: #28a745; font-size: 0.6em; margin-left: 2px;"></i>';
+            } else if (callDirection === 'outbound') {
+                callDirectionSymbol = '<i class="fas fa-phone status-icon" style="color: #007bff;" title="Outbound call"></i><i class="fas fa-long-arrow-alt-up" style="color: #007bff; font-size: 0.6em; margin-left: 2px;"></i>';
+            }
+        }
+        
+        return `
+            <div class="check-in-card clickable" onclick="window.location.href='/checkin/${checkin.id}'">
+                <div class="check-in-header">
+                    <div class="check-in-id-wrapper">
+                        <i class="fas fa-clipboard-check check-in-icon"></i>
+                        <span class="check-in-id">#${checkin.id}</span>
+                        <span class="field-value" style="margin-left: 8px; font-size: 12px;">${dateStr}</span>
+                    </div>
+                    <div class="check-in-status">
+                        ${checkin.call_status === 'in_progress' && !checkin.AI_Response_Summary ? 
+                            '<div class="active-spinner" style="margin-right: 6px;"></div>' : ''}
+                        ${callDirectionSymbol}
+                        ${(checkin.user_picked_up === false || checkin.user_picked_up === 'false' || checkin.user_picked_up === 'False') ? 
+                            '<i class="fas fa-phone-slash status-icon error" title="User did not pick up phone"></i>' : 
+                            checkin.Issue_Flagged ? 
+                                '<i class="fas fa-exclamation-triangle status-icon warning"></i>' : 
+                                '<i class="fas fa-check-circle status-icon success"></i>'}
+                        ${checkin.call_trasfered || checkin.call_status === 'transferred' ? 
+                            '<i class="fas fa-phone-alt status-icon transfer"></i>' : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = checkinsHtml;
+}
+
+// Helper function to calculate time ago
+function calculateTimeAgo(date) {
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = Math.floor(seconds / 31536000);
+    if (interval >= 1) {
+        return interval + " year" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 2592000);
+    if (interval >= 1) {
+        return interval + " month" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 86400);
+    if (interval >= 1) {
+        return interval + " day" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 3600);
+    if (interval >= 1) {
+        return interval + " hour" + (interval === 1 ? "" : "s") + " ago";
+    }
+    interval = Math.floor(seconds / 60);
+    if (interval >= 1) {
+        return interval + " minute" + (interval === 1 ? "" : "s") + " ago";
+    }
+    return Math.floor(seconds) + " second" + (seconds === 1 ? "" : "s") + " ago";
+}
+
+// Helper function to format time display
+function formatTimeDisplay(date) {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    // If less than 1 minute, show "Just now"
+    if (diffInSeconds < 60) {
+        return "Just now";
+    }
+
+    // If less than 1 hour, show minutes ago
+    if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes}m ago`;
+    }
+
+    // If less than 24 hours, show hours ago
+    if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours}h ago`;
+    }
+
+    // If less than 7 days, show days ago
+    if (diffInSeconds < 604800) {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days}d ago`;
+    }
+
+    // Otherwise show the date
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+
+function createCheckinsPerDayChart(data) {
+    const ctx = document.getElementById('checkins-per-day-chart').getContext('2d');
+    
+    if (charts.checkinsPerDay) {
+        charts.checkinsPerDay.destroy();
+    }
+    
+    // Fallback data if no real data is provided
+    const fallbackData = {
+        labels: Array.from({ length: 30 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (29 - i));
+            return (date.getMonth() + 1).toString().padStart(2, '0') + '/' +
+                date.getDate().toString().padStart(2, '0');
+        }),
+        datasets: {
+            checkins: Array.from({ length: 30 }, () => 0),
+            issues: Array.from({ length: 30 }, () => 0),
+            transfers: Array.from({ length: 30 }, () => 0)
+        }
+    };
+
+    // Create gradients for each dataset
+    const checkinsGradient = ctx.createLinearGradient(0, 0, 0, 300);
+    checkinsGradient.addColorStop(0, 'rgba(66, 153, 225, 0.2)');
+    checkinsGradient.addColorStop(1, 'rgba(66, 153, 225, 0)');
+
+    const issuesGradient = ctx.createLinearGradient(0, 0, 0, 300);
+    issuesGradient.addColorStop(0, 'rgba(245, 101, 101, 0.2)');
+    issuesGradient.addColorStop(1, 'rgba(245, 101, 101, 0)');
+
+    const transfersGradient = ctx.createLinearGradient(0, 0, 0, 300);
+    transfersGradient.addColorStop(0, 'rgba(72, 187, 120, 0.2)');
+    transfersGradient.addColorStop(1, 'rgba(72, 187, 120, 0)');
+
+    // Use real data if available, otherwise fallback
+    const chartLabels = data && data.labels && data.labels.length > 0 ? data.labels : fallbackData.labels;
+    const chartDatasets = data && data.datasets ? data.datasets : fallbackData.datasets;
+    const chartData = data && data.data ? data.data : [];
+
+    charts.checkinsPerDay = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: 'Check-ins',
+                    data: chartDatasets.checkins,
+                    borderColor: '#4299e1',
+                    backgroundColor: checkinsGradient,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#4299e1',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Issues Flagged',
+                    data: chartDatasets.issues,
+                    borderColor: '#f56565',
+                    backgroundColor: issuesGradient,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#f56565',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Calls Transferred',
+                    data: chartDatasets.transfers,
+                    borderColor: '#48bb78',
+                    backgroundColor: transfersGradient,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#48bb78',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            aspectRatio: 2,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        boxWidth: 12,
+                        boxHeight: 12,
+                        padding: 15,
+                        color: '#718096',
+                        font: {
+                            size: 11,
+                            weight: '500'
+                        },
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(26, 32, 44, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#e2e8f0',
+                    borderColor: '#4a5568',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    multiKeyBackground: 'transparent',
+                    callbacks: {
+                        title: function (context) {
+                            const index = context[0].dataIndex;
+                            if (chartData[index] && chartData[index].check_date) {
+                                const date = new Date(chartData[index].check_date);
+                                return date.toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                });
+                            }
+                            return `Date: ${chartLabels[index]}`;
+                        },
+                        label: function (context) {
+                            const label = context.dataset.label;
+                            const value = context.parsed.y;
+                            return `${label}: ${value}`;
+                        },
+                        footer: function (tooltipItems) {
+                            const index = tooltipItems[0].dataIndex;
+                            if (chartData[index]) {
+                                const total = chartData[index].checkin_count || 0;
+                                return `Total Check-ins: ${total}`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(74, 85, 104, 0.15)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#718096',
+                        font: {
+                            size: 10
+                        },
+                        stepSize: 1,
+                        callback: function (value) {
+                            return Number.isInteger(value) ? value : '';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(74, 85, 104, 0.15)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#718096',
+                        font: {
+                            size: 9
+                        },
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                }
+            }
+        }
+    });
+}
+
+function refreshData() {
+    const button = document.getElementById('refresh-button');
+    const icon = button.querySelector('.refresh-icon');
+    
+    // Add refreshing class to button
+    button.classList.add('refreshing');
+
+    // Disable button during refresh
+    button.disabled = true;
+    
+    loadDashboardData().finally(() => {
+        // Remove refreshing class and re-enable button
+        button.classList.remove('refreshing');
+        button.disabled = false;
+    });
+}
+
+function showLoading(show) {
+    // This function is kept for compatibility but no longer needed
+    // The refresh button handles its own loading state
+}
+
+function startAutoRefresh() {
+    // Disabled auto-refresh polling - now using WebSocket real-time updates only
+    console.log('Auto-refresh disabled - using WebSocket real-time updates');
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+} 

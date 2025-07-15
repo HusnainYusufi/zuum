@@ -684,7 +684,7 @@ class CheckInPage {
         statusHTML += `
             <div class="info-item slide-in-right stagger-1">
                 <span class="info-label">
-                    ${callDirectionSymbol}
+                    ${callDirectionSymbol ? `<span style="margin-right: 8px; display: inline-block;">${callDirectionSymbol}</span>` : ''}
                     <i class="fas ${didNotPickUp ? 'fa-phone-slash' : 'fa-phone'}" style="margin-right: 6px; color: ${didNotPickUp ? '#fc8181' : '#68d391'};"></i>
                     Phone Pickup:
                 </span>

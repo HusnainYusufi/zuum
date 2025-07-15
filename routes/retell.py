@@ -1,36 +1,16 @@
 from fastapi import APIRouter, HTTPException, Body, File, UploadFile, Form, Query, status
-from typing import List, Dict, Optional
 from pydantic import BaseModel
 from loguru import logger
 from services.langrapghs.transit_langrapgh_service import transit_langgraph_service
-from langgraph.types import Command
-import random
-from services.whisper_service import whisper_service
-from services.orpheus_service import orpheus_service
-import base64
-from io import BytesIO
-from db_models import get_db
-from db_models import Stop
-from services.langrapghs.origin_langraph import origin_langgraph_service
-from services.langrapghs.destination_langrapgh_service import destination_langgraph_service
-import time
-from db_models import Journey
-from db_models import JourneyState
-from db_models import CheckIn
+from db_models import Journey, CheckIn, RetellCall, Stop, get_db
 import asyncio
 from datetime import datetime, timedelta
-from db_models import Journey
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
-from pathlib import Path
 import os
 import json
-from db_models import RetellCall
 from services.notification_service import notify_stop_update, notify_check_in_update, notify_journey_state_update, send_notification
-from services.supabase import SupabaseService
+from services.supabase import SupabaseService, supabase_service
 import traceback
 
 class ChangeStateRequest(BaseModel):
@@ -61,8 +41,6 @@ call_resumption_storage = {}
 async def store_call_resumption_context(call_id: str, call_data: dict):
     """Store call context data for resumption when purpose_fulfilled is pending"""
     try:
-        # Import the supabase service
-        from services.supabase import supabase_service
         
         # Extract the caller's phone number from call data
         from_number = call_data.get("to_number", "")
@@ -109,7 +87,6 @@ async def store_call_resumption_context(call_id: str, call_data: dict):
         call_resumption_storage[normalized_phone] = resumption_context
         
         logger.info(f"Stored call resumption context for call {call_id} (phone: {normalized_phone})")
-        logger.info(f"Dynamic variables stored: {json.dumps(dynamic_variables, indent=2)}")
         logger.info(f"Resumption context stored: {json.dumps(resumption_context, indent=2)}")
         
     except Exception as e:
@@ -250,8 +227,6 @@ def send_supabase_checkin_notification(check_in_record: CheckIn):
     except Exception as e:
         logger.warning(f"Could not send notification: {e}")
         # Don't fail the request if notification fails
-
-
 
 @router.post("/change_transit_state")
 def change_transit_state(request: dict = Body(...)):
@@ -567,9 +542,6 @@ async def retell_recording_webhook(request: dict = Body(...)):
     try:
         logger.info(f"Received Retell webhook: {request}")
         
-        # Import Supabase service
-        from services.supabase import supabase_service
-        
         # Check if this is a call_started event (when user picks up the phone)
         if request.get("event") == "call_started":
             call_data = request.get("call", {})
@@ -627,7 +599,6 @@ async def retell_recording_webhook(request: dict = Body(...)):
                                 'user_picked_up': True  # Include this explicitly for dashboard
                             }
                             await notify_check_in_update(websocket_check_in_data)
-                            logger.info(f"Sent WebSocket check-in start notification for check-in {check_in_id}")
                         
                         # Create notification for call start/answered
                         notification_data = {
@@ -867,7 +838,6 @@ async def retell_recording_webhook(request: dict = Body(...)):
             if call_id:
                 # Extract custom_analysis_data
                 custom_analysis_data = call_analysis.get("custom_analysis_data", {})
-                logger.info(f"Call analysis data: {call_analysis}")
                 
                 check_in_id = None
                 check_in_data = None
@@ -1063,7 +1033,6 @@ async def retell_recording_webhook(request: dict = Body(...)):
             return {"status": "success", "message": "Call analyzed webhook processed successfully"}
         
         return {"status": "ignored", "message": "Not a supported webhook event"}
-        
     except Exception as e:
         logger.error(f"Error processing Retell webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1163,7 +1132,6 @@ async def retell_inbound_webhook(request: dict = Body(...)):
     Documentation: https://docs.retellai.com/features/inbound-call-webhook#inbound-call-webhook
     """
     try:
-        logger.info(f"=== RETELL INBOUND CALL WEBHOOK ===")
         logger.info(f"Received inbound call webhook payload: {json.dumps(request, indent=2)}")
         
         if not INBOUND_CALL_AGENT_ID:
@@ -1178,20 +1146,14 @@ async def retell_inbound_webhook(request: dict = Body(...)):
             logger.warning(f"Unexpected event type: {event}")
             return {"error": "Invalid event type"}
         
-        # Extract caller information from the payload
-        agent_id = call_inbound_data.get("agent_id")
-        from_number = call_inbound_data.get("from_number", "")
-        to_number = call_inbound_data.get("to_number", "")
-        
         logger.info(f"Inbound call details:")
-        logger.info(f"  - Agent ID: {agent_id}")
-        logger.info(f"  - From Number: {from_number}")
-        logger.info(f"  - To Number: {to_number}")
+        logger.info(f"  - Agent ID: {call_inbound_data.get('agent_id')}")
+        logger.info(f"  - From Number: {call_inbound_data.get('from_number', '')}")
+        logger.info(f"  - To Number: {call_inbound_data.get('to_number', '')}")
         logger.info(f"  - Timestamp: {datetime.now().isoformat()}")
         
         # Normalize the incoming phone number for lookup
-        normalized_phone = normalize_phone_number(from_number)
-        logger.info(f"Normalized phone number: {normalized_phone}")
+        normalized_phone = normalize_phone_number(call_inbound_data.get("from_number", ""))
         
         # Clean up contexts older than 24 hours before searching
         cleanup_old_resumption_contexts()
@@ -1203,7 +1165,6 @@ async def retell_inbound_webhook(request: dict = Body(...)):
             # Found existing context - prepare resumption response
             logger.info(f"Found call resumption context for {normalized_phone}")
             logger.info(f"Previous call ID: {resumption_context.get('call_id')}")
-            logger.info(f"Form title: {resumption_context.get('dynamic_variables', {}).get('form_title')}")
             
             # Extract dynamic variables and metadata from stored context
             dynamic_variables = resumption_context.get("dynamic_variables", {})
@@ -1211,7 +1172,6 @@ async def retell_inbound_webhook(request: dict = Body(...)):
             
             # Remove the context from storage since it's being resumed
             del call_resumption_storage[normalized_phone]
-            logger.info(f"Removed call resumption context for {normalized_phone} - call successfully resumed")
             
             response = {
                 "call_inbound": {
@@ -1220,11 +1180,7 @@ async def retell_inbound_webhook(request: dict = Body(...)):
                     "metadata": metadata
                 }
             }
-            
-            logger.info(f"Resuming call with context:")
-            logger.info(f"  - Dynamic variables: {json.dumps(dynamic_variables, indent=2)}")
-            logger.info(f"  - Metadata: {json.dumps(metadata, indent=2)}")
-            
+            logger.info(f"Resuming call for phone {normalized_phone}")
         else:
             # No existing context found - handle as new call
             logger.info(f"No call resumption context found for {normalized_phone} - processing as new call")
@@ -1234,12 +1190,7 @@ async def retell_inbound_webhook(request: dict = Body(...)):
                     "override_agent_id": INBOUND_CALL_AGENT_ID
                 }
             }
-        
-        logger.info(f"Returning inbound webhook response: {json.dumps(response, indent=2)}")
-        logger.info(f"=== END INBOUND CALL WEBHOOK ===")
-        
-        return response
-        
+        return response  
     except Exception as e:
         logger.error(f"Error processing inbound call webhook: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")

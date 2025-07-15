@@ -151,8 +151,7 @@ async def send_feedback(
     userName: str = Form(...),
     userEmail: str = Form(...),
     feedbackDescription: str = Form(...),
-    feedbackImages: List[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    feedbackImages: List[UploadFile] = File(None)
 ):
     try:
         # Validate feedback description length
@@ -180,63 +179,60 @@ async def send_feedback(
         
         logger.info("All required environment variables are present")
         
-        # Create feedback record in database
-        feedback = Feedback(
-            feedback_type=feedbackType,
-            user_name=userName,
-            user_email=userEmail,
-            description=feedbackDescription
-        )
-        db.add(feedback)
-        db.flush()  # Flush to get the feedback ID
+        # Prepare feedback data for Supabase
+        supabase_feedback_data = {
+            "feedback_type": feedbackType,
+            "user_name": userName,
+            "user_email": userEmail,
+            "description": feedbackDescription
+        }
         
-        image_links = []
+        # Prepare image files for Supabase upload
+        supabase_image_files = []
+        image_urls = []
         
-        # Process and save images locally
         if feedbackImages:
-            logger.info(f"Processing {len(feedbackImages)} image files")
+            logger.info(f"Processing {len(feedbackImages)} image files for Supabase")
             for i, file in enumerate(feedbackImages):
                 if file.filename:
                     logger.info(f"Processing image {i+1}: {file.filename}")
-                    # Generate unique filename
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    file_extension = os.path.splitext(file.filename)[1]
-                    unique_filename = f"feedback_{feedback.id}_{userName}_{timestamp}_{i}{file_extension}"
                     
                     # Read file contents
                     contents = await file.read()
                     logger.info(f"Read {len(contents)} bytes from {file.filename}")
                     
-                    # Save to local storage
-                    try:
-                        file_path = FEEDBACK_IMAGES_DIR / unique_filename
-                        logger.info(f"Saving to local storage: {file_path}")
-                        
-                        with open(file_path, "wb") as f:
-                            f.write(contents)
-                        
-                        # Create relative URL for accessing the image
-                        relative_url = f"/static/feedback-images/{unique_filename}"
-                        image_links.append(relative_url)
-                        
-                        # Save image record to database
-                        feedback_image = FeedbackImage(
-                            feedback_id=feedback.id,
-                            filename=unique_filename,
-                            original_filename=file.filename,
-                            file_path=str(file_path)
-                        )
-                        db.add(feedback_image)
-                        
-                        logger.info(f"Generated local URL: {relative_url}")
-                    except Exception as save_error:
-                        logger.error(f"Failed to save image {file.filename}: {str(save_error)}")
-                        logger.error(f"Save error type: {type(save_error).__name__}")
-                        continue
+                    # Prepare for Supabase upload
+                    supabase_image_files.append({
+                        'filename': file.filename,
+                        'content': contents,
+                        'content_type': file.content_type or 'image/jpeg'
+                    })
         
-        # Commit all database changes
-        db.commit()
-        logger.info(f"Successfully saved feedback {feedback.id} with {len(image_links)} images")
+        # Store in Supabase
+        try:
+            from services.supabase import supabase_service
+            
+            # Create feedback in Supabase
+            supabase_result = await supabase_service.create_feedback(
+                supabase_feedback_data, 
+                supabase_image_files
+            )
+            
+            if supabase_result["success"]:
+                feedback_id = supabase_result['data']['feedback']['id']
+                logger.info(f"Successfully stored feedback in Supabase with ID: {feedback_id}")
+                
+                # Extract image URLs from Supabase result
+                if supabase_result['data'].get('images'):
+                    image_urls = [img['image_url'] for img in supabase_result['data']['images']]
+                    logger.info(f"Uploaded {len(image_urls)} images to Supabase")
+            else:
+                logger.error(f"Failed to store feedback in Supabase: {supabase_result.get('error')}")
+                raise HTTPException(status_code=500, detail=f"Failed to store feedback: {supabase_result.get('error')}")
+                
+        except Exception as supabase_error:
+            logger.error(f"Error storing feedback in Supabase: {supabase_error}")
+            raise HTTPException(status_code=500, detail=f"Failed to store feedback: {str(supabase_error)}")
         
         # Create SMS body with image links
         sms_body = f"""[Freight Broker Project]
@@ -247,14 +243,11 @@ Type: {feedbackType}
 Message:
 {feedbackDescription}"""
 
-        # Add image links if any (using the host URL if available)
-        if image_links:
+        # Add image links if any (using Supabase URLs)
+        if image_urls:
             sms_body += "\n\nImage/s:"
-            # Get the base URL from request or environment
-            base_url = os.getenv('BASE_URL', 'http://localhost:8000')
-            for link in image_links:
-                full_url = f"{base_url}{link}"
-                sms_body += f"\n{full_url}"
+            for image_url in image_urls:
+                sms_body += f"\n{image_url}"
 
         logger.info(f"SMS body length: {len(sms_body)} characters")
         
@@ -302,8 +295,8 @@ Message:
         return {
             "success": True, 
             "message": "Feedback sent successfully",
-            "feedback_id": feedback.id,
-            "images_saved": len(image_links)
+            "feedback_id": feedback_id,
+            "images_saved": len(image_urls)
         }
         
     except HTTPException:
@@ -313,7 +306,6 @@ Message:
         logger.error(f"Unexpected error in send_feedback: {str(e)}")
         logger.error(f"Error type: {type(e).__name__}")
         logger.error(f"Error traceback: {traceback.format_exc()}")
-        db.rollback()  # Rollback database changes on error
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Get all stops (basic info)
@@ -597,5 +589,12 @@ if __name__ == "__main__":
         logger.info(f"Server will be accessible at: http://localhost:{port}")
     
     # Start FastAPI application - use 0.0.0.0 for Docker compatibility
+    # Disable reload in production to prevent restart loops
+    environment = os.getenv("ENVIRONMENT", "development")
+    # Force disable reload if we're in a Docker container or production
+    in_docker = os.path.exists("/.dockerenv")
+    reload_enabled = environment == "development" and not in_docker
+    
     logger.info(f"🚀 Starting FastAPI server on http://0.0.0.0:{port}")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    logger.info(f"🔧 Environment: {environment}, Docker: {in_docker}, Reload: {reload_enabled}")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload_enabled)

@@ -1,0 +1,155 @@
+name: Build and Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: env
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate unique image tag
+        id: tag
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_TAG="staging-${TIMESTAMP}-${COMMIT_SHORT}"
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "FULL_IMAGE_NAME=jimc047/voice_freight_broker:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "Generated image tag: ${IMAGE_TAG}"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          # Build the image with unique tag
+          docker build -t ${{ steps.tag.outputs.FULL_IMAGE_NAME }} .
+          
+          # Also tag as latest for staging
+          docker tag ${{ steps.tag.outputs.FULL_IMAGE_NAME }} jimc047/voice_freight_broker:staging-latest
+          
+          # Push both tags to Docker Hub
+          docker push ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
+          docker push jimc047/voice_freight_broker:staging-latest
+          
+          echo "Successfully pushed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
+
+      - name: Deploy on DigitalOcean Droplet
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USERNAME }}
+          password: ${{ secrets.DROPLET_PASSWORD }}
+          port: 22
+          script: |
+            echo "Starting deployment for voice-freight-broker..."
+            echo "Deploying image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
+            
+            # Create .env file with all environment variables
+            cat > /root/.env << 'EOF'
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            NGROK_AUTH_TOKEN=2xNZg1ikvgDR45Lz9tu9R6watXY_6hE26cQL4FNC4UDgZRjQy
+            RETELL_API_KEY=key_604f51d09f7f3313ba0f83d7bc63
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            WORKFLOW_RETELL_AGENT_ID=2xNZg1ikvgDR45Lz9tu9R6watXY_6hE26cQL4FNC4UDgZRjQy
+            CheckIn_RETELL_AGENT_ID=agent_6e445fc10ee5db15ae0b442067
+            INBOUND_CALL_AGENT_ID=agent_6e445fc10ee5db15ae0b442067
+            ENVIRONMENT=production
+            LOG_LEVEL=INFO
+            BACKEND_ngrok_LINK=${{ secrets.BACKEND_NGROK_LINK }}
+            ALLOWED_ORIGINS=*
+            API_RATE_LIMIT=100
+            RETELL_FROM_NUMBER=${{ secrets.RETELL_FROM_NUMBER }}
+            FEEDBACK_SENDER_EMAIL=${{ secrets.FEEDBACK_SENDER_EMAIL }}
+            SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
+            SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+            FEEDBACK_RECIPIENT_EMAIL=${{ secrets.FEEDBACK_RECIPIENT_EMAIL }}
+            TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+            TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
+            TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}
+            FEEDBACK_RECIPIENT_PHONES=${{ secrets.FEEDBACK_RECIPIENT_PHONES }}
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            ADMIN_PASSWORD_HASH=${{ secrets.ADMIN_PASSWORD_HASH }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SUPABASE_STORAGE_BUCKET=${{secrets.SUPABASE_STORAGE_BUCKET}}
+            EOF
+            
+            # Ensure environment file has correct permissions
+            chmod 600 /root/.env
+            
+            # Debug: Show the .env file content (without secrets)
+            echo "Environment file created. Checking variables..."
+            grep -E "^(ENVIRONMENT|LOG_LEVEL)" /root/.env || echo "Basic variables not found"
+            
+            # Install docker-compose if not already installed
+            if ! command -v docker-compose &> /dev/null; then
+              curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
+            
+            # Stop existing containers
+            docker stop voice-freight-broker || true
+            docker rm voice-freight-broker || true
+            
+            # Remove old images to free up space (keep last 2 images)
+            docker images | grep "jimc047/voice_freight_broker" | tail -n +3 | awk '{print $3}' | xargs -r docker rmi -f || true
+            
+            # Pull the new image from Docker Hub
+            docker pull ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
+            
+            # Verify the image was pulled correctly
+            docker images | grep "jimc047/voice_freight_broker"
+            
+            # Create required directories and set permissions
+            mkdir -p /root/data
+            mkdir -p /root/feedback-images
+            chmod 755 /root/data
+            chmod 755 /root/feedback-images
+            
+            # Run the container with explicit environment variables and env file
+            docker run -d \
+              --name voice-freight-broker \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              -p 4040:4040 \
+              -p 5678:5678 \
+              -v /root/data:/app/data \
+              -v /root/feedback-images:/app/static/feedback-images \
+              --env-file /root/.env \
+              --health-cmd "curl -f http://localhost:8000/docs || exit 1" \
+              --health-interval 30s \
+              --health-timeout 10s \
+              --health-retries 3 \
+              ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
+            
+            # Wait for container to start
+            echo "Waiting for container to start..."
+            sleep 10
+            
+            # Check container status
+            docker ps --filter name=voice-freight-broker
+            
+            # Verify environment variables inside container
+            echo "Verifying environment variables in container..."
+            docker exec voice-freight-broker env | grep -E "(ENVIRONMENT|LOG_LEVEL)" || echo "Key variables not found"
+            
+            echo "Deployment completed successfully!"
+            echo "Deployed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
+            
+            # Show container logs to verify it started correctly
+            echo "Container logs (last 20 lines):"
+            docker logs --tail 20 voice-freight-broker
