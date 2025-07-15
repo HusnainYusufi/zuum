@@ -21,9 +21,9 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
                 <h1 class="text-3xl lg:text-4xl font-bold text-white">
-                    <i class="fas fa-clipboard-check header-icon"></i>
-                    <span class="header-title">Check-in Dashboard</span>
-                </h1>
+                <i class="fas fa-clipboard-check header-icon"></i>
+                <span class="header-title">Check-in Dashboard</span>
+            </h1>
                 <p class="text-gray-400 mt-1">Real-time monitoring and issue tracking.</p>
             </div>
             <div class="flex items-center space-x-2 mt-4 md:mt-0">
@@ -51,30 +51,30 @@
                             <div class="flex items-center">
                                 <i class="fas fa-clipboard-list text-blue-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Total Check-ins</span>
-                            </div>
-                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
                         </div>
+                            <div class="text-2xl font-bold text-white" id="total-checkins">0</div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-exclamation-triangle text-orange-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Issues Flagged</span>
-                            </div>
-                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
                         </div>
+                            <div class="text-2xl font-bold text-white" id="total-issues">0</div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-phone-alt text-green-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Call Transfers</span>
-                            </div>
+                </div>
                             <div class="text-2xl font-bold text-white" id="call-transfers">0</div>
-                        </div>
+                    </div>
                         <div class="flex items-center justify-between p-4 bg-black/20 rounded-xl">
                             <div class="flex items-center">
                                 <i class="fas fa-calendar-day text-purple-400 text-xl w-8"></i>
                                 <span class="ml-3 text-sm font-medium text-gray-300">Today's Check-ins</span>
-                            </div>
+                </div>
                             <div class="text-2xl font-bold text-white" id="today-checkins">0</div>
-                        </div>
+            </div>
                     </div>
                 </div>
                 <div class="glass-card p-6 flex flex-col flex-grow">
@@ -95,8 +95,8 @@
                     </div>
                     <div class="space-y-3 custom-scrollbar pr-2 flex-grow overflow-y-auto h-64 lg:h-auto"
                         id="recent-checkins-list">
-                        <p class="no-check-ins">Loading recent check-ins...</p>
-                    </div>
+                    <p class="no-check-ins">Loading recent check-ins...</p>
+                </div>
                     <a href="/all-checkins" id="view-all-button"
                         class="w-full mt-4 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 no-underline">
                         <i class="fas fa-list"></i>
@@ -109,11 +109,11 @@
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-white text-lg">Daily Check-ins</h3>
                         <span class="text-xs text-gray-400 font-medium">Last 30 Days</span>
-                    </div>
+        </div>
                     <div class="h-72 lg:h-64">
                         <canvas id="checkins-per-day-chart"></canvas>
-                    </div>
-                </div>
+        </div>
+    </div>
 
                 <div class="glass-card p-6" id="latest-checkin-card">
                     <h3 class="font-bold text-white text-lg mb-4 flex items-center">
@@ -122,18 +122,18 @@
                     </h3>
                     <div class="space-y-4 p-4 bg-black/20 rounded-xl" id="latest-checkin-content">
                         <p class="no-check-ins">Loading latest check-in...</p>
+            </div>
+                    </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
+
 
         <!-- Loading Spinner -->
         <div class="loading-spinner" id="loading-spinner" style="display: none;">
             <div class="spinner"></div>
             <p>Loading data...</p>
-        </div>
-    </div>
+                </div>
+                        </div>
 
     <script src="/static/js/checkin_dashboard.js"></script>
 </body>
