@@ -50,6 +50,19 @@ logging.getLogger('h2').setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
+def normalize_phone_number(country_code: str, contact_phone: str) -> str:
+    """
+    Normalize phone number by combining country code and cleaning the phone number.
+    
+    Args:
+        country_code: The country code (e.g., "+1")
+        contact_phone: The phone number to normalize
+        
+    Returns:
+        Normalized phone number in E.164 format
+    """
+    return country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+
 async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
     """
     Reusable function to make Retell API calls
@@ -93,11 +106,6 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
     form_number_json = json.dumps(form_number)
     output_schema_json = json.dumps(output_schema)
     
-    logger.info(f"Form config: {form_config}")
-    logger.info(f"Voice questions: {voice_questions}")
-    logger.info(f"Form number: {form_number}")
-    logger.info(f"Output schema: {output_schema}")
-    
     # Prepare metadata for the call
     metadata = {
         "form_number": form_number_json,
@@ -106,6 +114,7 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
         "form": form_data_json,
         "output_schema": output_schema_json
     }
+    logger.info(f"Retell call metadata: {json.dumps(metadata, indent=2)}")
     
     # Prepare dynamic variables for the agent
     dynamic_variables = {
@@ -120,10 +129,6 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
     if transfer_call:
         dynamic_variables["transfer_call_to"] = json.dumps(transfer_call)
         logger.info(f"Transfer call number included: {transfer_call}")
-    
-    # Log output schema inclusion
-    if output_schema:
-        logger.info(f"Output schema included for form type '{form_type}': {len(output_schema.get('properties', {}))} properties")
     
     # Make the Retell API call
     headers = {
@@ -241,10 +246,6 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
         
         new_checkin = checkin_result["data"]
         
-        # Log form data storage
-        if form_data:
-            logger.info(f"Storing form data for check-in {new_checkin['id']}: {json.dumps(form_data, indent=2)}")
-        
         # Create RetellCall record associated with this check-in
         retell_call_data = {
             "check_in_id": new_checkin["id"],
@@ -262,7 +263,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
         
         logger.info(f"Created new check-in with ID: {new_checkin['id']} and RetellCall with call_id: {call_id}")
         if form_data:
-            logger.info(f"Form data successfully stored for check-in {new_checkin['id']}")
+            logger.info(f"Form data successfully stored for check-in {new_checkin['id']} : {json.dumps(form_data, indent=2)}")
         
         # Prepare notification data for backward compatibility
         check_in_data_notification = {
@@ -348,24 +349,6 @@ async def submit_default_load(
     transfer_country_code: Optional[str] = Form(None),
     notes: Optional[str] = Form(None)
 ):
-    print("=== DEFAULT FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Carrier Name: {carrier_name}")
-    print(f"Purpose: {purpose}")
-    print(f"Contact Name: {contact_name}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Scheduled Pickup Time: {scheduled_pickup_time}")
-    print(f"Scheduled Delivery Time: {scheduled_delivery_time}")
-    print(f"Origin Address: {origin_address}")
-    print(f"Destination Address: {destination_address}")
-    print(f"Last Known Status: {last_known_status}")
-    print(f"Last Check Call Time: {last_check_call_time}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print(f"Notes: {notes}")
-    print("==============================\n")
-    
     # Prepare form data
     form_data = {
         "load_id": load_id,
@@ -385,10 +368,7 @@ async def submit_default_load(
         "notes": notes
     }
     
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    print(f"Full Phone Number: {full_phone_number}")
-    result = await make_retell_call(full_phone_number, "default", form_data)
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "default", form_data)
     
     # Return HTML response
     if result["status"] == "success":
@@ -434,22 +414,6 @@ async def submit_at_pickup(
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
 ):
-    print("=== AT PICKUP FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Trucker Name: {trucker_name}")
-    print(f"Pickup Address: {pickup_address}")
-    print(f"Driver Type: {driver_type}")
-    print(f"Tractor Number: {tractor_number}")
-    print(f"Trailer Number: {trailer_number}")
-    print(f"Required Equipment: {required_equipment}")
-    print(f"Preferred Communications: {preferred_comms}")
-    print(f"Tracking On: {tracking_on}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print("==============================\n")
-    
     # Prepare form data for persistence
     form_data = {
         "pickup_load_id": load_id,  # Note the field name matches the HTML form
@@ -467,9 +431,7 @@ async def submit_at_pickup(
         "transfer_country_code": transfer_country_code
     }
     
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    result = await make_retell_call(full_phone_number, "at_pickup", form_data)
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "at_pickup", form_data)
     
     # Return HTML response with form data for persistence
     if result["status"] == "success":
@@ -515,21 +477,6 @@ async def submit_pickup_complete(
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
 ):
-    print("=== PICKUP COMPLETE FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Trucker Name: {trucker_name}")
-    print(f"Actual Pickup Time: {actual_pickup_time}")
-    print(f"BOL/PO Verified: {bol_verified}")
-    print(f"Commodity Description: {commodity_description}")
-    print(f"Next Stop Location: {next_stop_location}")
-    print(f"Scheduled ETA: {scheduled_eta}")
-    print(f"Accessorials Needed: {accessorials_needed}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print("==============================\n")
-    
     # Prepare form data for persistence
     form_data = {
         "pc_load_id": load_id,  # Match HTML field names
@@ -545,10 +492,8 @@ async def submit_pickup_complete(
         "transfer_call_to": transfer_call_to,
         "transfer_country_code": transfer_country_code
     }
-    
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    result = await make_retell_call(full_phone_number, "pickup_complete", form_data)
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "pickup_complete", form_data)
     
     # Return HTML response with form data for persistence
     if result["status"] == "success":
@@ -592,19 +537,6 @@ async def submit_in_transit(
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
 ):
-    print("=== IN TRANSIT FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Trucker Name: {trucker_name}")
-    print(f"Current Location: {current_location}")
-    print(f"Remaining Miles: {remaining_miles}")
-    print(f"Driver Tracking: {driver_tracking}")
-    print(f"Delay Reason: {delay_reason}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print("==============================\n")
-    
     # Prepare form data for persistence - using the same IDs as fillTestData
     form_data = {
         "it_load_id": load_id,
@@ -619,9 +551,7 @@ async def submit_in_transit(
         "transfer_country_code": transfer_country_code
     }
     
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    result = await make_retell_call(full_phone_number, "in_transit", form_data)
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "in_transit", form_data)
     
     # Return HTML response with form data for persistence
     if result["status"] == "success":
@@ -668,22 +598,6 @@ async def submit_at_drop(
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
 ):
-    print("=== AT DROP FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Trucker Name: {trucker_name}")
-    print(f"Receiver Name: {receiver_name}")
-    print(f"Receiver Address: {receiver_address}")
-    print(f"Arrival Time: {arrival_time}")
-    print(f"Dock Number: {dock_number}")
-    print(f"Lumper Needed: {lumper_needed}")
-    print(f"Lumper Amount: {lumper_amount}")
-    print(f"Payment Method: {payment_method}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print("==============================\n")
-    
     # Prepare form data for persistence - using the same IDs as fillTestData
     form_data = {
         "ad_load_id": load_id,
@@ -701,9 +615,7 @@ async def submit_at_drop(
         "transfer_country_code": transfer_country_code
     }
     
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    result = await make_retell_call(full_phone_number, "at_drop", form_data)
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "at_drop", form_data)
     
     # Return HTML response with form data for persistence
     if result["status"] == "success":
@@ -747,21 +659,7 @@ async def submit_delivered(
     osd_notes: Optional[str] = Form(None),
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
-):
-    print("=== DELIVERED FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Trucker Name: {trucker_name}")
-    print(f"Empty Time: {empty_time}")
-    print(f"POD Uploaded: {pod_uploaded}")
-    print(f"Lumper Receipt: {lumper_receipt}")
-    print(f"Final OS&D: {final_osd}")
-    print(f"OS&D Notes: {osd_notes}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print("==============================\n")
-    
+):  
     # Prepare form data for persistence - using the same IDs as fillTestData
     form_data = {
         "del_load_id": load_id,
@@ -777,9 +675,7 @@ async def submit_delivered(
         "transfer_country_code": transfer_country_code
     }
     
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    result = await make_retell_call(full_phone_number, "delivered", form_data)
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "delivered", form_data)
     
     # Return HTML response with form data for persistence
     if result["status"] == "success":
@@ -821,19 +717,7 @@ async def submit_request_pod(
     reminder_attempt: Optional[str] = Form("1"),
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
-):
-    print("=== REQUEST POD FORM SUBMISSION ===")
-    print(f"Load ID: {load_id}")
-    print(f"Contact Phone: {contact_phone}")
-    print(f"Country Code: {country_code}")
-    print(f"Trucker Name: {trucker_name}")
-    print(f"Delivery Date: {delivery_date}")
-    print(f"Upload Method: {upload_method}")
-    print(f"Reminder Attempt: {reminder_attempt}")
-    print(f"Transfer Call To: {transfer_call_to}")
-    print(f"Transfer Country Code: {transfer_country_code}")
-    print("==============================\n")
-    
+):    
     # Prepare form data for persistence - using the same IDs as fillTestData
     form_data = {
         "pod_load_id": load_id,
@@ -847,9 +731,7 @@ async def submit_request_pod(
         "transfer_country_code": transfer_country_code
     }
     
-    # Make Retell API call - combine country code and phone for the actual call
-    full_phone_number = country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
-    result = await make_retell_call(full_phone_number, "request_pod", form_data)
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "request_pod", form_data)
     
     # Return HTML response with form data for persistence
     if result["status"] == "success":
