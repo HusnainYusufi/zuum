@@ -1147,9 +1147,9 @@ async def retell_inbound_webhook(request: dict = Body(...)):
             return {"error": "Invalid event type"}
         
         logger.info(f"Inbound call details:")
-        logger.info(f"  - Agent ID: {call_inbound_data.get("agent_id")}")
-        logger.info(f"  - From Number: {call_inbound_data.get("from_number", "")}")
-        logger.info(f"  - To Number: {call_inbound_data.get("to_number", "")}")
+        logger.info(f"  - Agent ID: {call_inbound_data.get('agent_id')}")
+        logger.info(f"  - From Number: {call_inbound_data.get('from_number', '')}")
+        logger.info(f"  - To Number: {call_inbound_data.get('to_number', '')}")
         logger.info(f"  - Timestamp: {datetime.now().isoformat()}")
         
         # Normalize the incoming phone number for lookup
