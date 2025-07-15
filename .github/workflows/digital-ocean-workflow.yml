@@ -61,12 +61,12 @@ jobs:
             # Create .env file with all environment variables
             cat > /root/.env << 'EOF'
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            NGROK_AUTH_TOKEN=${{ secrets.NGROK_AUTH_TOKEN }}
-            RETELL_API_KEY=${{ secrets.RETELL_API_KEY }}
+            NGROK_AUTH_TOKEN=2xNZg1ikvgDR45Lz9tu9R6watXY_6hE26cQL4FNC4UDgZRjQy
+            RETELL_API_KEY=key_604f51d09f7f3313ba0f83d7bc63
             DATABASE_URL=${{ secrets.DATABASE_URL }}
-            WORKFLOW_RETELL_AGENT_ID=${{ secrets.WORKFLOW_RETELL_AGENT_ID }}
-            CHECKIN_RETELL_AGENT_ID=${{ secrets.CHECKIN_RETELL_AGENT_ID }}
-            INBOUND_CALL_AGENT_ID=${{ secrets.INBOUND_CALL_AGENT_ID }}
+            WORKFLOW_RETELL_AGENT_ID=2xNZg1ikvgDR45Lz9tu9R6watXY_6hE26cQL4FNC4UDgZRjQy
+            CheckIn_RETELL_AGENT_ID=agent_6e445fc10ee5db15ae0b442067
+            INBOUND_CALL_AGENT_ID=agent_6e445fc10ee5db15ae0b442067
             ENVIRONMENT=production
             LOG_LEVEL=INFO
             BACKEND_ngrok_LINK=${{ secrets.BACKEND_NGROK_LINK }}
