@@ -481,51 +481,84 @@ class SupabaseService:
 
     # Feedback operations
     async def create_feedback(self, data: Dict[str, Any], image_files: Optional[List] = None) -> Dict[str, Any]:
-        """Create feedback with optional S3 image upload"""
+        """Create feedback with optional Supabase Storage image upload"""
         try:
             if not self.client:
                 return {"success": False, "error": "Supabase client not initialized"}
 
-            # Upload images to S3 if provided
-            s3_image_urls = []
-            if image_files and self.s3_client:
-                for image_file in image_files:
-                    try:
-                        # Generate unique filename
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"feedback/{timestamp}_{image_file.get('filename', 'image.jpg')}"
-                        
-                        # Upload to S3
-                        self.s3_client.put_object(
-                            Bucket=S3_BUCKET_NAME,
-                            Key=filename,
-                            Body=image_file['content'],
-                            ContentType=image_file.get('content_type', 'image/jpeg')
-                        )
-                        
-                        # Generate URL
-                        s3_url = f"https://{S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{filename}"
-                        s3_image_urls.append(s3_url)
-                        
-                    except Exception as s3_error:
-                        logger.error(f"Error uploading image to S3: {s3_error}")
-
-            # Create feedback record
+            # Create feedback record first
             feedback_data = {
                 "feedback_type": data.get("feedback_type"),
                 "user_name": data.get("user_name"),
                 "user_email": data.get("user_email"),
                 "description": data.get("description"),
-                "s3_image_urls": s3_image_urls
+                "resolved": False  # Default to unresolved
             }
 
-            result = self.client.table("feedback").insert(feedback_data).execute()
+            feedback_result = self.client.table("feedback").insert(feedback_data).execute()
             
-            if result.data:
-                logger.info(f"Created feedback with ID: {result.data[0]['id']}")
-                return {"success": True, "data": result.data[0]}
-            else:
-                return {"success": False, "error": "No data returned from database"}
+            if not feedback_result.data:
+                return {"success": False, "error": "Failed to create feedback record"}
+            
+            feedback_id = feedback_result.data[0]['id']
+            logger.info(f"Created feedback with ID: {feedback_id}")
+
+            # Upload images to Supabase Storage if provided
+            image_records = []
+            if image_files:
+                bucket_name = os.getenv('SUPABASE_STORAGE_BUCKET', 'feedback-images')
+                
+                for i, image_file in enumerate(image_files):
+                    try:
+                        # Generate unique filename
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        file_extension = os.path.splitext(image_file.get('filename', 'image.jpg'))[1]
+                        unique_filename = f"feedback_{feedback_id}_{timestamp}_{i}{file_extension}"
+                        
+                        # Upload to Supabase Storage
+                        storage_response = self.client.storage.from_(bucket_name).upload(
+                            path=unique_filename,
+                            file=image_file['content'],
+                            file_options={
+                                "content-type": image_file.get('content_type', 'image/jpeg')
+                            }
+                        )
+                        
+                        if storage_response:
+                            # Generate public URL
+                            image_url = self.client.storage.from_(bucket_name).get_public_url(unique_filename)
+                            
+                            # Create image record in database
+                            image_data = {
+                                "feedback_id": feedback_id,
+                                "filename": unique_filename,
+                                "original_filename": image_file.get('filename'),
+                                "image_url": image_url
+                            }
+                            
+                            image_result = self.client.table("feedback_images").insert(image_data).execute()
+                            if image_result.data:
+                                image_records.append(image_result.data[0])
+                                logger.info(f"Uploaded image {unique_filename} for feedback {feedback_id}")
+                            else:
+                                logger.error(f"Failed to save image record for {unique_filename}")
+                        
+                    except Exception as storage_error:
+                        error_msg = str(storage_error)
+                        if "row-level security policy" in error_msg:
+                            logger.error(f"RLS Policy Error: Storage bucket '{bucket_name}' may have RLS enabled. Please make the bucket public or add appropriate policies.")
+                            logger.error(f"To fix: Go to Supabase Dashboard → Storage → {bucket_name} → Settings → Check 'Public bucket'")
+                        else:
+                            logger.error(f"Error uploading image to Supabase Storage: {storage_error}")
+                        continue
+
+            return {
+                "success": True, 
+                "data": {
+                    "feedback": feedback_result.data[0],
+                    "images": image_records
+                }
+            }
 
         except Exception as e:
             logger.error(f"Error creating feedback: {e}")
