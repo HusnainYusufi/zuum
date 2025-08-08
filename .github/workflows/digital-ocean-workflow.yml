@@ -37,14 +37,14 @@ jobs:
         run: |
           # Build the image with unique tag
           docker build -t ${{ steps.tag.outputs.FULL_IMAGE_NAME }} .
-          
+
           # Also tag as latest for staging
           docker tag ${{ steps.tag.outputs.FULL_IMAGE_NAME }} jimc047/voice_freight_broker:staging-latest
-          
+
           # Push both tags to Docker Hub
           docker push ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
           docker push jimc047/voice_freight_broker:staging-latest
-          
+
           echo "Successfully pushed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
 
       - name: Deploy on DigitalOcean Droplet
@@ -57,7 +57,7 @@ jobs:
           script: |
             echo "Starting deployment for voice-freight-broker..."
             echo "Deploying image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
-            
+
             # Create .env file with all environment variables
             cat > /root/.env << 'EOF'
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
@@ -86,40 +86,42 @@ jobs:
             ADMIN_PASSWORD_HASH=${{ secrets.ADMIN_PASSWORD_HASH }}
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             SUPABASE_STORAGE_BUCKET=${{secrets.SUPABASE_STORAGE_BUCKET}}
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            GITHUB_REPOSITORY=${{ secrets.GITHUB_REPOSITORY }}
             EOF
-            
+
             # Ensure environment file has correct permissions
             chmod 600 /root/.env
-            
+
             # Debug: Show the .env file content (without secrets)
             echo "Environment file created. Checking variables..."
             grep -E "^(ENVIRONMENT|LOG_LEVEL)" /root/.env || echo "Basic variables not found"
-            
+
             # Install docker-compose if not already installed
             if ! command -v docker-compose &> /dev/null; then
               curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
               chmod +x /usr/local/bin/docker-compose
             fi
-            
+
             # Stop existing containers
             docker stop voice-freight-broker || true
             docker rm voice-freight-broker || true
-            
+
             # Remove old images to free up space (keep last 2 images)
             docker images | grep "jimc047/voice_freight_broker" | tail -n +3 | awk '{print $3}' | xargs -r docker rmi -f || true
-            
+
             # Pull the new image from Docker Hub
             docker pull ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
-            
+
             # Verify the image was pulled correctly
             docker images | grep "jimc047/voice_freight_broker"
-            
+
             # Create required directories and set permissions
             mkdir -p /root/data
             mkdir -p /root/feedback-images
             chmod 755 /root/data
             chmod 755 /root/feedback-images
-            
+
             # Run the container with explicit environment variables and env file
             docker run -d \
               --name voice-freight-broker \
@@ -135,21 +137,21 @@ jobs:
               --health-timeout 10s \
               --health-retries 3 \
               ${{ steps.tag.outputs.FULL_IMAGE_NAME }}
-            
+
             # Wait for container to start
             echo "Waiting for container to start..."
             sleep 10
-            
+
             # Check container status
             docker ps --filter name=voice-freight-broker
-            
+
             # Verify environment variables inside container
             echo "Verifying environment variables in container..."
             docker exec voice-freight-broker env | grep -E "(ENVIRONMENT|LOG_LEVEL)" || echo "Key variables not found"
-            
+
             echo "Deployment completed successfully!"
             echo "Deployed image: ${{ steps.tag.outputs.FULL_IMAGE_NAME }}"
-            
+
             # Show container logs to verify it started correctly
             echo "Container logs (last 20 lines):"
             docker logs --tail 20 voice-freight-broker
