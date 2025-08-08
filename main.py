@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from init_db import init_db
+import re
+from urllib.parse import urlparse
 
 from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router, auth_router,prompt_config_router
 
@@ -21,6 +23,7 @@ from twilio.rest import Client
 from datetime import datetime
 import shutil
 from pathlib import Path
+from services.github_service import github_service
 
 load_dotenv()
 
@@ -145,162 +148,212 @@ class FeedbackResponse(BaseModel):
     created_at: str
     images: List[FeedbackImageResponse]
 
+
+def _extract_checkin_id_from_referer(request: Request) -> Optional[int]:
+    """
+    Best-effort extraction of check-in ID from the Referer header URL
+    (e.g., http://localhost:8000/checkin/127). Never raises; returns None on failure.
+    """
+    try:
+        referer = request.headers.get("referer") or ""
+        if not referer:
+            return None
+        path = urlparse(referer).path
+        match = re.search(r"/checkin/(\d+)(?:/|$)", path)
+        if not match:
+            return None
+        return int(match.group(1))
+    except Exception as e:
+        logger.warning(f"Failed to parse check-in ID from Referer: {e}")
+        return None
+
+
 @app.post("/send-feedback")
 async def send_feedback(
+    request: Request,
     feedbackType: str = Form(...),
     userName: str = Form(...),
     userEmail: str = Form(...),
     feedbackDescription: str = Form(...),
-    feedbackImages: List[UploadFile] = File(None)
+    feedbackImages: List[UploadFile] = File(None),
 ):
+    """
+    Handle user feedback submission with image uploads, SMS notifications, and GitHub issue creation
+    """
     try:
         # Validate feedback description length
         if len(feedbackDescription) > 1400:
             raise HTTPException(
                 status_code=400,
-                detail="Feedback description cannot exceed 1400 characters"
+                detail="Feedback description cannot exceed 1400 characters",
             )
 
-        logger.info(f"Received feedback from {userName} ({userEmail}) - Type: {feedbackType}")
-        
+        # Derive check-in ID from Referer URL (non-fatal)
+        checkin_id = _extract_checkin_id_from_referer(request)
+        logger.info(
+            f"Received feedback from {userName} ({userEmail}) - Type: {feedbackType}, Check-in ID: {checkin_id}"
+        )
+
         # Check required environment variables for Twilio
         required_env_vars = {
-            'TWILIO_ACCOUNT_SID': os.getenv('TWILIO_ACCOUNT_SID'),
-            'TWILIO_AUTH_TOKEN': os.getenv('TWILIO_AUTH_TOKEN'),
-            'TWILIO_FROM_NUMBER': os.getenv('TWILIO_FROM_NUMBER'),
-            'FEEDBACK_RECIPIENT_PHONES': os.getenv('FEEDBACK_RECIPIENT_PHONES'),
+            "TWILIO_ACCOUNT_SID": os.getenv("TWILIO_ACCOUNT_SID"),
+            "TWILIO_AUTH_TOKEN": os.getenv("TWILIO_AUTH_TOKEN"),
+            "TWILIO_FROM_NUMBER": os.getenv("TWILIO_FROM_NUMBER"),
+            "FEEDBACK_RECIPIENT_PHONES": os.getenv("FEEDBACK_RECIPIENT_PHONES"),
         }
-        
         missing_vars = [var for var, val in required_env_vars.items() if not val]
         if missing_vars:
             error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
             logger.error(error_msg)
             raise HTTPException(status_code=500, detail=error_msg)
-        
+
         logger.info("All required environment variables are present")
-        
+
         # Prepare feedback data for Supabase
         supabase_feedback_data = {
             "feedback_type": feedbackType,
             "user_name": userName,
             "user_email": userEmail,
-            "description": feedbackDescription
+            "description": feedbackDescription,
         }
-        
+
         # Prepare image files for Supabase upload
         supabase_image_files = []
         image_urls = []
-        
+
         if feedbackImages:
             logger.info(f"Processing {len(feedbackImages)} image files for Supabase")
             for i, file in enumerate(feedbackImages):
                 if file.filename:
                     logger.info(f"Processing image {i+1}: {file.filename}")
-                    
-                    # Read file contents
                     contents = await file.read()
                     logger.info(f"Read {len(contents)} bytes from {file.filename}")
-                    
-                    # Prepare for Supabase upload
-                    supabase_image_files.append({
-                        'filename': file.filename,
-                        'content': contents,
-                        'content_type': file.content_type or 'image/jpeg'
-                    })
-        
+                    supabase_image_files.append(
+                        {
+                            "filename": file.filename,
+                            "content": contents,
+                            "content_type": file.content_type or "image/jpeg",
+                        }
+                    )
+
         # Store in Supabase
         try:
             from services.supabase import supabase_service
-            
-            # Create feedback in Supabase
+
             supabase_result = await supabase_service.create_feedback(
-                supabase_feedback_data, 
-                supabase_image_files
+                supabase_feedback_data, supabase_image_files
             )
-            
+
             if supabase_result["success"]:
-                feedback_id = supabase_result['data']['feedback']['id']
+                feedback_id = supabase_result["data"]["feedback"]["id"]
                 logger.info(f"Successfully stored feedback in Supabase with ID: {feedback_id}")
-                
-                # Extract image URLs from Supabase result
-                if supabase_result['data'].get('images'):
-                    image_urls = [img['image_url'] for img in supabase_result['data']['images']]
+
+                if supabase_result["data"].get("images"):
+                    image_urls = [img["image_url"] for img in supabase_result["data"]["images"]]
                     logger.info(f"Uploaded {len(image_urls)} images to Supabase")
             else:
                 logger.error(f"Failed to store feedback in Supabase: {supabase_result.get('error')}")
-                raise HTTPException(status_code=500, detail=f"Failed to store feedback: {supabase_result.get('error')}")
-                
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to store feedback: {supabase_result.get('error')}",
+                )
+
         except Exception as supabase_error:
             logger.error(f"Error storing feedback in Supabase: {supabase_error}")
-            raise HTTPException(status_code=500, detail=f"Failed to store feedback: {str(supabase_error)}")
-        
-        # Create SMS body with image links
-        sms_body = f"""[Freight Broker Project]
-New Feedback from {userName}
-Email: {userEmail}
-Type: {feedbackType}
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to store feedback: {str(supabase_error)}",
+            )
 
-Message:
-{feedbackDescription}"""
 
-        # Add image links if any (using Supabase URLs)
+        base_url = f"{request.url.scheme}://{request.url.netloc}"
+
+
+        if feedbackType.lower() in ["suggestions", "comments"]:
+            logger.info(f"Creating GitHub issue for {feedbackType} feedback")
+
+            github_result = await github_service.create_feedback_issue(
+                feedback_type=feedbackType,
+                user_name=userName,
+                user_email=userEmail,
+                description=feedbackDescription,
+                feedback_id=feedback_id,
+                checkin_id=checkin_id,  # may be None; downstream should handle gracefully
+                base_url=base_url
+            )
+
+            if github_result["success"]:
+
+                logger.info(f"Successfully created GitHub issue: {github_result['issue_url']}")
+            else:
+                logger.warning(f"Failed to create GitHub issue: {github_result.get('error')}")
+
+        # Build SMS
+        lines = [
+            "[Freight Broker Project]",
+            f"New Feedback from {userName}",
+            f"Email: {userEmail}",
+            f"Type: {feedbackType}",
+        ]
+        if checkin_id is not None:
+            lines.append(f"Check-in ID: {checkin_id}")
+        lines.extend(["", "Message:", f"{feedbackDescription}"])
+
+        if github_result["success"]:
+            lines.extend(["", f"GitHub Issue: {github_result['issue_url']}"])
+
         if image_urls:
-            sms_body += "\n\nImage/s:"
-            for image_url in image_urls:
-                sms_body += f"\n{image_url}"
+            lines.append("\nImage/s:")
+            lines.extend(image_urls)
 
+        sms_body = "\n".join(lines)
         logger.info(f"SMS body length: {len(sms_body)} characters")
-        
-        # Check if recipient phones are configured
+
+        # Send SMS
         recipient_phones = [phone.strip() for phone in FEEDBACK_RECIPIENT_PHONES if phone.strip()]
         if not recipient_phones:
             error_msg = "No recipient phone numbers configured in FEEDBACK_RECIPIENT_PHONES"
             logger.error(error_msg)
             raise HTTPException(status_code=500, detail=error_msg)
-        
+
         logger.info(f"Sending SMS to {len(recipient_phones)} recipients")
-        
+
         sms_errors = []
         for i, phone_number in enumerate(recipient_phones):
             try:
                 logger.info(f"Sending SMS {i+1}/{len(recipient_phones)} to {phone_number}")
-                
-                # Validate phone number format
-                clean_from_number = TWILIO_FROM_NUMBER.replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
-                clean_to_number = phone_number.strip().replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
-                
-                logger.info(f"Cleaned numbers - From: {clean_from_number}, To: {clean_to_number}")
-                
+                clean_from_number = (
+                    TWILIO_FROM_NUMBER.replace(" ", "").replace("(", "").replace(")", "").replace("-", "")
+                )
+                clean_to_number = (
+                    phone_number.strip().replace(" ", "").replace("(", "").replace(")", "").replace("-", "")
+                )
                 message = twilio_client.messages.create(
-                    body=sms_body,
-                    from_=clean_from_number,
-                    to=clean_to_number
+                    body=sms_body, from_=clean_from_number, to=clean_to_number
                 )
                 logger.info(f"SMS sent successfully to {phone_number}. Message SID: {message.sid}")
             except Exception as sms_error:
-                error_msg = f"Failed to send SMS to {phone_number}: {str(sms_error)}"
-                logger.error(error_msg)
-                logger.error(f"SMS error type: {type(sms_error).__name__}")
-                logger.error(f"SMS error details: {sms_error}")
-                sms_errors.append(error_msg)
-        
-        # Handle SMS sending results
-        if sms_errors and len(sms_errors) < len(recipient_phones):
+                err = f"Failed to send SMS to {phone_number}: {str(sms_error)}"
+                logger.error(err)
+                sms_errors.append(err)
+
+        if sms_errors and len(sms_errors) == len(recipient_phones):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to send SMS notifications: {'; '.join(sms_errors)}",
+            )
+        elif sms_errors:
             logger.warning(f"Some SMS notifications failed: {', '.join(sms_errors)}")
-        elif sms_errors and len(sms_errors) == len(recipient_phones):
-            logger.error("All SMS notifications failed to send")
-            raise HTTPException(status_code=500, detail=f"Failed to send SMS notifications: {'; '.join(sms_errors)}")
-        
-        logger.info("Feedback processed successfully")
+
         return {
-            "success": True, 
+            "success": True,
             "message": "Feedback sent successfully",
             "feedback_id": feedback_id,
-            "images_saved": len(image_urls)
+            "images_saved": len(image_urls),
+            "checkin_id": checkin_id,  # may be None
         }
-        
+
     except HTTPException:
-        # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
         logger.error(f"Unexpected error in send_feedback: {str(e)}")
@@ -335,13 +388,13 @@ async def get_check_ins(db: Session = Depends(get_db)):
     try:
         # Query all check-ins ordered by newest first (no stop dependency)
         check_ins = db.query(CheckIn).order_by(CheckIn.AI_Timestamp.desc()).all()
-        
+
         # Transform to response model
         result = []
         for check_in in check_ins:
             # Get the first retell call for this check-in (if any)
             retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in.id).first()
-            
+
             # Get stop information if stop_id exists
             stop_name = None
             stop_location = None
@@ -352,7 +405,7 @@ async def get_check_ins(db: Session = Depends(get_db)):
                     stop_name = stop.name
                     stop_location = stop.location
                     stop_eta = stop.eta
-            
+
             result.append(CheckInResponse(
                 id=check_in.id,
                 stop_id=check_in.stop_id,
@@ -388,7 +441,7 @@ state_dict = {}
 async def root(request: Request, session_token: str = Cookie(None)):
     """Redirect root to dashboard if authenticated, login otherwise"""
     from routes.auth import verify_session_token
-    
+
     # Check if user is authenticated
     if session_token and verify_session_token(session_token):
         return RedirectResponse(url="/dashboard")
@@ -404,20 +457,20 @@ async def health_check():
         "services": {},
         "environment": {}
     }
-    
+
     # Check environment variables
     env_vars_to_check = [
         'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER',
         'FEEDBACK_RECIPIENT_PHONES',
     ]
-    
+
     for var in env_vars_to_check:
         value = os.getenv(var)
         health_status["environment"][var] = {
             "configured": bool(value),
             "length": len(value) if value else 0
         }
-    
+
     # Test Twilio connection
     try:
         # Simple test to verify Twilio client works
@@ -426,7 +479,7 @@ async def health_check():
     except Exception as e:
         health_status["services"]["twilio"] = {"status": "failed", "error": str(e)}
         health_status["status"] = "degraded"
-    
+
     return health_status
 
 # Get all feedback entries
@@ -435,10 +488,10 @@ async def get_feedback(db: Session = Depends(get_db)):
     """Retrieve all feedback entries with their associated images"""
     try:
         feedbacks = db.query(Feedback).order_by(Feedback.created_at.desc()).all()
-        
+
         result = []
         base_url = os.getenv('BASE_URL', 'http://localhost:8000')
-        
+
         for feedback in feedbacks:
             images = []
             for img in feedback.images:
@@ -449,7 +502,7 @@ async def get_feedback(db: Session = Depends(get_db)):
                     url=f"{base_url}/static/feedback-images/{img.filename}",
                     uploaded_at=img.uploaded_at
                 ))
-            
+
             result.append(FeedbackResponse(
                 id=feedback.id,
                 feedback_type=feedback.feedback_type,
@@ -459,7 +512,7 @@ async def get_feedback(db: Session = Depends(get_db)):
                 created_at=feedback.created_at,
                 images=images
             ))
-        
+
         return result
     except Exception as e:
         logger.error(f"Error retrieving feedback: {str(e)}")
@@ -473,7 +526,7 @@ async def get_feedback_by_id(feedback_id: int, db: Session = Depends(get_db)):
         feedback = db.query(Feedback).filter(Feedback.id == feedback_id).first()
         if not feedback:
             raise HTTPException(status_code=404, detail="Feedback not found")
-        
+
         base_url = os.getenv('BASE_URL', 'http://localhost:8000')
         images = []
         for img in feedback.images:
@@ -484,7 +537,7 @@ async def get_feedback_by_id(feedback_id: int, db: Session = Depends(get_db)):
                 url=f"{base_url}/static/feedback-images/{img.filename}",
                 uploaded_at=img.uploaded_at
             ))
-        
+
         return FeedbackResponse(
             id=feedback.id,
             feedback_type=feedback.feedback_type,
@@ -503,13 +556,13 @@ async def get_feedback_by_id(feedback_id: int, db: Session = Depends(get_db)):
 if __name__ == "__main__":
     import uvicorn
     import time
-    
+
     def test_ssl_connection():
         """Test SSL connection before proceeding with ngrok"""
         try:
             import urllib.request
             import urllib.error
-            
+
             # Test a simple HTTPS connection
             urllib.request.urlopen('https://www.google.com', timeout=10)
             logger.info("SSL connection test successful")
@@ -517,29 +570,29 @@ if __name__ == "__main__":
         except Exception as e:
             logger.warning(f"SSL connection test failed: {e}")
             return False
-    
+
     def setup_ngrok_with_retry():
         """Setup ngrok with SSL error handling and retry logic"""
         try:
             from pyngrok import ngrok
             from pyngrok.exception import PyngrokNgrokInstallError
-            
+
             # Test SSL connection first
             if not test_ssl_connection():
                 logger.warning("SSL connection test failed, but continuing with ngrok setup...")
-            
+
             port = 8000
-            
+
             # Set ngrok auth token from environment variable
             ngrok_auth_token = os.getenv("NGROK_AUTH_TOKEN")
             if ngrok_auth_token:
                 try:
                     ngrok.set_auth_token(ngrok_auth_token)
                     logger.info("Ngrok authtoken configured successfully")
-                    
+
                     # Give ngrok a moment to initialize
                     time.sleep(2)
-                    
+
                 except PyngrokNgrokInstallError as e:
                     logger.error(f"Failed to install/configure ngrok due to SSL issues: {e}")
                     logger.info("Attempting to run server without ngrok tunnel...")
@@ -553,48 +606,48 @@ if __name__ == "__main__":
                 logger.info("🔧 To enable ngrok tunneling, set NGROK_AUTH_TOKEN in your .env file")
                 logger.info("🚀 Continuing without ngrok tunnel - application will be available locally only")
                 return None, port
-            
+
             # Start ngrok tunnel with static domain
             try:
 
                 ngrok_domain = os.getenv("BACKEND_ngrok_LINK")
 
                 logger.info(f"Attempting to establish ngrok tunnel with domain: {ngrok_domain}")
-                
+
                 public_url = ngrok.connect(port, hostname=ngrok_domain).public_url
                 # public_url = ngrok.connect(port).public_url
                 logger.info(f"✅ Ngrok tunnel established successfully at {public_url}")
-                
+
                 # Log ngrok admin interface
                 logger.info(f"🔧 Ngrok admin interface available at: http://localhost:4040")
-                
+
                 return public_url, port
             except Exception as e:
                 logger.error(f"❌ Failed to establish ngrok tunnel: {str(e)}")
                 logger.error(f"Error details: {type(e).__name__}")
                 logger.info("🚀 Continuing without ngrok tunnel - application will be available locally only")
                 return None, port
-                
+
         except ImportError as e:
             logger.error(f"Failed to import pyngrok: {e}")
             logger.info("Running server without ngrok...")
             return None, 8000
-    
+
     # Setup ngrok (if possible)
     public_url, port = setup_ngrok_with_retry()
-    
+
     if public_url:
         logger.info(f"Server will be accessible at: {public_url}")
     else:
         logger.info(f"Server will be accessible at: http://localhost:{port}")
-    
+
     # Start FastAPI application - use 0.0.0.0 for Docker compatibility
     # Disable reload in production to prevent restart loops
     environment = os.getenv("ENVIRONMENT", "development")
     # Force disable reload if we're in a Docker container or production
     in_docker = os.path.exists("/.dockerenv")
     reload_enabled = environment == "development" and not in_docker
-    
+
     logger.info(f"🚀 Starting FastAPI server on http://0.0.0.0:{port}")
     logger.info(f"🔧 Environment: {environment}, Docker: {in_docker}, Reload: {reload_enabled}")
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload_enabled)
