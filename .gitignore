@@ -3,6 +3,7 @@ __pycache__/
 .env
 transit.db
 static/feedback-images/
+frontend/node_modules/
 .venv/Include/site/python3.12/greenlet/greenlet.h
 .venv/Lib/site-packages/_cffi_backend.cp312-win_amd64.pyd
 .venv/Lib/site-packages/decorator.py
