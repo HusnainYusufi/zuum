@@ -15,3 +15,4 @@ boto3
 passlib[bcrypt]
 itsdangerous
 bcrypt
+PyGithub
