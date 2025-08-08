@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
       - "4040:4040"
-      - "5678:5678"  # Debug port
+      - "5678:5678" # Debug port
     environment:
       - PYTHONPATH=/app
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -38,6 +38,8 @@ services:
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
       - SECRET_KEY=${SECRET_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
       - BASE_URL=
     volumes:
       - .:/app
