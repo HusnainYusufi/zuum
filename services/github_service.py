@@ -23,6 +23,8 @@ class GitHubService:
             self.repository = None
         else:
             try:
+                print(f"GITHUB_TOKEN: {self.github_token}")
+                print(f"GITHUB_REPOSITORY: {self.repository_name}")
                 self.github = Github(self.github_token)
                 if self.repository_name:
                     self.repository = self.github.get_repo(self.repository_name)
