@@ -3,7 +3,7 @@ GitHub Service for creating issues using PyGithub
 """
 
 import os
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from github import Github
 from github.Issue import Issue
 from loguru import logger
@@ -70,44 +70,48 @@ class GitHubService:
             return {"success": False, "error": str(e), "issue_url": None, "issue_number": None}
 
     async def create_feedback_issue(
-        self, feedback_type: str, user_name: str, user_email: str, description: str, base_url: str, feedback_id: Optional[int] = None, checkin_id: Optional[int] = None
+        self,
+        feedback_type: str,
+        user_name: str,
+        user_email: str,
+        description: str,
+        base_url: str,
+        feedback_id: Optional[int] = None,
+        checkin_id: Optional[int] = None,
+        image_urls: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Create a GitHub issue from user feedback
         """
-        # Build structured title with tags
-        title_parts = [f"[{feedback_type.upper()}]"]
-
-        if feedback_id:
-            title_parts.append(f"[FEEDBACK_ID:{feedback_id}]")
-
-        if checkin_id:
-            title_parts.append(f"[CHECK_IN_ID:{checkin_id}]")
-
-        # Add the descriptive part
-        title_parts.append(f"Feedback from {user_name}")
-
+        title_parts = [f"Feedback from {user_name}"]
         title = " ".join(title_parts)
 
-        # Create issue body
-        body_parts = [f"**Feedback Type:** {feedback_type.title()}", f"**User:** {user_name} ({user_email})", "", "**Description:**", description, ""]
+        body_parts = [
+            f"**Feedback Type:** {feedback_type.title()}",
+            f"**User:** {user_name} ({user_email})",
+            "",
+            "**Description:**",
+            description,
+            "",
+        ]
 
         if feedback_id:
             body_parts.append(f"**Feedback ID:** {feedback_id}")
 
         if checkin_id:
             body_parts.append(f"**Check-in ID:** {checkin_id}")
-            # Add link to specific check-in page
             body_parts.extend(["", f"**Check-in Link:** {base_url}/checkin/{checkin_id}"])
 
-        # Add dashboard link
-        body_parts.extend(["", f"**Dashboard Link:** {base_url}/dashboard"])
+        if image_urls:
+            body_parts.extend(["", "**Images:**"])
+            for url in image_urls:
+                body_parts.append(f"![feedback image]({url})")
+                body_parts.append(url)
 
+        body_parts.extend(["", f"**Dashboard Link:** {base_url}/dashboard"])
         body_parts.extend(["", "---", "*This issue was automatically created from user feedback.*"])
 
         body = "\n".join(body_parts)
-
-        # Set labels to match feedback type 1:1
         labels = [feedback_type.lower()]
 
         return await self.create_issue(title=title, body=body, labels=labels)

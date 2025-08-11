@@ -265,9 +265,9 @@ async def send_feedback(
                 detail=f"Failed to store feedback: {str(supabase_error)}",
             )
 
-
         base_url = f"{request.url.scheme}://{request.url.netloc}"
 
+        github_result = {"success": False}
 
         if feedbackType.lower() in ["suggestions", "comments"]:
             logger.info(f"Creating GitHub issue for {feedbackType} feedback")
@@ -278,12 +278,12 @@ async def send_feedback(
                 user_email=userEmail,
                 description=feedbackDescription,
                 feedback_id=feedback_id,
-                checkin_id=checkin_id,  # may be None; downstream should handle gracefully
-                base_url=base_url
+                checkin_id=checkin_id,
+                base_url=base_url,
+                image_urls=image_urls,
             )
 
             if github_result["success"]:
-
                 logger.info(f"Successfully created GitHub issue: {github_result['issue_url']}")
             else:
                 logger.warning(f"Failed to create GitHub issue: {github_result.get('error')}")
