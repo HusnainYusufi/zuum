@@ -267,8 +267,6 @@ async def send_feedback(
 
         base_url = f"{request.url.scheme}://{request.url.netloc}"
 
-        github_result = {"success": False}
-
         if feedbackType.lower() in ["suggestions", "comments"]:
             logger.info(f"Creating GitHub issue for {feedbackType} feedback")
 

@@ -100,7 +100,6 @@ class GitHubService:
 
         if checkin_id:
             body_parts.append(f"**Check-in ID:** {checkin_id}")
-            body_parts.extend(["", f"**Check-in Link:** {base_url}/checkin/{checkin_id}"])
 
         if image_urls:
             body_parts.extend(["", "**Images:**"])
