@@ -12,7 +12,7 @@ from init_db import init_db
 import re
 from urllib.parse import urlparse
 
-from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router, auth_router,prompt_config_router
+from routes import conversation_router, ui_router, retell_router, notifications_router, checkin_router, retell_call_router, retell_check_in_router, forms_router, auth_router,prompt_config_router, webhook_router
 
 from routes.test_froms import router as test_forms_router
 from dotenv import load_dotenv
@@ -61,6 +61,7 @@ app.include_router(retell_call_router)
 app.include_router(retell_check_in_router)
 app.include_router(forms_router)
 app.include_router(prompt_config_router)
+app.include_router(webhook_router)
 
 # Initialize Twilio client
 twilio_client = Client(
