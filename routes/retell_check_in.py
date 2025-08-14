@@ -13,7 +13,6 @@ import logging
 # Replace old database imports with new Supabase service
 from services.supabase import supabase_service
 from services.notification_service import notify_check_in_update
-import asyncio
 
 # Load environment variables
 load_dotenv()
