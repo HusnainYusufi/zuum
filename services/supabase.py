@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+# Prefer service role key on backend; fallback to anon key
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     logger.warning("Supabase credentials not found in environment variables")
@@ -395,6 +396,61 @@ class SupabaseService:
             logger.error(f"Error fetching RetellCall {call_id}: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    # Shipment ingestion and queries
+    async def upsert_shipment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Minimal ingest: store `tenant_id` and full JSON payload in `shipments_raw`.
+
+        Idempotency uses `longId` when provided. If absent, a new row is inserted.
+        """
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+
+            long_id: Optional[str] = payload.get("longId") or payload.get("long_id")
+
+            tenant_id = (
+                payload.get("customerTenantId")
+                or ((payload.get("owningCompany") or {}).get("tenantId"))
+                or payload.get("parentCompanyId")
+            )
+
+            record = {
+                "long_id": long_id,
+                "tenant_id": str(tenant_id) if tenant_id is not None else None,
+                "payload": payload,
+            }
+
+            if long_id:
+                existing = self.client.table("shipments").select("long_id").eq("long_id", long_id).execute()
+                if existing.data:
+                    self.client.table("shipments").update(record).eq("long_id", long_id).execute()
+                else:
+                    self.client.table("shipments").insert(record).execute()
+            else:
+                self.client.table("shipments").insert(record).execute()
+
+            return {"success": True, "long_id": long_id}
+        except Exception as e:
+            logger.error(f"Error upserting minimal shipment: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_shipment_by_long_id(self, long_id: str) -> Dict[str, Any]:
+        """Fetch a raw shipment payload by long_id from `shipments`."""
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+
+            shipment_res = self.client.table("shipments").select("*").eq("long_id", long_id).execute()
+            if not shipment_res.data:
+                return {"success": False, "error": "Shipment not found"}
+
+            return {"success": True, "data": shipment_res.data[0]}
+
+        except Exception as e:
+            logger.error(f"Error fetching raw shipment {long_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+
     # Notification operations
     async def create_notification(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new notification"""
@@ -622,3 +678,5 @@ get_notifications_paginated = supabase_service.get_notifications_paginated
 mark_notification_read = supabase_service.mark_notification_read
 create_feedback = supabase_service.create_feedback
 get_retell_call_by_id = supabase_service.get_retell_call_by_id
+upsert_shipment = supabase_service.upsert_shipment
+get_shipment_by_long_id = supabase_service.get_shipment_by_long_id
