@@ -1,28 +1,13 @@
 from fastapi import APIRouter, HTTPException, Body, File, UploadFile, Form, Query, status
 from pydantic import BaseModel
 from loguru import logger
-from services.langrapghs.transit_langrapgh_service import transit_langgraph_service
-from db_models import Journey, CheckIn, RetellCall, Stop, get_db
 import asyncio
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 import os
 import json
 from services.notification_service import notify_stop_update, notify_check_in_update, notify_journey_state_update, send_notification
 from services.supabase import SupabaseService, supabase_service
 import traceback
-
-class ChangeStateRequest(BaseModel):
-    state: int
-
-class DelayReasonRequest(BaseModel):
-    stop_id: int
-    reason: str
-
-class ReportedLocationRequest(BaseModel):
-    stop_id: int
-    reported_location: str
 
 router = APIRouter(
     prefix="/retell",
@@ -32,8 +17,7 @@ router = APIRouter(
 
 INBOUND_CALL_AGENT_ID = os.getenv("INBOUND_CALL_AGENT_ID")
 
-# Get a database session from the generator
-db = next(get_db())
+# Local DB removed; all persistence via Supabase
 
 # In-memory storage for call resumption context
 call_resumption_storage = {}
@@ -163,11 +147,11 @@ def cleanup_old_resumption_contexts():
         logger.error(f"Error during call resumption context cleanup: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
 
-def send_checkin_notification_legacy(check_in_record: CheckIn, stop_id: int, db_session: Session = None):
+def send_checkin_notification_legacy(check_in_record, stop_id: int, db_session = None):
     """Legacy function - replaced by send_supabase_checkin_notification"""
     send_supabase_checkin_notification(check_in_record)
 
-async def send_supabase_checkin_notification_async(check_in_record: CheckIn):
+async def send_supabase_checkin_notification_async(check_in_record):
     """Send notification about new or updated check-in using Supabase-compatible format (async version)"""
     try:
         # Get the Supabase service instance
@@ -190,36 +174,13 @@ async def send_supabase_checkin_notification_async(check_in_record: CheckIn):
         except Exception as e:
             logger.warning(f"Could not find check-in in Supabase database: {e}")
         
-        # If we can't find it in Supabase, use the SQLAlchemy data but log a warning
-        logger.warning(f"Check-in {check_in_record.id} not found in Supabase database, using legacy data")
-        
-        # Prepare notification data in Supabase-compatible format using SQLAlchemy data
-        check_in_data = {
-            'id': check_in_record.id,
-            'stop_id': getattr(check_in_record, 'stop_id', None),
-            'load_id': getattr(check_in_record, 'load_id', None),
-            'query': getattr(check_in_record, 'query', None),
-            'AI_Response_Summary': getattr(check_in_record, 'AI_Response_Summary', None),
-            'AI_Timestamp': getattr(check_in_record, 'AI_Timestamp', None),
-            'Issue_Flagged': getattr(check_in_record, 'Issue_Flagged', False),
-            'Exception_Type': getattr(check_in_record, 'Exception_Type', None),
-            'Call_confidence_score': getattr(check_in_record, 'Call_confidence_score', None),
-            'call_trasfered': getattr(check_in_record, 'call_trasfered', False),
-            'is_active': getattr(check_in_record, 'is_active', False),
-            'Tags': getattr(check_in_record, 'Tags', None),
-            'stop_name': None,
-            'stop_location': None,
-            'stop_eta': None
-        }
-        
-        # Send notification using async method directly
-        await notify_check_in_update(check_in_data)
-        logger.info(f"Sent check-in notification for legacy check-in {check_in_record.id}")
+        # If we can't find it in Supabase, skip legacy fallback since local DB has been removed
+        logger.warning("Legacy SQLAlchemy fallback removed; skipping notification for non-Supabase check-in")
     except Exception as e:
         logger.warning(f"Could not send notification: {e}")
         # Don't fail the request if notification fails
 
-def send_supabase_checkin_notification(check_in_record: CheckIn):
+def send_supabase_checkin_notification(check_in_record):
     """Send notification about new or updated check-in using Supabase-compatible format (sync wrapper)"""
     try:
         # For sync contexts, use asyncio.run
@@ -227,314 +188,6 @@ def send_supabase_checkin_notification(check_in_record: CheckIn):
     except Exception as e:
         logger.warning(f"Could not send notification: {e}")
         # Don't fail the request if notification fails
-
-@router.post("/change_transit_state")
-def change_transit_state(request: dict = Body(...)):
-    """Change the transit state for the journey."""
-    try:
-        # Extract state from request - handle different formats
-        state = None
-        
-        if isinstance(request, dict):
-            # Handle direct state in request
-            if 'state' in request:
-                state = request['state']
-            # Handle args format
-            elif 'args' in request and isinstance(request['args'], dict) and 'state' in request['args']:
-                state = request['args']['state']
-            # Handle name/args format
-            elif 'name' in request and request['name'] == 'change_transit_state' and 'args' in request and 'state' in request['args']:
-                state = request['args']['state']
-        
-        if state is None:
-            logger.error(f"Invalid request format: {request}")
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid request format. 'state' field is required.")
-        
-        # Update the journey state
-        journey = db.query(Journey).filter(Journey.id == 1).update({'current_state': state})
-        
-        if not journey:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Journey not found")
-        
-        db.commit()
-        
-        # Send notification about journey state update
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(notify_journey_state_update(state))
-            loop.close()
-        except Exception as e:
-            logger.warning(f"Could not send notification: {e}")
-        
-        return {'message': True}
-    
-    except HTTPException:
-        # Re-raise HTTPExceptions so they are handled correctly by FastAPI
-        raise
-    
-    except SQLAlchemyError as e:
-        db.rollback()  # rollback on DB error
-        logger.error(f"Database error in change_transit_state: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
-    
-    except Exception as e:
-        # Generic catch-all for unexpected errors
-        logger.error(f"Unexpected error in change_transit_state: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
-
-@router.post("/add_delay_reason")
-def add_delay_reason(request: dict = Body(...)):
-    """Update the delay reason for a specific stop."""
-    try:
-        # Log the incoming request
-        print(f"Received in add_delay_reason: {request}")
-        
-        # Extract values from request - handle both direct format and Retell format
-        stop_id = None
-        reason = None
-        
-        if isinstance(request, dict):
-            # Handle new Retell format with 'call' and 'args' at root level
-            if 'name' in request and request['name'] == 'add_delay_reason' and 'args' in request and 'delay_reason' in request['args']:
-                reason = request['args']['delay_reason']
-                
-                # Try to get stop_id from call.retell_llm_dynamic_variables if it exists
-                if 'call' in request and 'retell_llm_dynamic_variables' in request['call']:
-                    if 'stop_id' in request['call']['retell_llm_dynamic_variables']:
-                        stop_id = int(request['call']['retell_llm_dynamic_variables']['stop_id'])
-                    elif 'id' in request['call']['retell_llm_dynamic_variables']:
-                        stop_id = int(request['call']['retell_llm_dynamic_variables']['id'])
-            
-            # Standard request format: {"stop_id": 1, "reason": "Traffic"}
-            elif 'stop_id' in request and 'reason' in request:
-                stop_id = request['stop_id']
-                reason = request['reason']
-                
-            # Retell format: {"args": {"stop_id": 1, "reason": "Traffic"}, ...}
-            elif 'args' in request and isinstance(request['args'], dict):
-                args = request['args']
-                if 'stop_id' in args and 'reason' in args:
-                    stop_id = args['stop_id']
-                    reason = args['reason']
-                elif 'reason' in args:
-                    # Handle simplified Retell format with just reason
-                    reason = args['reason']
-                elif 'delay_reason' in args:
-                    # Handle simplified Retell format with delay_reason
-                    reason = args['delay_reason']
-                    
-            # Alternative Retell format: {"name": "add_delay_reason", "args": {...}}
-            elif 'name' in request and request['name'] == 'add_delay_reason' and 'args' in request:
-                args = request['args']
-                if 'stop_id' in args and 'reason' in args:
-                    stop_id = args['stop_id']
-                    reason = args['reason']
-                elif 'reason' in args:
-                    # Handle simplified Retell format with just reason
-                    reason = args['reason']
-                elif 'delay_reason' in args:
-                    # Handle simplified Retell format with delay_reason
-                    reason = args['delay_reason']
-        
-        if reason is None:
-            logger.error(f"Invalid request format: {request}")
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
-                               detail="Invalid request format. 'reason' or 'delay_reason' field is required.")
-        
-        if stop_id is None:
-            # Default to first stop if stop_id not provided
-            stop_id = 1
-        
-        # Update the stop with delay information
-        stop = db.query(Stop).filter(Stop.id == stop_id).update({
-            'delay_reason': reason,
-            'is_delayed': True
-        })
-
-        if not stop:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stop not found")
-
-        db.commit()
-        
-        # Get the updated stop data for notification
-        updated_stop = db.query(Stop).filter(Stop.id == stop_id).first()
-        if updated_stop:
-            stop_data = {
-                'id': updated_stop.id,
-                'name': updated_stop.name,
-                'location': updated_stop.location,
-                'eta': updated_stop.eta,
-                'is_delayed': updated_stop.is_delayed,
-                'delay_reason': updated_stop.delay_reason,
-                'expected_location': updated_stop.expected_location,
-                'reported_location': updated_stop.reported_location,
-                'nearest_highway': updated_stop.nearest_highway,
-                'is_origin': updated_stop.is_origin,
-                'is_destination': updated_stop.is_destination
-            }
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(notify_stop_update(stop_data))
-                loop.close()
-            except Exception as e:
-                logger.warning(f"Could not send notification: {e}")
-        
-        return {'message': True}
-    
-    except HTTPException:
-        # Re-raise HTTPExceptions
-        raise
-    
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"Database error in add_delay_reason: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
-    
-    except Exception as e:
-        logger.error(f"Unexpected error in add_delay_reason: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
-
-@router.post("/update_reported_location_eta")
-def update_reported_location_eta(request: dict = Body(...)):
-    """Update the reported location and ETA for a specific stop."""
-    try:
-        # Extract values from request - handle all possible formats
-        stop_id = None
-        reported_location = None
-        eta = None
-        
-        if isinstance(request, dict):
-            # Try to get stop_id from call.retell_llm_dynamic_variables if it exists
-            if 'call' in request and 'retell_llm_dynamic_variables' in request['call'] and 'id' in request['call']['retell_llm_dynamic_variables']:
-                stop_id = int(request['call']['retell_llm_dynamic_variables']['id'])
-            
-            # Handle direct args at root level (most common format in error logs)
-            if 'args' in request and isinstance(request['args'], dict):
-                args = request['args']
-                if 'reported_location' in args and 'reported_eta' in args:
-                    reported_location = args['reported_location']
-                    eta = args['reported_eta']
-            
-            # Handle name/args format (seen in error logs)
-            elif 'name' in request and 'args' in request and isinstance(request['args'], dict):
-                args = request['args']
-                if 'reported_location' in args and 'reported_eta' in args:
-                    reported_location = args['reported_location']
-                    eta = args['reported_eta']
-            
-            # Handle additionalProp1 format (original format)
-            elif 'additionalProp1' in request and isinstance(request['additionalProp1'], dict):
-                if 'args' in request['additionalProp1'] and 'reported_location' in request['additionalProp1']['args'] and 'reported_eta' in request['additionalProp1']['args']:
-                    reported_location = request['additionalProp1']['args']['reported_location']
-                    eta = request['additionalProp1']['args']['reported_eta']
-            
-            # Standard request format
-            elif 'stop_id' in request and 'reported_location' in request and 'reported_eta' in request:
-                stop_id = request['stop_id']
-                reported_location = request['reported_location']
-                eta = request['reported_eta']
-        
-        if reported_location is None or eta is None:
-            logger.error(f"Invalid request format: {request}")
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
-                               detail="Invalid request format. Both 'reported_location' and 'reported_eta' fields are required.")
-        
-        if stop_id is None:
-            # Default to first stop if stop_id not provided
-            stop_id = 2
-        # Remove 'Z' from eta if present
-        if eta and eta.endswith('Z'):
-            eta = eta[:-1]
-        # Get the previous ETA from the database
-        previous_stop = db.query(Stop).filter(Stop.id == stop_id).first()
-        previous_eta = previous_stop.eta if previous_stop else None
-
-        if previous_eta:
-            # Compare new ETA with previous ETA to determine if delayed
-            try:
-                # Try parsing with microseconds
-                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S.%f')
-            except ValueError:
-                # If that fails, try without microseconds
-                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S')
-                
-            try:
-                # Try parsing with microseconds
-                prev_eta = datetime.strptime(previous_eta, '%Y-%m-%dT%H:%M:%S.%f')
-            except ValueError:
-                # If that fails, try without microseconds
-                prev_eta = datetime.strptime(previous_eta, '%Y-%m-%dT%H:%M:%S')
-            
-       
-            delay = new_eta > prev_eta
-        else:
-            # If no previous ETA, default to comparing with current time
-            try:
-                # Try parsing with microseconds
-                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S.%f')
-            except ValueError:
-                # If that fails, try without microseconds
-                new_eta = datetime.strptime(eta, '%Y-%m-%dT%H:%M:%S')
-                
-            delay = new_eta > datetime.now()
-        # Update the stop with the reported location and ETA
-        logger.info(f"Delay: {delay}")
-        logger.info(f"Stop ID: {stop_id}")
-        logger.info(f"Reported Location: {reported_location}")
-        logger.info(f"ETA: {new_eta}")
-        logger.info(f"Previous ETA: {previous_eta}")
-        stop = db.query(Stop).filter(Stop.id == stop_id).update({
-            'reported_location': reported_location,
-            'eta': eta,
-            'is_delayed': delay
-        })
-
-        if not stop:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stop not found")
-
-        db.commit()
-        
-        # Get the updated stop data for notification
-        updated_stop = db.query(Stop).filter(Stop.id == stop_id).first()
-        if updated_stop:
-            stop_data = {
-                'id': updated_stop.id,
-                'name': updated_stop.name,
-                'location': updated_stop.location,
-                'eta': updated_stop.eta,
-                'is_delayed': updated_stop.is_delayed,
-                'delay_reason': updated_stop.delay_reason,
-                'expected_location': updated_stop.expected_location,
-                'reported_location': updated_stop.reported_location,
-                'nearest_highway': updated_stop.nearest_highway,
-                'is_origin': updated_stop.is_origin,
-                'is_destination': updated_stop.is_destination
-            }
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(notify_stop_update(stop_data))
-                loop.close()
-            except Exception as e:
-                logger.warning(f"Could not send notification: {e}")
-        
-        return {'delay': delay}
-    
-    except HTTPException:
-        # Re-raise HTTPExceptions
-        raise
-    
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"Database error in update_reported_location_eta: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {str(e)}")
-    
-    except Exception as e:
-        logger.error(f"Unexpected error in update_reported_location_eta: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
-
 
 @router.post("/webhook/call-ended")
 async def retell_recording_webhook(request: dict = Body(...)):
@@ -1037,85 +690,43 @@ async def retell_recording_webhook(request: dict = Body(...)):
         logger.error(f"Error processing Retell webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/test/websocket-notification")
-async def test_websocket_notification():
-    """Test endpoint to verify WebSocket notifications are working"""
-    try:
-        # Create a test check-in notification
-        test_check_in_data = {
-            'id': 999,
-            'stop_id': 1,
-            'load_id': 'TEST-123',
-            'query': None,
-            'AI_Response_Summary': 'Test notification - WebSocket is working correctly',
-            'AI_Timestamp': datetime.now().isoformat(),
-            'Issue_Flagged': False,
-            'Exception_Type': None,
-            'Call_confidence_score': 0.95,
-            'call_trasfered': False,
-            'is_active': False,
-            'Tags': ['test', 'websocket'],
-            'stop_name': None,
-            'stop_location': None,
-            'stop_eta': None,
-            'call_status': 'analyzed'
-        }
-        
-        # Send WebSocket notification
-        await notify_check_in_update(test_check_in_data)
-        logger.info("Sent test WebSocket notification")
-        
-        return {
-            "status": "success",
-            "message": "Test WebSocket notification sent successfully",
-            "test_data": test_check_in_data
-        }
-        
-    except Exception as e:
-        logger.error(f"Error sending test notification: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/check-in/{check_in_id}/status")
-def get_check_in_status(check_in_id: int):
-    """Get the status of a check-in call."""
+async def get_check_in_status(check_in_id: int):
+    """Get the status of a check-in call from Supabase."""
     try:
-        # Get the check-in
-        check_in = db.query(CheckIn).filter(CheckIn.id == check_in_id).first()
-        if not check_in:
+        checkin_result = await supabase_service.get_check_in(check_in_id)
+        if not checkin_result["success"]:
             raise HTTPException(status_code=404, detail="Check-in not found")
-        
-        # Get the associated retell call
-        retell_call = db.query(RetellCall).filter(RetellCall.check_in_id == check_in_id).first()
-        
-        if not retell_call:
-            return {
-                "status": "no_call",
-                "message": "No call associated with this check-in"
-            }
-        
-        # Check if call has data (transcript, recording, metadata)
+
+        check_in = checkin_result["data"]
+        call_id = check_in.get("call_id")
+        retell_call = None
+        if call_id:
+            call_result = await supabase_service.get_retell_call_by_id(call_id)
+            if call_result["success"]:
+                retell_call = call_result["data"]
+
         has_data = bool(
-            retell_call.call_transcript or 
-            retell_call.recording_url or 
-            retell_call.check_in_metadata or
-            check_in.AI_Response_Summary
+            (retell_call and (retell_call.get("call_transcript") or retell_call.get("recording_url") or retell_call.get("output_data"))) or
+            check_in.get("AI_Response_Summary")
         )
-        
-        if retell_call.call_status == "completed" or has_data:
+
+        call_status = check_in.get("call_status")
+        if call_status == "completed" or has_data:
             return {
                 "status": "completed",
                 "message": "Call completed and data available",
-                "has_transcript": bool(retell_call.call_transcript),
-                "has_recording": bool(retell_call.recording_url),
-                "has_summary": bool(check_in.AI_Response_Summary),
-                "has_metadata": bool(retell_call.check_in_metadata)
+                "has_transcript": bool(retell_call and retell_call.get("call_transcript")),
+                "has_recording": bool(retell_call and retell_call.get("recording_url")),
+                "has_summary": bool(check_in.get("AI_Response_Summary")),
+                "has_metadata": bool(retell_call and retell_call.get("output_data")),
             }
         else:
             return {
                 "status": "in_progress",
-                "message": "Call in progress, waiting for data"
+                "message": "Call in progress, waiting for data",
             }
-            
     except HTTPException:
         raise
     except Exception as e:
