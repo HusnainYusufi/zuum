@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse
 import re
 from urllib.parse import urlparse
 
-from routes import ui_router, retell_router, notifications_router, checkin_router, retell_check_in_router, forms_router, auth_router,prompt_config_router, webhook_router
+from routes import ui_router, retell_router, notifications_router, checkin_router, retell_check_in_router, forms_router, auth_router,prompt_config_router, webhook_router, shipments_router
 
 from dotenv import load_dotenv
 from twilio.rest import Client
@@ -51,6 +51,7 @@ app.include_router(retell_check_in_router)
 app.include_router(forms_router)
 app.include_router(prompt_config_router)
 app.include_router(webhook_router)
+app.include_router(shipments_router)
 
 # Initialize Twilio client
 twilio_client = Client(
