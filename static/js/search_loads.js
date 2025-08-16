@@ -21,7 +21,12 @@ function serializeForm(form) {
   const data = new FormData(form);
   const params = {};
   for (const [k, v] of data.entries()) {
-    if (v !== '') params[k] = v;
+    if (typeof v === 'string') {
+      const trimmed = v.trim();
+      if (trimmed !== '') params[k] = trimmed;
+    } else if (v !== '') {
+      params[k] = v;
+    }
   }
   return params;
 }

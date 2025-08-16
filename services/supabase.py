@@ -507,6 +507,11 @@ class SupabaseService:
                 "fleet_name", "customer_name", "carrier_id", "job_id"
             ] if params.get(k)}
 
+            # Trim name filters to avoid leading/trailing whitespace mismatches
+            for name_key in ("fleet_name", "customer_name"):
+                if filters.get(name_key) and isinstance(filters[name_key], str):
+                    filters[name_key] = filters[name_key].strip()
+
             # Allow empty filters to list all shipments
 
             rpc_args = {
