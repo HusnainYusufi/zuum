@@ -178,11 +178,12 @@ function collectParams() {
   const value = document.getElementById('quick-value').value.trim();
   const formParams = serializeForm(document.getElementById('search-form'));
   if (value) formParams[field] = value;
-  // Normalize fleet phone to start with '+' if provided
+  // Normalize fleet phone for querying: use digits-only to be robust
   if (typeof formParams.fleet_phone === 'string') {
     const trimmed = formParams.fleet_phone.trim();
     if (trimmed) {
-      formParams.fleet_phone = trimmed.startsWith('+') ? trimmed : `+${trimmed}`;
+      const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+      formParams.fleet_phone = digitsOnly;
     }
   }
   return formParams;
