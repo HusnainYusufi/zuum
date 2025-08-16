@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
 from .auth import get_current_user
+from services.supabase import supabase_service
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
 
@@ -24,7 +25,6 @@ async def search_shipments(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        from services.supabase import supabase_service
 
         params: Dict[str, Any] = {
             "tenant_id": tenant_id,
