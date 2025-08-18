@@ -456,13 +456,10 @@ class SupabaseService:
                 "payload": payload,
             }
 
-            # Prefer job_id as the primary identifier for upsert; fallback to long_id; else insert
-            if job_id:
-                self.client.table("shipments").upsert(record, on_conflict="job_id").execute()
-            elif long_id:
-                self.client.table("shipments").upsert(record, on_conflict="long_id").execute()
-            else:
-                self.client.table("shipments").insert(record).execute()
+            # Require job_id as the sole upsert key
+            if not job_id:
+                return {"success": False, "error": "job._id is required for shipment upsert"}
+            self.client.table("shipments").upsert(record, on_conflict="job_id").execute()
 
             return {"success": True, "job_id": job_id, "long_id": long_id, "data_id": data_id}
         except Exception as e:

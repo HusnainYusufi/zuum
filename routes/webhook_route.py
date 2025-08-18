@@ -49,10 +49,18 @@ async def ingest_shipment(
     """
     try:
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
+        # Enforce presence of job._id for this endpoint
+        job_obj = safe_payload.get("job") if isinstance(safe_payload, dict) else None
+        job_id = job_obj.get("_id") if isinstance(job_obj, dict) else None
+        if not job_id:
+            raise HTTPException(status_code=422, detail="job._id is required")
 
         result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
+            # Map missing job error to 422; otherwise 500
+            if result.get("error") == "job._id is required for shipment upsert":
+                raise HTTPException(status_code=422, detail="job._id is required")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
         return JSONResponse({"success": True, "shipment_long_id": result.get("long_id")})
