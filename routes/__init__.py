@@ -14,4 +14,4 @@ import importlib
 checkin_module = importlib.import_module('.check-in', package='routes')
 checkin_router = checkin_module.router
 
-__all__ = ['conversation_router', 'ui_router', 'retell_router', 'notifications_router', 'checkin_router', 'retell_call_router', 'prompt_config_router', 'retell_check_in_router', 'forms_router', 'auth_router', 'webhook_router', 'shipments_router']
+__all__ = ['ui_router', 'retell_router', 'notifications_router', 'checkin_router', 'prompt_config_router', 'retell_check_in_router', 'forms_router', 'auth_router', 'webhook_router', 'shipments_router']
