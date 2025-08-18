@@ -39,4 +39,11 @@ async def all_checkins_page(current_user: dict = Depends(get_current_user)):
 	return templates.TemplateResponse("all_checkins.html", {"request": {}})
 
 
+@router.get("/search-loads", response_class=HTMLResponse)
+async def search_loads_page(request: Request, current_user: dict = Depends(get_current_user)):
+		"""Serve the search loads page"""
+		if not current_user:
+			return RedirectResponse(url="/auth/login", status_code=302)
+		return templates.TemplateResponse("search_loads.html", {"request": request})
+
 

@@ -4,6 +4,7 @@ Handles all database operations using Supabase instead of SQLAlchemy
 """
 
 import os
+import uuid
 import json
 from typing import List, Dict, Optional, Any, Union
 from loguru import logger
@@ -398,9 +399,11 @@ class SupabaseService:
 
     # Shipment ingestion and queries
     async def upsert_shipment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Minimal ingest: store `tenant_id` and full JSON payload in `shipments_raw`.
+        """Ingest shipment payload.
 
-        Idempotency uses `longId` when provided. If absent, a new row is inserted.
+        - Promotes primary identifiers into first-class columns on `public.shipments`
+        - Stores full JSON in `public.shipment_data` and references it by `data_id`
+        - Keeps writing `payload` into `public.shipments` for backward compatibility
         """
         try:
             if not self.client:
@@ -414,13 +417,50 @@ class SupabaseService:
                 or payload.get("parentCompanyId")
             )
 
+            shipment_id = ((payload.get("job") or {}).get("shipment"))
+            load_id = payload.get("loadId")
+            fleet_phone = (((payload.get("job") or {}).get("fleetManager") or {}).get("phoneNumber"))
+            fleet_name = (((payload.get("job") or {}).get("fleetManager") or {}).get("fullName"))
+            customer_name = ((payload.get("customer") or {}).get("name"))
+            carrier_id = ((payload.get("job") or {}).get("carrierId"))
+            job_id = ((payload.get("job") or {}).get("_id"))
+
+            # 1) Write full payload to shipment_data and get data_id
+            generated_data_id = str(uuid.uuid4())
+            data_insert = self.client.table("shipment_data").insert({
+                "data_id": generated_data_id,
+                "payload": payload,
+            }).execute()
+
+            if not data_insert or not data_insert.data:
+                # If RLS blocks insert or table not present, fall back to None
+                data_id = generated_data_id
+            else:
+                data_id = data_insert.data[0].get("data_id") or generated_data_id
+
+            # 2) Upsert identifiers row into shipments (also write payload for compatibility)
             record = {
                 "long_id": long_id,
                 "tenant_id": str(tenant_id) if tenant_id is not None else None,
+                "shipment_id": shipment_id,
+                "load_id": str(load_id) if load_id is not None else None,
+                "fleet_phone": fleet_phone,
+                "fleet_name": fleet_name,
+                "customer_name": customer_name,
+                "carrier_id": carrier_id,
+                "job_id": job_id,
+                "data_id": data_id,
                 "payload": payload,
             }
 
-            if long_id:
+            # Prefer job_id as the primary identifier for upsert; fallback to long_id; else insert
+            if job_id:
+                existing = self.client.table("shipments").select("job_id").eq("job_id", job_id).execute()
+                if existing.data:
+                    self.client.table("shipments").update(record).eq("job_id", job_id).execute()
+                else:
+                    self.client.table("shipments").insert(record).execute()
+            elif long_id:
                 existing = self.client.table("shipments").select("long_id").eq("long_id", long_id).execute()
                 if existing.data:
                     self.client.table("shipments").update(record).eq("long_id", long_id).execute()
@@ -429,9 +469,9 @@ class SupabaseService:
             else:
                 self.client.table("shipments").insert(record).execute()
 
-            return {"success": True, "long_id": long_id}
+            return {"success": True, "job_id": job_id, "long_id": long_id, "data_id": data_id}
         except Exception as e:
-            logger.error(f"Error upserting minimal shipment: {e}")
+            logger.error(f"Error upserting shipment: {e}")
             return {"success": False, "error": str(e)}
 
     async def get_shipment_by_long_id(self, long_id: str) -> Dict[str, Any]:
@@ -448,6 +488,71 @@ class SupabaseService:
 
         except Exception as e:
             logger.error(f"Error fetching raw shipment {long_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def search_shipments(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Search shipments by first-class identifier columns via RPC.
+
+        If no filters are provided, returns all shipments (paginated).
+        """
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+
+            limit = min(int(params.get("limit", 10)), 50)
+            offset = int(params.get("offset", 0))
+
+            filters = {k: params.get(k) for k in [
+                "tenant_id", "shipment_id", "load_id", "fleet_phone",
+                "fleet_name", "customer_name", "carrier_id", "job_id"
+            ] if params.get(k)}
+
+            # Trim name filters to avoid leading/trailing whitespace mismatches
+            for name_key in ("fleet_name", "customer_name"):
+                if filters.get(name_key) and isinstance(filters[name_key], str):
+                    filters[name_key] = filters[name_key].strip()
+
+            # Allow empty filters to list all shipments
+
+            rpc_args = {
+                "p_tenant_id": filters.get("tenant_id"),
+                "p_shipment_id": filters.get("shipment_id"),
+                "p_load_id": filters.get("load_id"),
+                "p_fleet_phone": filters.get("fleet_phone"),
+                "p_fleet_name": filters.get("fleet_name"),
+                "p_customer_name": filters.get("customer_name"),
+                "p_carrier_id": filters.get("carrier_id"),
+                "p_job_id": filters.get("job_id"),
+                "p_limit": limit,
+                "p_offset": offset,
+            }
+
+            resp = self.client.rpc("search_shipments_simple", rpc_args).execute()
+            rows = resp.data or []
+            total_count = rows[0]["total_count"] if rows else 0
+            for r in rows:
+                r.pop("total_count", None)
+
+            return {
+                "success": True,
+                "data": rows,
+                "pagination": {"limit": limit, "offset": offset, "count": total_count},
+            }
+        except Exception as e:
+            logger.error(f"Error searching shipments: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def get_shipment_data(self, data_id: str) -> Dict[str, Any]:
+        """Fetch full payload for a given data_id from `shipment_data`."""
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+            resp = self.client.table("shipment_data").select("data_id,payload").eq("data_id", data_id).single().execute()
+            if not resp.data:
+                return {"success": False, "error": "Not found"}
+            return {"success": True, "data": resp.data}
+        except Exception as e:
+            logger.error(f"Error fetching shipment data {data_id}: {e}")
             return {"success": False, "error": str(e)}
 
 
@@ -680,3 +785,5 @@ create_feedback = supabase_service.create_feedback
 get_retell_call_by_id = supabase_service.get_retell_call_by_id
 upsert_shipment = supabase_service.upsert_shipment
 get_shipment_by_long_id = supabase_service.get_shipment_by_long_id
+search_shipments = supabase_service.search_shipments
+get_shipment_data = supabase_service.get_shipment_data
