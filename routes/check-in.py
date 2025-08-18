@@ -6,7 +6,6 @@ from loguru import logger
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
-import asyncio
 
 # Replace old imports with new Supabase service
 from services.supabase import supabase_service
