@@ -1,5 +1,4 @@
 from typing import Any, Dict
-import os
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -27,6 +26,8 @@ def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Basic validation/coercion for fields we rely on."""
     if not isinstance(payload, dict):
         raise HTTPException(status_code=422, detail="Invalid payload format")
+    # Work on a shallow copy to avoid mutating the original top-level dict
+    payload = payload.copy()
     job = payload.get("job")
     if job is not None and not isinstance(job, dict):
         raise HTTPException(status_code=422, detail="Invalid job object")
@@ -34,8 +35,8 @@ def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     if payload.get("longId") is not None and not isinstance(payload.get("longId"), str):
         payload["longId"] = str(payload.get("longId"))
     if isinstance(job, dict) and job.get("_id") is not None and not isinstance(job.get("_id"), str):
-        job["_id"] = str(job.get("_id"))
-        payload["job"] = job
+        # Replace nested job with a cloned mapping to avoid mutating the original
+        payload["job"] = {**job, "_id": str(job.get("_id"))}
     return payload
 
 @router.post("/shipment")
@@ -77,8 +78,10 @@ async def ingest_shipment_with_id(
     try:
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
 
-        # Normalize job object
+        # Normalize job object (clone before mutation to avoid leaking changes)
         job_obj = (safe_payload.get("job") or {})
+        if isinstance(job_obj, dict):
+            job_obj = dict(job_obj)
 
         # Ensure job._id matches the path id
         incoming_job_id = job_obj.get("_id")
@@ -91,6 +94,8 @@ async def ingest_shipment_with_id(
         jobs_arr = safe_payload.get("jobs")
         if not isinstance(jobs_arr, list):
             jobs_arr = []
+        else:
+            jobs_arr = list(jobs_arr)
 
         # Check if job already present in jobs list
         has_job = any(isinstance(j, dict) and j.get("_id") == id for j in jobs_arr)
