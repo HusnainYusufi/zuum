@@ -433,7 +433,10 @@ class SupabaseService:
             }).execute()
 
             if not data_insert or not data_insert.data:
-                # If RLS blocks insert or table not present, fall back to None
+                # If RLS blocks insert or table not present, fall back to generated ID and log
+                logger.warning(
+                    "shipment_data insert returned no data; using generated data_id. Check RLS and table existence."
+                )
                 data_id = generated_data_id
             else:
                 data_id = data_insert.data[0].get("data_id") or generated_data_id
@@ -453,21 +456,10 @@ class SupabaseService:
                 "payload": payload,
             }
 
-            # Prefer job_id as the primary identifier for upsert; fallback to long_id; else insert
-            if job_id:
-                existing = self.client.table("shipments").select("job_id").eq("job_id", job_id).execute()
-                if existing.data:
-                    self.client.table("shipments").update(record).eq("job_id", job_id).execute()
-                else:
-                    self.client.table("shipments").insert(record).execute()
-            elif long_id:
-                existing = self.client.table("shipments").select("long_id").eq("long_id", long_id).execute()
-                if existing.data:
-                    self.client.table("shipments").update(record).eq("long_id", long_id).execute()
-                else:
-                    self.client.table("shipments").insert(record).execute()
-            else:
-                self.client.table("shipments").insert(record).execute()
+            # Require job_id as the sole upsert key
+            if not job_id:
+                return {"success": False, "error": "job._id is required for shipment upsert"}
+            self.client.table("shipments").upsert(record, on_conflict="job_id").execute()
 
             return {"success": True, "job_id": job_id, "long_id": long_id, "data_id": data_id}
         except Exception as e:
@@ -529,7 +521,7 @@ class SupabaseService:
 
             resp = self.client.rpc("search_shipments_simple", rpc_args).execute()
             rows = resp.data or []
-            total_count = rows[0]["total_count"] if rows else 0
+            total_count = rows[0].get("total_count", 0) if rows else 0
             for r in rows:
                 r.pop("total_count", None)
 

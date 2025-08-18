@@ -55,8 +55,6 @@ async def get_shipment_data(data_id: str, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        from services.supabase import supabase_service
-
         result = await supabase_service.get_shipment_data(data_id)
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=result.get("error", "Not found"))

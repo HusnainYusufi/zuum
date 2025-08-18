@@ -2,6 +2,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import JSONResponse
 from loguru import logger
+from services.supabase import supabase_service
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -21,21 +22,45 @@ payload_schema = Body(
     },
 )
 
+def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Basic validation/coercion for fields we rely on."""
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="Invalid payload format")
+    # Work on a shallow copy to avoid mutating the original top-level dict
+    payload = payload.copy()
+    job = payload.get("job")
+    if job is not None and not isinstance(job, dict):
+        raise HTTPException(status_code=422, detail="Invalid job object")
+    # Coerce identifiers to strings where applicable
+    if payload.get("longId") is not None and not isinstance(payload.get("longId"), str):
+        payload["longId"] = str(payload.get("longId"))
+    if isinstance(job, dict) and job.get("_id") is not None and not isinstance(job.get("_id"), str):
+        # Replace nested job with a cloned mapping to avoid mutating the original
+        payload["job"] = {**job, "_id": str(job.get("_id"))}
+    return payload
 
 @router.post("/shipment")
 async def ingest_shipment(
-    payload: Dict[str, Any] = payload_schema
+    payload: Dict[str, Any] = payload_schema,
 ):
     """Webhook endpoint to ingest shipment JSON from external system.
 
     Expects a JSON body matching the sample schema in `shipment-es-sample.json`.
     """
     try:
-        from services.supabase import supabase_service
+        safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
+        # Enforce presence of job._id for this endpoint
+        job_obj = safe_payload.get("job") if isinstance(safe_payload, dict) else None
+        job_id = job_obj.get("_id") if isinstance(job_obj, dict) else None
+        if not job_id:
+            raise HTTPException(status_code=422, detail="job._id is required")
 
-        result = await supabase_service.upsert_shipment(payload)
+        result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
+            # Map missing job error to 422; otherwise 500
+            if result.get("error") == "job._id is required for shipment upsert":
+                raise HTTPException(status_code=422, detail="job._id is required")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
         return JSONResponse({"success": True, "shipment_long_id": result.get("long_id")})
@@ -50,7 +75,7 @@ async def ingest_shipment(
 @router.post("/shipment/{id}")
 async def ingest_shipment_with_id(
     id: str,
-    payload: Dict[str, Any] = payload_schema
+    payload: Dict[str, Any] = payload_schema,
 ):
     """Webhook endpoint to ingest shipment JSON with job id in path.
 
@@ -59,22 +84,26 @@ async def ingest_shipment_with_id(
     - Upserts shipment using Supabase
     """
     try:
-        from services.supabase import supabase_service
+        safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
 
-        # Normalize job object
-        job_obj = (payload.get("job") or {})
+        # Normalize job object (clone before mutation to avoid leaking changes)
+        job_obj = (safe_payload.get("job") or {})
+        if isinstance(job_obj, dict):
+            job_obj = dict(job_obj)
 
         # Ensure job._id matches the path id
         incoming_job_id = job_obj.get("_id")
         if incoming_job_id != id:
             logger.warning(f"job._id mismatch or missing; setting payload.job._id to path id {id}")
             job_obj["_id"] = id
-            payload["job"] = job_obj
+            safe_payload["job"] = job_obj
 
         # Ensure jobs array contains the job entry
-        jobs_arr = payload.get("jobs")
+        jobs_arr = safe_payload.get("jobs")
         if not isinstance(jobs_arr, list):
             jobs_arr = []
+        else:
+            jobs_arr = list(jobs_arr)
 
         # Check if job already present in jobs list
         has_job = any(isinstance(j, dict) and j.get("_id") == id for j in jobs_arr)
@@ -85,10 +114,10 @@ async def ingest_shipment_with_id(
             else:
                 jobs_arr.append({"_id": id})
 
-        payload["jobs"] = jobs_arr
+        safe_payload["jobs"] = jobs_arr
 
         # Upsert updated payload
-        result = await supabase_service.upsert_shipment(payload)
+        result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
