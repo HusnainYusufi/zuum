@@ -101,6 +101,11 @@ do $$ begin
 end $$;
 
 -- 10) Update RPC: search_shipments_simple to stop returning data_id
+-- Drop the old function first because return type is changing
+drop function if exists public.search_shipments_simple(
+  text, text, text, text, text, text, text, text, integer, integer
+);
+
 create or replace function public.search_shipments_simple(
   p_tenant_id    text default null,
   p_shipment_id  text default null,
@@ -161,6 +166,17 @@ returns table(
   limit coalesce(p_limit, 10)
   offset coalesce(p_offset, 0);
 $$;
+
+-- Re-grant permissions
+grant all on function public.search_shipments_simple(
+  text, text, text, text, text, text, text, text, integer, integer
+) to anon;
+grant all on function public.search_shipments_simple(
+  text, text, text, text, text, text, text, text, integer, integer
+) to authenticated;
+grant all on function public.search_shipments_simple(
+  text, text, text, text, text, text, text, text, integer, integer
+) to service_role;
 
 commit;
 
