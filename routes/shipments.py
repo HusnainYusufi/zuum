@@ -19,6 +19,7 @@ async def search_shipments(
     carrier_id: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=50),
     offset: int = Query(0, ge=0),
+    sort_dir: Optional[str] = Query("desc"),
     current_user: dict = Depends(get_current_user),
 ):
     if not current_user:
@@ -37,6 +38,7 @@ async def search_shipments(
             "carrier_id": carrier_id,
             "limit": limit,
             "offset": offset,
+            "sort_dir": (sort_dir or "desc").lower(),
         }
 
         result = await supabase_service.search_shipments(params)

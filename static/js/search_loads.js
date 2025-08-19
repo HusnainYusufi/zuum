@@ -45,6 +45,7 @@ function renderRows(rows) {
       <td>${normalizePhoneDisplay(r.fleet_phone)}</td>
       <td>${r.customer_name || ''}</td>
       <td>${r.carrier_id || ''}</td>
+      <td>${formatDateTime(r.updated_at)}</td>
       <td>
         <a class="btn" href="/forms/?active_tab=default" title="Use this load">Use</a>
         ${r.job_id ? `<a class="btn" href="/shipments/data/${encodeURIComponent(r.job_id)}" title="View Data">View</a>` : ''}
@@ -183,6 +184,11 @@ function collectParams() {
   const value = document.getElementById('quick-value').value.trim();
   const formParams = serializeForm(document.getElementById('search-form'));
   if (value) formParams[field] = value;
+  // Sort direction from quick selector
+  const sortSel = document.getElementById('sort-select');
+  if (sortSel && sortSel.value) {
+    formParams.sort_dir = sortSel.value;
+  }
   // Normalize fleet phone for querying: use digits-only to be robust
   if (typeof formParams.fleet_phone === 'string') {
     const trimmed = formParams.fleet_phone.trim();
@@ -196,7 +202,20 @@ function collectParams() {
 
 // Default initial fetch of all loads
 window.addEventListener('DOMContentLoaded', () => {
-  runSearch({ limit: 10, offset: 0 });
+  const sortSel = document.getElementById('sort-select');
+  const sort_dir = sortSel ? sortSel.value : 'desc';
+  runSearch({ limit: 10, offset: 0, sort_dir });
 });
+
+function formatDateTime(value) {
+  if (!value) return '';
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString();
+  } catch (_) {
+    return String(value);
+  }
+}
 
 

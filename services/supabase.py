@@ -440,6 +440,8 @@ class SupabaseService:
                 "customer_name": customer_name,
                 "carrier_id": carrier_id,
                 "job_id": job_id,
+                # Force touch updated_at on upsert so trigger runs consistently
+                "updated_at": datetime.now().isoformat(),
             }
             self.client.table("shipments").upsert(record, on_conflict="job_id").execute()
 
@@ -448,7 +450,7 @@ class SupabaseService:
                 {"job_id": job_id, "payload": payload}, on_conflict="job_id"
             ).execute()
 
-            return {"success": True, "job_id": job_id, "long_id": long_id}
+            return {"success": True, "job_id": job_id, "long_id": long_id, "updated_at": record.get("updated_at")}
         except Exception as e:
             logger.error(f"Error upserting shipment: {e}")
             return {"success": False, "error": str(e)}
@@ -504,6 +506,7 @@ class SupabaseService:
                 "p_job_id": filters.get("job_id"),
                 "p_limit": limit,
                 "p_offset": offset,
+                "p_sort_dir": (params.get("sort_dir") or "desc").lower() if isinstance(params.get("sort_dir"), str) else "desc",
             }
 
             resp = self.client.rpc("search_shipments_simple", rpc_args).execute()
