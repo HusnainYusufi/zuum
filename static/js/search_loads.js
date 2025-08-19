@@ -47,7 +47,7 @@ function renderRows(rows) {
       <td>${r.carrier_id || ''}</td>
       <td>
         <a class="btn" href="/forms/?active_tab=default" title="Use this load">Use</a>
-        ${r.data_id ? `<a class="btn" href="/shipments/data/${r.data_id}" title="View Data">View</a>` : ''}
+        ${r.job_id ? `<a class="btn" href="/shipments/data/${encodeURIComponent(r.job_id)}" title="View Data">View</a>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });

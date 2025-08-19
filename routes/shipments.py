@@ -49,13 +49,13 @@ async def search_shipments(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/data/{data_id}")
-async def get_shipment_data(data_id: str, current_user: dict = Depends(get_current_user)):
+@router.get("/data/{job_id}")
+async def get_shipment_data(job_id: str, current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        result = await supabase_service.get_shipment_data(data_id)
+        result = await supabase_service.get_shipment_data(job_id)
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=result.get("error", "Not found"))
         return JSONResponse(result)

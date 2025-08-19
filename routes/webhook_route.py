@@ -126,7 +126,6 @@ async def ingest_shipment_with_id(
             "success": True,
             "job_id": result.get("job_id") or id,
             "long_id": result.get("long_id"),
-            "data_id": result.get("data_id"),
             "jobs_count": len(jobs_arr)
         })
     except HTTPException:
