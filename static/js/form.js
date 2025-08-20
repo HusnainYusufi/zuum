@@ -356,6 +356,13 @@ function switchTab(tabName) {
                 buttonGroup.style.animation = `fadeIn 0.6s ease forwards`;
                 buttonGroup.style.animationDelay = `0.5s`;
             }
+
+            // Prefill the newly activated tab if we have shipment data
+            try {
+                if (window.__shipmentPrefill && typeof window.__shipmentPrefill.prefill === 'function') {
+                    window.__shipmentPrefill.prefill(tabName);
+                }
+            } catch (_) { /* noop */ }
         }
     }, 100);
 
@@ -572,6 +579,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const charCounter = document.getElementById('charCounter');
     const maxLength = 1600;
 
+    if (!textarea || !charCounter) return;
+
     function updateCharCounter() {
         const currentLength = textarea.value.length;
         charCounter.textContent = `${currentLength}/${maxLength} characters`;
@@ -595,3 +604,163 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize counter
     updateCharCounter();
 }); 
+
+// -------- Prefill from shipment JSON based on job_id & active_tab ---------
+(function() {
+    function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+    }
+
+    function toDatetimeLocal(value) {
+        if (!value) return '';
+        try {
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toISOString().slice(0, 16);
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function setValue(id, val) {
+        const el = document.getElementById(id);
+        if (!el || val === undefined || val === null) return;
+        el.value = String(val);
+        if (el.classList.contains('phone-input')) {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    function first(arr) {
+        return Array.isArray(arr) && arr.length ? arr[0] : null;
+    }
+
+    function last(arr) {
+        return Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null;
+    }
+
+    function prefillForTab(payload, activeTab) {
+        if (!payload) return;
+        const pu = first(payload.pickUps);
+        const dof = first(payload.dropOffs);
+        const dol = last(payload.dropOffs);
+        const fm = (payload.job || {}).fleetManager || {};
+        const load = payload.load || {};
+
+        const puContactPhone = (pu && pu.primaryContact && pu.primaryContact.phoneNumber) ? pu.primaryContact.phoneNumber : '';
+        const dofContactPhone = (dof && dof.primaryContact && dof.primaryContact.phoneNumber) ? dof.primaryContact.phoneNumber : '';
+        const fallbackPhone = fm.phoneNumber || '';
+        const firstDropCityState = (dof && dof.location) ? [dof.location.city, dof.location.stateAbbr].filter(Boolean).join(', ') : '';
+        const lastContactAddress = (payload.lastContact && payload.lastContact.fullAddress) ? payload.lastContact.fullAddress : '';
+
+        if (activeTab === 'default') {
+            setValue('load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('carrier_name', (fm.company && fm.company.name) || fm.fullName || '');
+            setValue('contact_name', fm.fullName || '');
+            setValue('contact_phone', fm.phoneNumber || '');
+            setValue('scheduled_pickup_time', toDatetimeLocal(pu?.startDate || pu?.startDateLocal));
+            setValue('scheduled_delivery_time', toDatetimeLocal(dof?.startDate || dof?.startDateLocal));
+            setValue('origin_address', pu?.location?.fullAddress || '');
+            setValue('destination_address', dof?.location?.fullAddress || '');
+            setValue('last_known_status', payload.status || payload.loadStatus || '');
+            setValue('last_check_call_time', toDatetimeLocal(payload.lastContact?.dateTime));
+            // Optional transfer not auto-set for default
+        }
+
+        if (activeTab === 'at-pickup') {
+            setValue('pickup_load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('pickup_contact_phone', fm.phoneNumber || '');
+            setValue('pickup_trucker_name', fm.fullName || '');
+            setValue('pickup_address', pu?.location?.fullAddress || '');
+            setValue('scheduled_drop_time', toDatetimeLocal(dof?.startDate || dof?.startDateLocal));
+            setValue('pickup_transfer_call_to', puContactPhone || fallbackPhone);
+        }
+
+        if (activeTab === 'pickup-complete') {
+            setValue('pc_load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('pc_contact_phone', fm.phoneNumber || '');
+            setValue('pc_trucker_name', fm.fullName || '');
+            setValue('actual_pickup_time', toDatetimeLocal(pu?.startDate || pu?.startDateLocal));
+            setValue('scheduled_eta', toDatetimeLocal(dof?.startDate || dof?.startDateLocal));
+            setValue('pc_transfer_call_to', dofContactPhone || fallbackPhone);
+            setValue('commodity_description', load.commodity || '');
+            setValue('next_stop_location', firstDropCityState);
+        }
+
+        if (activeTab === 'in-transit') {
+            setValue('it_load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('it_contact_phone', fm.phoneNumber || '');
+            setValue('it_trucker_name', fm.fullName || '');
+            setValue('it_transfer_call_to', dofContactPhone || fallbackPhone);
+            setValue('current_location', lastContactAddress || '');
+        }
+
+        if (activeTab === 'at-drop') {
+            setValue('ad_load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('ad_contact_phone', fm.phoneNumber || '');
+            setValue('ad_trucker_name', fm.fullName || '');
+            setValue('receiver_address', dof?.location?.fullAddress || '');
+            setValue('arrival_time', toDatetimeLocal(dof?.startDate || dof?.startDateLocal));
+            setValue('ad_transfer_call_to', dofContactPhone || fallbackPhone);
+            setValue('receiver_name', dof?.location?.name || '');
+        }
+
+        if (activeTab === 'delivered') {
+            setValue('del_load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('del_contact_phone', fm.phoneNumber || '');
+            setValue('del_trucker_name', fm.fullName || '');
+            setValue('empty_time', toDatetimeLocal(dol?.endDate || dol?.startDate || dol?.startDateLocal));
+            setValue('del_transfer_call_to', dofContactPhone || fallbackPhone);
+        }
+
+        if (activeTab === 'request-pod') {
+            setValue('pod_load_id', payload.loadId ?? payload.load_id ?? '');
+            setValue('pod_contact_phone', fm.phoneNumber || '');
+            setValue('pod_trucker_name', fm.fullName || '');
+            setValue('delivery_date', toDatetimeLocal(dol?.endDate || dol?.startDate || dol?.startDateLocal));
+            setValue('pod_transfer_call_to', dofContactPhone || fallbackPhone);
+        }
+    }
+
+    window.__shipmentPrefill = {
+        _payload: null,
+        _fetching: false,
+        async init(jobId, tab) {
+            if (!jobId) return;
+            if (this._payload || this._fetching) {
+                if (this._payload && tab) prefillForTab(this._payload, tab);
+                return;
+            }
+            try {
+                this._fetching = true;
+                const res = await fetch(`/shipments/data/${encodeURIComponent(jobId)}`, { credentials: 'same-origin' });
+                if (!res.ok) return;
+                const json = await res.json();
+                this._payload = json?.data?.payload || json?.payload || null;
+                if (this._payload && tab) prefillForTab(this._payload, tab);
+            } catch (e) {
+                console.warn('Init prefill failed', e);
+            } finally {
+                this._fetching = false;
+            }
+        },
+        async prefill(tab) {
+            const jobId = getQueryParam('job_id');
+            if (!jobId) return;
+            if (!this._payload) {
+                await this.init(jobId, tab);
+                return;
+            }
+            prefillForTab(this._payload, tab);
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const jobId = getQueryParam('job_id');
+        const activeTab = (new URL(window.location.href)).searchParams.get('active_tab') || 'default';
+        if (jobId) {
+            window.__shipmentPrefill.init(jobId, activeTab);
+        }
+    });
+})();
