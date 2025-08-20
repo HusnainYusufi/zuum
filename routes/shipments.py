@@ -19,6 +19,7 @@ async def search_shipments(
     carrier_id: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=50),
     offset: int = Query(0, ge=0),
+    sort_dir: Optional[str] = Query("desc"),
     current_user: dict = Depends(get_current_user),
 ):
     if not current_user:
@@ -37,6 +38,7 @@ async def search_shipments(
             "carrier_id": carrier_id,
             "limit": limit,
             "offset": offset,
+            "sort_dir": (sort_dir or "desc").lower(),
         }
 
         result = await supabase_service.search_shipments(params)
@@ -49,13 +51,13 @@ async def search_shipments(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/data/{data_id}")
-async def get_shipment_data(data_id: str, current_user: dict = Depends(get_current_user)):
+@router.get("/data/{job_id}")
+async def get_shipment_data(job_id: str, current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        result = await supabase_service.get_shipment_data(data_id)
+        result = await supabase_service.get_shipment_data(job_id)
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=result.get("error", "Not found"))
         return JSONResponse(result)

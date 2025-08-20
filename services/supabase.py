@@ -402,8 +402,8 @@ class SupabaseService:
         """Ingest shipment payload.
 
         - Promotes primary identifiers into first-class columns on `public.shipments`
-        - Stores full JSON in `public.shipment_data` and references it by `data_id`
-        - Keeps writing `payload` into `public.shipments` for backward compatibility
+        - Stores full JSON in `public.shipment_data` keyed by `job_id`
+        - Uses `job_id` as the single source of truth and FK between the tables
         """
         try:
             if not self.client:
@@ -425,23 +425,11 @@ class SupabaseService:
             carrier_id = ((payload.get("job") or {}).get("carrierId"))
             job_id = ((payload.get("job") or {}).get("_id"))
 
-            # 1) Write full payload to shipment_data and get data_id
-            generated_data_id = str(uuid.uuid4())
-            data_insert = self.client.table("shipment_data").insert({
-                "data_id": generated_data_id,
-                "payload": payload,
-            }).execute()
+            # Require job_id as the sole upsert key
+            if not job_id:
+                return {"success": False, "error": "job._id is required for shipment upsert"}
 
-            if not data_insert or not data_insert.data:
-                # If RLS blocks insert or table not present, fall back to generated ID and log
-                logger.warning(
-                    "shipment_data insert returned no data; using generated data_id. Check RLS and table existence."
-                )
-                data_id = generated_data_id
-            else:
-                data_id = data_insert.data[0].get("data_id") or generated_data_id
-
-            # 2) Upsert identifiers row into shipments (also write payload for compatibility)
+            # 1) Upsert identifiers row into shipments
             record = {
                 "long_id": long_id,
                 "tenant_id": str(tenant_id) if tenant_id is not None else None,
@@ -452,16 +440,17 @@ class SupabaseService:
                 "customer_name": customer_name,
                 "carrier_id": carrier_id,
                 "job_id": job_id,
-                "data_id": data_id,
-                "payload": payload,
+                # Force touch updated_at on upsert so trigger runs consistently
+                "updated_at": datetime.now().isoformat(),
             }
-
-            # Require job_id as the sole upsert key
-            if not job_id:
-                return {"success": False, "error": "job._id is required for shipment upsert"}
             self.client.table("shipments").upsert(record, on_conflict="job_id").execute()
 
-            return {"success": True, "job_id": job_id, "long_id": long_id, "data_id": data_id}
+            # 2) Upsert full payload into shipment_data keyed by job_id
+            self.client.table("shipment_data").upsert(
+                {"job_id": job_id, "payload": payload}, on_conflict="job_id"
+            ).execute()
+
+            return {"success": True, "job_id": job_id, "long_id": long_id, "updated_at": record.get("updated_at")}
         except Exception as e:
             logger.error(f"Error upserting shipment: {e}")
             return {"success": False, "error": str(e)}
@@ -517,6 +506,7 @@ class SupabaseService:
                 "p_job_id": filters.get("job_id"),
                 "p_limit": limit,
                 "p_offset": offset,
+                "p_sort_dir": (params.get("sort_dir") or "desc").lower() if isinstance(params.get("sort_dir"), str) else "desc",
             }
 
             resp = self.client.rpc("search_shipments_simple", rpc_args).execute()
@@ -534,17 +524,17 @@ class SupabaseService:
             logger.error(f"Error searching shipments: {e}")
             return {"success": False, "error": str(e)}
 
-    async def get_shipment_data(self, data_id: str) -> Dict[str, Any]:
-        """Fetch full payload for a given data_id from `shipment_data`."""
+    async def get_shipment_data(self, job_id: str) -> Dict[str, Any]:
+        """Fetch full payload for a given `job_id` from `shipment_data`."""
         try:
             if not self.client:
                 return {"success": False, "error": "Supabase client not initialized"}
-            resp = self.client.table("shipment_data").select("data_id,payload").eq("data_id", data_id).single().execute()
+            resp = self.client.table("shipment_data").select("job_id,payload").eq("job_id", job_id).single().execute()
             if not resp.data:
                 return {"success": False, "error": "Not found"}
             return {"success": True, "data": resp.data}
         except Exception as e:
-            logger.error(f"Error fetching shipment data {data_id}: {e}")
+            logger.error(f"Error fetching shipment data {job_id}: {e}")
             return {"success": False, "error": str(e)}
 
 

@@ -36,6 +36,10 @@
             <option value="fleet_phone">Fleet Phone</option>
           </select>
           <input id="quick-value" type="text" class="filter-input quick-input" placeholder="Enter value..." />
+          <select id="sort-select" class="filter-input quick-select" title="Sort by last update">
+            <option value="desc" selected>Recently updated</option>
+            <option value="asc">Oldest updated</option>
+          </select>
           <button id="quick-search-button" class="back-button">
             <i class="fas fa-search"></i>
             Search
@@ -113,6 +117,7 @@
               <th>Fleet Phone</th>
               <th>Customer</th>
               <th>Carrier</th>
+              <th>Updated</th>
               <th>Action</th>
             </tr>
           </thead>

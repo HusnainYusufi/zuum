@@ -63,7 +63,7 @@ async def ingest_shipment(
                 raise HTTPException(status_code=422, detail="job._id is required")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
-        return JSONResponse({"success": True, "shipment_long_id": result.get("long_id")})
+        return JSONResponse({"success": True, "shipment_long_id": result.get("long_id"), "updated_at": result.get("updated_at")})
     except HTTPException:
         raise
     except Exception as e:
@@ -126,7 +126,7 @@ async def ingest_shipment_with_id(
             "success": True,
             "job_id": result.get("job_id") or id,
             "long_id": result.get("long_id"),
-            "data_id": result.get("data_id"),
+            "updated_at": result.get("updated_at"),
             "jobs_count": len(jobs_arr)
         })
     except HTTPException:
