@@ -58,6 +58,29 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 .btn-secondary:hover { background: rgba(66,153,225,0.2); border-color: #4299e1; }
 
+/* Primary action button for modal continue */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #4299e1 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+}
+
 .advanced-filters { margin-bottom: 18px; }
 
 .results-toolbar { padding: 12px 20px; border-bottom: 1px solid #4a5568; background: rgba(26, 32, 44, 0.5); }
