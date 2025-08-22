@@ -58,6 +58,29 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 .btn-secondary:hover { background: rgba(66,153,225,0.2); border-color: #4299e1; }
 
+/* Primary action button for modal continue */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #4299e1 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+}
+
 .advanced-filters { margin-bottom: 18px; }
 
 .results-toolbar { padding: 12px 20px; border-bottom: 1px solid #4a5568; background: rgba(26, 32, 44, 0.5); }
@@ -67,3 +90,49 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .spinner { width: 32px; height: 32px; border: 3px solid rgba(96, 165, 250, 0.3); border-top-color: #60a5fa; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+
+/* Modal for choosing form */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.modal-card {
+  background: var(--card-dark);
+  border: 1px solid rgba(66, 153, 225, 0.3);
+  border-radius: 12px;
+  width: 95%;
+  max-width: 420px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.modal-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #4a5568;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-body {
+  padding: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 16px 16px 16px;
+  border-top: 1px solid #4a5568;
+}

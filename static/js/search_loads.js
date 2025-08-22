@@ -47,8 +47,7 @@ function renderRows(rows) {
       <td>${r.carrier_id || ''}</td>
       <td>${formatDateTime(r.updated_at)}</td>
       <td>
-        <a class="btn" href="/forms/?active_tab=default" title="Use this load">Use</a>
-        ${r.job_id ? `<a class="btn" href="/shipments/data/${encodeURIComponent(r.job_id)}" title="View Data">View</a>` : ''}
+        <button class="back-button" data-action="use-load" data-job-id="${r.job_id || ''}" ${r.job_id ? '' : 'disabled'} title="Use this load">Use</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -205,6 +204,16 @@ window.addEventListener('DOMContentLoaded', () => {
   const sortSel = document.getElementById('sort-select');
   const sort_dir = sortSel ? sortSel.value : 'desc';
   runSearch({ limit: 10, offset: 0, sort_dir });
+
+  // Delegate click for Use buttons
+  const table = document.getElementById('results-table');
+  table.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action="use-load"]');
+    if (!btn) return;
+    const jobId = btn.getAttribute('data-job-id');
+    if (!jobId) return;
+    openFormChoiceModal(jobId);
+  });
 });
 
 function formatDateTime(value) {
@@ -217,5 +226,47 @@ function formatDateTime(value) {
     return String(value);
   }
 }
+
+// Modal to choose which form to open
+let pendingJobId = null;
+
+function openFormChoiceModal(jobId) {
+  pendingJobId = jobId;
+  const overlay = document.getElementById('form-choice-overlay');
+  const modal = document.getElementById('form-choice-modal');
+  if (!overlay || !modal) {
+    // Fallback: default to opening default form
+    window.location.href = `/forms/?active_tab=default&job_id=${encodeURIComponent(jobId)}`;
+    return;
+  }
+  overlay.style.display = 'flex';
+}
+
+function closeFormChoiceModal() {
+  const overlay = document.getElementById('form-choice-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function confirmFormChoice() {
+  const select = document.getElementById('form-choice-select');
+  const tab = (select && select.value) ? select.value : 'default';
+  if (!pendingJobId) return;
+  const url = `/forms/?active_tab=${encodeURIComponent(tab)}&job_id=${encodeURIComponent(pendingJobId)}`;
+  pendingJobId = null;
+  closeFormChoiceModal();
+  window.location.href = url;
+}
+
+// Wire modal buttons
+(() => {
+  const cancelBtn = document.getElementById('form-choice-cancel');
+  const continueBtn = document.getElementById('form-choice-continue');
+  const overlay = document.getElementById('form-choice-overlay');
+  cancelBtn && cancelBtn.addEventListener('click', closeFormChoiceModal);
+  continueBtn && continueBtn.addEventListener('click', confirmFormChoice);
+  overlay && overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeFormChoiceModal();
+  });
+})();
 
 
