@@ -36,6 +36,10 @@
             <option value="fleet_phone">Fleet Phone</option>
           </select>
           <input id="quick-value" type="text" class="filter-input quick-input" placeholder="Enter value..." />
+          <select id="sort-select" class="filter-input quick-select" title="Sort by last update">
+            <option value="desc" selected>Recently updated</option>
+            <option value="asc">Oldest updated</option>
+          </select>
           <button id="quick-search-button" class="back-button">
             <i class="fas fa-search"></i>
             Search
@@ -113,6 +117,7 @@
               <th>Fleet Phone</th>
               <th>Customer</th>
               <th>Carrier</th>
+              <th>Updated</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -120,6 +125,31 @@
         </table>
       </div>
       <div id="pagination" class="all-checkins-pagination"></div>
+    </div>
+  </div>
+
+  <!-- Choose Form Modal -->
+  <div id="form-choice-overlay" class="modal-overlay" style="display:none;">
+    <div id="form-choice-modal" class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fas fa-list"></i> Choose Form</h3>
+      </div>
+      <div class="modal-body">
+        <label for="form-choice-select" class="filter-label">Form type</label>
+        <select id="form-choice-select" class="filter-input quick-select">
+          <option value="default" selected>Default Form</option>
+          <option value="at-pickup">At Pickup</option>
+          <option value="pickup-complete">Pickup Complete</option>
+          <option value="in-transit">In Transit</option>
+          <option value="at-drop">At Drop</option>
+          <option value="delivered">Delivered</option>
+          <option value="request-pod">Request POD</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button id="form-choice-cancel" type="button" class="btn-secondary"><i class="fas fa-times"></i> Cancel</button>
+        <button id="form-choice-continue" type="button" class="btn-primary"><i class="fas fa-arrow-right"></i> Continue</button>
+      </div>
     </div>
   </div>
 
