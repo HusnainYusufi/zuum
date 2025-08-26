@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from services.supabase import supabase_service
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/webhook", tags=["webhook"])
 
 
 payload_schema = Body(
