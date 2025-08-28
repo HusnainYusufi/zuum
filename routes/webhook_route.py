@@ -11,16 +11,12 @@ payload_schema = Body(
     ...,
     description="Shipment payload as provided by Zuum export",
     example={
-        "longId": "668d6d8be296715c0c2316aa",
         "customerTenantId": "LNT_1",
         "loadId": 224,
-        "job": {
-            "_id": "6690e75db20ba727d428a143",
-            "carrierId": "667170c6b77ccd0008930e69",
-            "offer": "6690e75bb20ba727d428a136"
-        }
+        "job": {"_id": "6690e75db20ba727d428a143", "carrierId": "667170c6b77ccd0008930e69", "offer": "6690e75bb20ba727d428a136"},
     },
 )
+
 
 def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Basic validation/coercion for fields we rely on."""
@@ -32,12 +28,11 @@ def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     if job is not None and not isinstance(job, dict):
         raise HTTPException(status_code=422, detail="Invalid job object")
     # Coerce identifiers to strings where applicable
-    if payload.get("longId") is not None and not isinstance(payload.get("longId"), str):
-        payload["longId"] = str(payload.get("longId"))
     if isinstance(job, dict) and job.get("_id") is not None and not isinstance(job.get("_id"), str):
         # Replace nested job with a cloned mapping to avoid mutating the original
         payload["job"] = {**job, "_id": str(job.get("_id"))}
     return payload
+
 
 @router.post("/shipment")
 async def ingest_shipment(
@@ -63,13 +58,12 @@ async def ingest_shipment(
                 raise HTTPException(status_code=422, detail="job._id is required")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
-        return JSONResponse({"success": True, "shipment_long_id": result.get("long_id"), "updated_at": result.get("updated_at")})
+        return JSONResponse({"success": True, "job_id": result.get("job_id"), "updated_at": result.get("updated_at")})
     except HTTPException:
         raise
     except Exception as e:
         logger.exception("Error in shipment webhook")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 
 @router.post("/shipment/{id}")
@@ -87,7 +81,7 @@ async def ingest_shipment_with_id(
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
 
         # Normalize job object (clone before mutation to avoid leaking changes)
-        job_obj = (safe_payload.get("job") or {})
+        job_obj = safe_payload.get("job") or {}
         if isinstance(job_obj, dict):
             job_obj = dict(job_obj)
 
@@ -122,13 +116,9 @@ async def ingest_shipment_with_id(
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
-        return JSONResponse({
-            "success": True,
-            "job_id": result.get("job_id") or id,
-            "long_id": result.get("long_id"),
-            "updated_at": result.get("updated_at"),
-            "jobs_count": len(jobs_arr)
-        })
+        return JSONResponse(
+            {"success": True, "job_id": result.get("job_id") or id, "updated_at": result.get("updated_at"), "jobs_count": len(jobs_arr)}
+        )
     except HTTPException:
         raise
     except Exception as e:
