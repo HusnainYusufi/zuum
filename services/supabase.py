@@ -85,7 +85,7 @@ class SupabaseService:
 
             # Insert into Supabase
             result = self.client.table("check_ins").insert(check_in_data).execute()
-            
+
             if result.data:
                 logger.info(f"Created check-in with ID: {result.data[0]['id']}")
                 return {"success": True, "data": result.data[0]}
@@ -126,7 +126,7 @@ class SupabaseService:
 
             # Update in Supabase
             result = self.client.table("check_ins").update(update_data).eq("id", check_in_id).execute()
-            
+
             if result.data:
                 logger.info(f"Updated check-in ID: {check_in_id}")
                 return {"success": True, "data": result.data[0]}
@@ -148,7 +148,7 @@ class SupabaseService:
             result = self.client.table("check_ins").select(
                 "*, retell_calls(*)"
             ).eq("id", check_in_id).execute()
-            
+
             if result.data and len(result.data) > 0:
                 check_in = result.data[0]
                 # Convert field names back to old format for compatibility
@@ -169,7 +169,7 @@ class SupabaseService:
                 return []
 
             result = self.client.table("check_ins").select("*").eq("load_id", load_id).execute()
-            
+
             if result.data:
                 return result.data
             else:
@@ -179,7 +179,7 @@ class SupabaseService:
             logger.error(f"Error getting check-ins by load_id {load_id}: {e}")
             return []
 
-    async def get_check_ins_paginated(self, page: int = 1, per_page: int = 10, 
+    async def get_check_ins_paginated(self, page: int = 1, per_page: int = 10,
                                     filters: Optional[Dict] = None) -> Dict[str, Any]:
         """Get paginated list of check-ins using enhanced RPC function"""
         try:
@@ -187,7 +187,7 @@ class SupabaseService:
                 return {"success": False, "error": "Supabase client not initialized"}
 
             filters = filters or {}
-            
+
             # Call the enhanced RPC function
             result = self.client.rpc(
                 "get_check_ins_paginated_enhanced",
@@ -204,23 +204,23 @@ class SupabaseService:
                     "end_date": filters.get("end_date")
                 }
             ).execute()
-            
+
             if result.data:
                 # Format data for compatibility
                 formatted_checkins = []
                 total_count = 0
-                
+
                 for item in result.data:
                     total_count = item.get("total_count", 0)
                     formatted_item = self._format_check_in_for_compatibility(item)
-                    
+
                     # Add tags to the formatted item
                     formatted_item["tags"] = item.get("tags", [])
-                    
+
                     formatted_checkins.append(formatted_item)
-                
+
                 total_pages = (total_count + per_page - 1) // per_page
-                
+
                 return {
                     "success": True,
                     "data": {
@@ -247,7 +247,7 @@ class SupabaseService:
                 return {"success": False, "error": "Supabase client not initialized"}
 
             result = self.client.rpc("get_dashboard_stats").execute()
-            
+
             if result.data and len(result.data) > 0:
                 stats = result.data[0]
                 return {
@@ -279,19 +279,19 @@ class SupabaseService:
                 return {"success": False, "error": "Supabase client not initialized"}
 
             result = self.client.rpc("get_checkins_per_day_chart").execute()
-            
+
             if result.data:
                 labels = []
                 checkin_values = []
                 issues_values = []
                 transfers_values = []
-                
+
                 for row in result.data:
                     labels.append(row.get("date_label", ""))
                     checkin_values.append(row.get("checkin_count", 0))
                     issues_values.append(row.get("issues_count", 0))
                     transfers_values.append(row.get("transfers_count", 0))
-                
+
                 return {
                     "success": True,
                     "labels": labels,
@@ -334,7 +334,7 @@ class SupabaseService:
             }
 
             result = self.client.table("retell_calls").insert(call_data).execute()
-            
+
             if result.data:
                 logger.info(f"Created retell call with ID: {result.data[0]['call_id']}")
                 return {"success": True, "data": result.data[0]}
@@ -363,7 +363,7 @@ class SupabaseService:
                 return {"success": False, "error": "No valid fields to update"}
 
             result = self.client.table("retell_calls").update(update_data).eq("call_id", call_id).execute()
-            
+
             if result.data:
                 logger.info(f"Updated retell call ID: {call_id}")
                 return {"success": True, "data": result.data[0]}
@@ -377,22 +377,22 @@ class SupabaseService:
     async def get_retell_call_by_id(self, call_id: str) -> Dict[str, Any]:
         """
         Fetch a RetellCall record by its call_id
-        
+
         Args:
             call_id: The Retell call ID to fetch
-            
+
         Returns:
             Dictionary containing success status and data/error
         """
         try:
             response = self.client.table('retell_calls').select('*').eq('call_id', call_id).execute()
             data = response.data
-            
+
             if not data:
                 return {"success": False, "error": f"No call found with ID: {call_id}"}
-                
+
             return {"success": True, "data": data[0]}
-            
+
         except Exception as e:
             logger.error(f"Error fetching RetellCall {call_id}: {str(e)}")
             return {"success": False, "error": str(e)}
@@ -408,8 +408,6 @@ class SupabaseService:
         try:
             if not self.client:
                 return {"success": False, "error": "Supabase client not initialized"}
-
-            long_id: Optional[str] = payload.get("longId") or payload.get("long_id")
 
             tenant_id = (
                 payload.get("customerTenantId")
@@ -431,7 +429,6 @@ class SupabaseService:
 
             # 1) Upsert identifiers row into shipments
             record = {
-                "long_id": long_id,
                 "tenant_id": str(tenant_id) if tenant_id is not None else None,
                 "shipment_id": shipment_id,
                 "load_id": str(load_id) if load_id is not None else None,
@@ -450,25 +447,9 @@ class SupabaseService:
                 {"job_id": job_id, "payload": payload}, on_conflict="job_id"
             ).execute()
 
-            return {"success": True, "job_id": job_id, "long_id": long_id, "updated_at": record.get("updated_at")}
+            return {"success": True, "job_id": job_id, "updated_at": record.get("updated_at")}
         except Exception as e:
             logger.error(f"Error upserting shipment: {e}")
-            return {"success": False, "error": str(e)}
-
-    async def get_shipment_by_long_id(self, long_id: str) -> Dict[str, Any]:
-        """Fetch a raw shipment payload by long_id from `shipments`."""
-        try:
-            if not self.client:
-                return {"success": False, "error": "Supabase client not initialized"}
-
-            shipment_res = self.client.table("shipments").select("*").eq("long_id", long_id).execute()
-            if not shipment_res.data:
-                return {"success": False, "error": "Shipment not found"}
-
-            return {"success": True, "data": shipment_res.data[0]}
-
-        except Exception as e:
-            logger.error(f"Error fetching raw shipment {long_id}: {e}")
             return {"success": False, "error": str(e)}
 
     async def search_shipments(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -555,7 +536,7 @@ class SupabaseService:
             }
 
             result = self.client.table("notifications").insert(notification_data).execute()
-            
+
             if result.data:
                 logger.info(f"Created notification with ID: {result.data[0]['id']}")
                 return {"success": True, "data": result.data[0]}
@@ -574,7 +555,7 @@ class SupabaseService:
                 return {"success": False, "error": "Supabase client not initialized"}
 
             filters = filters or {}
-            
+
             result = self.client.rpc(
                 "get_notifications_paginated",
                 {
@@ -584,11 +565,11 @@ class SupabaseService:
                     "filter_severity": filters.get("severity")
                 }
             ).execute()
-            
+
             if result.data:
                 total_count = result.data[0].get("total_count", 0) if result.data else 0
                 total_pages = (total_count + per_page - 1) // per_page
-                
+
                 return {
                     "success": True,
                     "data": {
@@ -615,7 +596,7 @@ class SupabaseService:
                 return {"success": False, "error": "Supabase client not initialized"}
 
             result = self.client.rpc("mark_notification_read", {"notification_id": notification_id}).execute()
-            
+
             return {"success": True, "marked_read": result.data}
 
         except Exception as e:
@@ -639,10 +620,10 @@ class SupabaseService:
             }
 
             feedback_result = self.client.table("feedback").insert(feedback_data).execute()
-            
+
             if not feedback_result.data:
                 return {"success": False, "error": "Failed to create feedback record"}
-            
+
             feedback_id = feedback_result.data[0]['id']
             logger.info(f"Created feedback with ID: {feedback_id}")
 
@@ -650,14 +631,14 @@ class SupabaseService:
             image_records = []
             if image_files:
                 bucket_name = os.getenv('SUPABASE_STORAGE_BUCKET', 'feedback-images')
-                
+
                 for i, image_file in enumerate(image_files):
                     try:
                         # Generate unique filename
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                         file_extension = os.path.splitext(image_file.get('filename', 'image.jpg'))[1]
                         unique_filename = f"feedback_{feedback_id}_{timestamp}_{i}{file_extension}"
-                        
+
                         # Upload to Supabase Storage
                         storage_response = self.client.storage.from_(bucket_name).upload(
                             path=unique_filename,
@@ -666,11 +647,11 @@ class SupabaseService:
                                 "content-type": image_file.get('content_type', 'image/jpeg')
                             }
                         )
-                        
+
                         if storage_response:
                             # Generate public URL
                             image_url = self.client.storage.from_(bucket_name).get_public_url(unique_filename)
-                            
+
                             # Create image record in database
                             image_data = {
                                 "feedback_id": feedback_id,
@@ -678,14 +659,14 @@ class SupabaseService:
                                 "original_filename": image_file.get('filename'),
                                 "image_url": image_url
                             }
-                            
+
                             image_result = self.client.table("feedback_images").insert(image_data).execute()
                             if image_result.data:
                                 image_records.append(image_result.data[0])
                                 logger.info(f"Uploaded image {unique_filename} for feedback {feedback_id}")
                             else:
                                 logger.error(f"Failed to save image record for {unique_filename}")
-                        
+
                     except Exception as storage_error:
                         error_msg = str(storage_error)
                         if "row-level security policy" in error_msg:
@@ -696,7 +677,7 @@ class SupabaseService:
                         continue
 
             return {
-                "success": True, 
+                "success": True,
                 "data": {
                     "feedback": feedback_result.data[0],
                     "images": image_records
@@ -766,6 +747,5 @@ mark_notification_read = supabase_service.mark_notification_read
 create_feedback = supabase_service.create_feedback
 get_retell_call_by_id = supabase_service.get_retell_call_by_id
 upsert_shipment = supabase_service.upsert_shipment
-get_shipment_by_long_id = supabase_service.get_shipment_by_long_id
 search_shipments = supabase_service.search_shipments
 get_shipment_data = supabase_service.get_shipment_data
