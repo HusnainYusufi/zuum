@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
+import json
 
 from routes import ui_router, retell_router, notifications_router, checkin_router, retell_check_in_router, forms_router, auth_router,prompt_config_router, webhook_router, shipments_router
 
@@ -17,6 +18,10 @@ from twilio.rest import Client
 from datetime import datetime
 from pathlib import Path
 from services.github_service import github_service
+from services.grafana_logger import grafana_logger, LogEntry, sanitize_json, sanitize_headers
+import time
+
+
 
 load_dotenv()
 
@@ -62,6 +67,84 @@ TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')
 
 # Get recipient phone numbers from environment variable
 FEEDBACK_RECIPIENT_PHONES = os.getenv('FEEDBACK_RECIPIENT_PHONES', '').split(',')
+
+
+def normalize_body_to_json(body_bytes: bytes, content_type: str) -> str:
+    """Convert different body formats to JSON for consistent logging"""
+    if not body_bytes:
+        return ""
+
+    try:
+        body_str = body_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        return "[BINARY_DATA]"
+
+    # If it's already JSON, sanitize and return
+    if 'application/json' in content_type:
+        return sanitize_json(body_str)
+
+    # If it's form data, convert to JSON
+    if 'application/x-www-form-urlencoded' in content_type:
+        try:
+            # Parse form data into a dictionary
+            parsed_data = parse_qs(body_str, keep_blank_values=True)
+
+            # Convert lists with single values to just the value for cleaner JSON
+            normalized_data = {}
+            for key, values in parsed_data.items():
+                if len(values) == 1:
+                    normalized_data[key] = values[0]
+                else:
+                    normalized_data[key] = values
+
+            # Convert to JSON and sanitize
+            json_str = json.dumps(normalized_data, separators=(',', ':'))
+            return sanitize_json(json_str)
+        except Exception:
+            # If parsing fails, sanitize as regular text
+            return sanitize_json(f'{{"raw_body": "{body_str}"}}')
+
+    # For other content types, wrap in JSON structure
+    return sanitize_json(f'{{"raw_body": "{body_str}", "content_type": "{content_type}"}}')
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+
+    # Read body and then recreate the stream for the actual endpoint
+    body_bytes = await request.body()
+    request._body = body_bytes  # Restore body for the endpoint to use
+
+    response = await call_next(request)
+    processing_time = time.time() - start_time
+
+    # Get content type and normalize body to JSON format
+    content_type = request.headers.get('content-type', '')
+    sanitized_body_str = normalize_body_to_json(body_bytes, content_type)
+    sanitized_headers = sanitize_headers(dict(request.headers))
+
+    log_entry = LogEntry(
+        timestamp=str(start_time),
+        method=request.method,
+        path=request.url.path,
+        headers=sanitized_headers,
+        body=sanitized_body_str,
+        status_code=response.status_code,
+        processing_time=processing_time,
+        client_ip=request.client.host,
+        log_level=grafana_logger.get_log_level(response.status_code),
+        environment=grafana_logger.environment,
+    )
+
+    await grafana_logger.add_log(log_entry)
+
+    return response
+
+# Add this shutdown event to ensure all logs are sent before the app closes
+@app.on_event("shutdown")
+async def shutdown_event():
+    await grafana_logger.close()
 
 
 def _extract_checkin_id_from_referer(request: Request) -> Optional[int]:
