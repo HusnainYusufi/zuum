@@ -71,6 +71,7 @@ def normalize_phone_number(country_code: str, contact_phone: str) -> str:
     """
     return country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
 
+
 async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
     """
     Reusable function to make Retell API calls
@@ -102,11 +103,11 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
 
     # Prepare call data (no duplication, no unnecessary JSON conversion)
     call_data = {
-        "form_number": form_number,
+        "form_number": str(form_number),
         "form_title": form_config.get("title", ""),
-        "purpose": form_config.get("voice_questions", []),
-        "form": form_data,
-        "output_schema": form_config.get("output_schema", {})
+        "purpose": json.dumps(form_config.get("voice_questions", [])),  # Stringify voice questions array
+        "form": json.dumps(form_data),  # Stringify form data dictionary
+        "output_schema": json.dumps(form_config.get("output_schema", {}))  # Stringify output schema dictionary
     }
 
     # Add transfer call if present
@@ -143,12 +144,13 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
 
                 # Extract load_id from form_data - handle different field names
                 load_id = (form_data.get("load_id") or
-                          form_data.get("pickup_load_id") or
-                          form_data.get("pc_load_id") or
-                          form_data.get("it_load_id") or
-                          form_data.get("ad_load_id") or
-                          form_data.get("del_load_id") or
-                          form_data.get("pod_load_id"))
+                    form_data.get("pickup_load_id") or
+                    form_data.get("pc_load_id") or
+                    form_data.get("it_load_id") or
+                    form_data.get("ad_load_id") or
+                    form_data.get("del_load_id") or
+                    form_data.get("pod_load_id")
+                        )
 
                 # Create check-in entry
                 checkin_result = await create_checkin_entry(call_id, load_id, form_type, form_data)
