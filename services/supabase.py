@@ -23,6 +23,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize environment variable at module level to avoid repeated os.getenv calls
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
 # Initialize Supabase client
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 # Prefer service role key on backend; fallback to anon key
@@ -398,7 +401,7 @@ class SupabaseService:
             return {"success": False, "error": str(e)}
 
     # Shipment ingestion and queries
-    async def upsert_shipment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def upsert_shipment(self, payload: Dict[str, Any], env: str = None) -> Dict[str, Any]:
         """Ingest shipment payload.
 
         - Promotes primary identifiers into first-class columns on `public.shipments`
@@ -437,6 +440,7 @@ class SupabaseService:
                 "customer_name": customer_name,
                 "carrier_id": carrier_id,
                 "job_id": job_id,
+                "env": env or ENVIRONMENT,
                 # Force touch updated_at on upsert so trigger runs consistently
                 "updated_at": datetime.now().isoformat(),
             }
