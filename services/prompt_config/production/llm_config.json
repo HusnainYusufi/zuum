@@ -1,0 +1,493 @@
+{
+	"llm_id": "llm_25590543d0c526ccd90854aa44ec",
+	"version": 0,
+	"model": "gpt-4o-mini",
+	"model_temperature": 0.5,
+	"model_high_priority": true,
+	"tool_call_strict_mode": false,
+	"general_prompt": "<prompt>\n<role>You are a truck dispatch broker and your task is to check in with the trucker and ask the query that is provided in input and try to resolve it</role>\n<inputs>\n<purpose>{{purpose}}</purpose>\n<form_data>{{form}}</form_data>\n</inputs>\n<constraints>\n- You are not a assistant, you are dispatch broker that will check in and fix any mentioned queries.\n- If the purpose are written in numerical format like, 1) Question 1, 2) Question 2, 3) Question 3, then ask these questions separately.\n- Make your responses short and concise.\n- Make the introduction short like, \"Hello! Dispatcher here calling from Zuum, (the first question here)\" and nothing else.\n- No special symbols like \"-\", \"_\".\n- When showing a date/time, convert it to a conversational format like ‘Tuesday at 5 PM’ or ‘this Friday evening\n- If you encounter the word POD, just say it in alphabets.\n- Also if the state names are like 'TX', 'NY', or anything related to it, then user 'Texas' or 'New York' etc for it.\n- If trucker want to talk to the actual human broker, transfer the call.\n- Do not address them by their names. on starting the conversation, just say, \"I am calling from Zoom ...\" ONLY ONCE DO NOT REPEAT YOUR GREETING. \n\nWhen it is time to end the call please  tell the driver, \"Drive safe!\" DO NOT SAY ANYTHING ELSE SAY \"Drive Safe\". This should only be at the end of the call when you have recieved all the information from the driver\n</constraints>\n</prompt>\n",
+	"general_tools": [
+		{
+			"name": "transfer_call",
+			"description": "Transfer the call to a human broker",
+			"custom_sip_headers": {},
+			"transfer_destination": {
+				"type": "inferred",
+				"prompt": "If the user wants to reach support, transfer to [transfer_call_to]"
+			},
+			"transfer_option": {
+				"type": "cold_transfer",
+				"show_transferee_as_caller": true
+			},
+			"type": "transfer_call"
+		}
+	],
+	"states": [
+		{
+			"name": "Conversation",
+			"state_prompt": "Ask these questions one by one.\n{{purpose}}\n\n- If all questions are resolved, then stay silent and  move to the end_call node.\n\n- else respond and repeat, or ask the next question that you did not ask previously. \n- Make your responses short and concise.",
+			"edges": [
+				{
+					"description": "The condition that triggers the transition to the next state. e.g., \"If the user has provided the name\"",
+					"speak_during_transition": false,
+					"destination_state_name": "end_call"
+				}
+			],
+			"tools": []
+		},
+		{
+			"name": "at_pickup",
+			"state_prompt": "## Tasks\nNo response needed.Run the function call to store the data and then transit to end call node. Say nothing.\n\n",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "Sends the trucker data to the backend and store it.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/check_in/set_metadata",
+					"execution_message_description": "Give me a moment, let me update the information.",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "store_at_pickup",
+					"response_variables": {},
+					"speak_during_execution": true,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"Driver_empty": {
+								"type": "boolean",
+								"description": "Whether the driver is currently empty"
+							},
+							"ETA_to_shipper": {
+								"type": "string",
+								"description": "Estimated time of arrival to the shipper, stated by the driver"
+							},
+							"Current_location": {
+								"type": "string",
+								"description": "The driver's current location (city and state)"
+							},
+							"Confirmed_equipment": {
+								"type": "boolean",
+								"description": "Whether the driver confirmed they have the correct tractor, trailer, and required equipment"
+							},
+							"Is_assigned_driver": {
+								"type": "boolean",
+								"description": "Whether the person on the call is the driver assigned to the load"
+							},
+							"Tracking_started": {
+								"type": "boolean",
+								"description": "Whether the driver confirmed they opened the tracking link and tracking has started"
+							}
+						},
+						"required": [
+							"Is_assigned_driver",
+							"Driver_empty",
+							"Current_location",
+							"ETA_to_shipper",
+							"Confirmed_equipment",
+							"Tracking_started"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "pickup_complete",
+			"state_prompt": "## Tasks\nRun the function call to store the data and then transit to end call node. Say nothing.\n ",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "Sends the trucker data to the backend and store it.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/check_in/set_metadata",
+					"execution_message_description": "Give me a moment, let me update the information.",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "set_pickup_complete",
+					"response_variables": {},
+					"speak_during_execution": true,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"Accessorial_notes": {
+								"type": "string",
+								"nullable": true,
+								"description": "Optional notes provided by the driver about the issue or extra costs (if any)"
+							},
+							"Loaded_and_left_dock": {
+								"type": "boolean",
+								"description": "Whether the driver has been loaded and left the dock"
+							},
+							"ETA_to_next": {
+								"type": "string",
+								"description": "Estimated time of arrival to the next destination"
+							},
+							"Shipper_issues_reported": {
+								"type": "boolean",
+								"description": "Whether the driver reported any problems at the shipper"
+							},
+							"Departure_time": {
+								"type": "string",
+								"description": "Time the driver pulled out from the shipper, as stated by the driver"
+							},
+							"Next_destination": {
+								"type": "string",
+								"description": "Where the driver is headed next (typically delivery location or stop)"
+							},
+							"Accessorial_costs_reported": {
+								"type": "boolean",
+								"description": "Whether the driver mentioned any extra charges (e.g., detention, lumper, layover)"
+							},
+							"PO_BOL_matches_rate_con": {
+								"type": "boolean",
+								"description": "Whether the PO or BOL on the paperwork matches the rate confirmation"
+							}
+						},
+						"required": [
+							"Loaded_and_left_dock",
+							"Departure_time",
+							"PO_BOL_matches_rate_con",
+							"Next_destination",
+							"ETA_to_next",
+							"Shipper_issues_reported",
+							"Accessorial_costs_reported"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "in_transit",
+			"state_prompt": "## Tasks\nRun the function call to store the data and then transit to end call node. Say nothing.\n \n",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "Sends the trucker data to the backend and store it.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/check_in/set_metadata",
+					"execution_message_description": "Give me a moment, let me update the information.",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "set_in_transit",
+					"response_variables": {},
+					"speak_during_execution": true,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"Risk_of_delay": {
+								"type": "boolean",
+								"description": "Whether the driver foresees any risk of delay (e.g., weather, HOS, equipment issues)"
+							},
+							"Delay_reason": {
+								"type": "string",
+								"nullable": true,
+								"description": "Optional details about potential delay if risk is present"
+							},
+							"Current_location_manual": {
+								"type": "string",
+								"description": "Driver's current location (city and state), manually confirmed if tracking is not available"
+							},
+							"Updated_ETA_to_receiver": {
+								"type": "string",
+								"description": "Driver's updated estimated time of arrival to the receiver"
+							},
+							"Tracking_restarted": {
+								"type": "boolean",
+								"description": "Whether the driver reopened the tracking app during the call"
+							}
+						},
+						"required": [
+							"Updated_ETA_to_receiver",
+							"Risk_of_delay",
+							"Tracking_restarted"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "at_drop",
+			"state_prompt": "## Tasks\nRun the function call to store the data and then transit to end call node. Say nothing.",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "Sends the trucker data to the backend and store it.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/check_in/set_metadata",
+					"execution_message_description": "Give me a moment, let me update the information.",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "set_at_drop",
+					"response_variables": {},
+					"speak_during_execution": true,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"Dock_number": {
+								"type": "string",
+								"nullable": true,
+								"description": "The dock number assigned to the driver"
+							},
+							"Unloading_duration_estimate": {
+								"type": "string",
+								"nullable": true,
+								"description": "Estimated time to complete unloading as quoted to the driver"
+							},
+							"Needs_lumper_code": {
+								"type": "boolean",
+								"description": "Whether the driver is requesting a lumper code"
+							},
+							"Checked_in": {
+								"type": "boolean",
+								"description": "Whether the driver has checked in at the receiver"
+							},
+							"Lumper_payment_method": {
+								"type": "string",
+								"nullable": true,
+								"description": "Accepted payment method for lumper (e.g., Comchek, EFS, T-Check)"
+							},
+							"OSD_reported": {
+								"type": "boolean",
+								"description": "Whether any overages, shortages, or damages were reported by the warehouse"
+							},
+							"Lumper_fee_amount": {
+								"type": "string",
+								"nullable": true,
+								"description": "Amount requested for lumper (e.g., '$95')"
+							},
+							"OSD_details": {
+								"type": "string",
+								"nullable": true,
+								"description": "Details about any overages, shortages, or damages"
+							},
+							"Unloading_started": {
+								"type": "boolean",
+								"description": "Whether unloading has started"
+							}
+						},
+						"required": [
+							"Checked_in",
+							"Unloading_started",
+							"Needs_lumper_code",
+							"OSD_reported"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "delivered",
+			"state_prompt": "## Tasks\nRun the function call to store the data and then transit to end call node.Say nothing.",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "Sends the trucker data to the backend and store it.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/check_in/set_metadata",
+					"execution_message_description": "Give me a moment, let me update the information.",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "delivered",
+					"response_variables": {},
+					"speak_during_execution": true,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"Final_OSD_confirmed_clean": {
+								"type": "boolean",
+								"description": "Whether the driver confirmed no overages, shortages, or damages occurred during delivery"
+							},
+							"Receipts_pending": {
+								"type": "boolean",
+								"description": "Whether any lumper receipts or scale tickets are still pending submission"
+							},
+							"Dock_release_time": {
+								"type": "string",
+								"description": "The time the driver was released from the dock (e.g., '15:45' or '2025-06-06T15:45:00')"
+							},
+							"POD_uploaded": {
+								"type": "boolean",
+								"description": "Whether the signed POD has been uploaded to the Zuum app"
+							},
+							"POD_texted": {
+								"type": "boolean",
+								"nullable": true,
+								"description": "Whether the driver texted a photo of the signed POD (if not uploaded via app)"
+							}
+						},
+						"required": [
+							"Dock_release_time",
+							"POD_uploaded",
+							"Receipts_pending",
+							"Final_OSD_confirmed_clean"
+						],
+						"dependencies": {
+							"_p_o_d_uploaded": {
+								"one_of": [
+									{
+										"properties": {
+											"POD_uploaded": {
+												"const": true
+											}
+										}
+									},
+									{
+										"properties": {
+											"POD_uploaded": {
+												"const": false
+											},
+											"POD_texted": {
+												"type": "boolean"
+											}
+										},
+										"required": ["POD_texted"]
+									}
+								]
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "request_pod",
+			"state_prompt": "## Tasks\nRun the function call to store the data and then transit to end call node.Say nothing.",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "Sends the trucker data to the backend and store it.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/check_in/set_metadata",
+					"execution_message_description": "Give me a moment, let me update the information.",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "request_pod",
+					"response_variables": {},
+					"speak_during_execution": false,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"POD_followup_received": {
+								"type": "boolean",
+								"description": "Whether the POD was successfully received during the follow-up call (via app upload or photo text)"
+							},
+							"OSD_reported_at_closure": {
+								"type": "boolean",
+								"description": "Whether the driver reported any OS&D issues before load closure"
+							},
+							"OSD_closure_notes": {
+								"type": "string",
+								"nullable": true,
+								"description": "Optional notes about OS&D issues if reported during the closure follow-up"
+							}
+						},
+						"required": ["POD_followup_received", "OSD_reported_at_closure"]
+					}
+				}
+			]
+		},
+		{
+			"name": "Analyse",
+			"state_prompt": "<prompt>\n<role>Your task is to analyse the conversation history and extract the data from it and call the update_checkin function to send API request and send the data in JSON format defined in output_format. </role>\n<output_format>\n{{output_schema}}\n</output_format>\n<constraints>\n- remain silent.\n- After updating, transit to the end_call node.\n</prompt>",
+			"edges": [],
+			"tools": [
+				{
+					"headers": {},
+					"parameter_type": "json",
+					"method": "POST",
+					"query_params": {},
+					"description": "The function that will make API post request and store the conversation-data in DB.",
+					"type": "custom",
+					"url": "http://137.184.75.190/retell/update_check_in",
+					"timeout_ms": 120000,
+					"speak_after_execution": false,
+					"name": "update_checkin",
+					"response_variables": {},
+					"speak_during_execution": false,
+					"parameters": {
+						"type": "object",
+						"properties": {
+							"output": {
+								"type": "string",
+								"description": "The output json file which is according to {{output_schema}}"
+							},
+							"exception_type": {
+								"type": "string",
+								"description": "The reason of this call, that can be: Late, Mechanical Issue, Wrong Address, etc"
+							},
+							"issue_flagged": {
+								"type": "boolean",
+								"description": "Determine if it needs humans to be alerted"
+							},
+							"AI_Response_Summary": {
+								"type": "string",
+								"description": "It will be the summary of the conversation with the trucker like what you asked and what trucker replied."
+							},
+							"call_confidence_score": {
+								"type": "string",
+								"description": "Give score using LLM scoring / confidence thresholds from 0 to 100"
+							},
+							"tags": {
+								"type": "string",
+								"description": "tags for the conversation, that can be “Storm delay”, “Unresponsive”, “Rescheduled” etc."
+							}
+						},
+						"required": [
+							"issue_flagged",
+							"AI_Response_Summary",
+							"call_confidence_score",
+							"exception_type",
+							"tags",
+							"output"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "end_call",
+			"state_prompt": "Say good bye to the trucker.\n\nAfter that end the call using end_call function.",
+			"edges": [],
+			"tools": [
+				{
+					"name": "end_call",
+					"type": "end_call",
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "new_state_148",
+			"state_prompt": "",
+			"edges": [],
+			"tools": []
+		}
+	],
+	"starting_state": "Conversation",
+	"start_speaker": "agent",
+	"last_modification_timestamp": 1755188628047,
+	"is_published": false
+}
