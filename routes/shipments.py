@@ -4,22 +4,11 @@ from fastapi.responses import JSONResponse
 from .auth import get_current_user
 from services.supabase import supabase_service
 
-router = APIRouter(prefix="/{env}/shipments", tags=["shipments"])
-
-
-def _validate_env(env: str) -> None:
-    """Validate environment parameter."""
-    allowed_envs = {"dev", "staging", "prod"}
-    if env not in allowed_envs:
-        raise HTTPException(
-            status_code=422, 
-            detail=f"Invalid environment '{env}'. Must be one of: {', '.join(allowed_envs)}"
-        )
+router = APIRouter(prefix="/shipments", tags=["shipments"])
 
 
 @router.get("/search")
 async def search_shipments(
-    env: str,
     tenant_id: Optional[str] = Query(None),
     shipment_id: Optional[str] = Query(None),
     load_id: Optional[str] = Query(None),
@@ -35,8 +24,6 @@ async def search_shipments(
 ):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    _validate_env(env)
 
     try:
 
@@ -49,7 +36,6 @@ async def search_shipments(
             "fleet_name": fleet_name,
             "customer_name": customer_name,
             "carrier_id": carrier_id,
-            "env": env,
             "limit": limit,
             "offset": offset,
             "sort_dir": (sort_dir or "desc").lower(),
@@ -66,14 +52,12 @@ async def search_shipments(
 
 
 @router.get("/data/{job_id}")
-async def get_shipment_data(env: str, job_id: str, current_user: dict = Depends(get_current_user)):
+async def get_shipment_data(job_id: str, current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    _validate_env(env)
 
     try:
-        result = await supabase_service.get_shipment_data(job_id, env)
+        result = await supabase_service.get_shipment_data(job_id)
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=result.get("error", "Not found"))
         return JSONResponse(result)
