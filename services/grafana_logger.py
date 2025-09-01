@@ -7,6 +7,7 @@ import base64
 import logging
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+import re
 
 
 @dataclass
@@ -31,13 +32,12 @@ class LogEntry:
     def to_dict(self) -> Dict[str, Any]:
         """Convert LogEntry to dictionary for JSON serialization - only detailed fields"""
         result = {
-            "timestamp": self.timestamp,
+            "timestamp": int(self.timestamp),
             "headers": self.headers,
             "body": self.body,
             "processing_time": self.processing_time,
             "client_ip": self.client_ip,
         }
-
         if self.error:
             result["error"] = self.error
         if self.error_code:
@@ -102,8 +102,6 @@ class LogEntry:
 
     def _normalize_path(self, path: str) -> str:
         """Normalize paths to reduce cardinality"""
-        import re
-
         path = re.sub(r"/\d+", "/[id]", path)
         path = re.sub(r"/[a-f0-9-]{36}", "/[uuid]", path)
         return path
@@ -179,46 +177,6 @@ class LogEntry:
         # Use compact JSON formatting to reduce payload size
         return json.dumps(self.to_dict(), separators=(",", ":"))
 
-    @classmethod
-    def from_request_response(
-        cls,
-        request,
-        response,
-        processing_time: float,
-        body: str,
-        headers: Dict[str, str],
-        response_body: str = "",
-        environment: str = None,
-        log_level: str = None,
-    ) -> "LogEntry":
-        """Factory method to create LogEntry from FastAPI request/response - optimized"""
-
-        # Extract tracking properties and error details concurrently (conceptually)
-        tracking_props = cls._extract_tracking_properties(request)
-        error_details = cls._extract_error_details(response_body, response.status_code)
-        error_code, error_message, service = cls._extract_error_fields(response_body, response.status_code, body)
-
-        # Use more efficient timestamp conversion
-        timestamp = str(int(time.time() * 1000) / 1000)  # Avoid float precision issues
-
-        return cls(
-            timestamp=timestamp,
-            method=request.method,
-            path=str(request.url.path),
-            headers=headers,
-            body=body,
-            status_code=response.status_code,
-            processing_time=round(processing_time, 3),  # Limit precision to reduce JSON size
-            client_ip=request.client.host if request.client else "unknown",
-            log_level=log_level or "info",
-            environment=environment or "unknown",
-            user_id=tracking_props["user_id"],
-            error=error_details,
-            error_code=error_code,
-            error_message=error_message,
-            service=service,
-        )
-
 
 # Sanitization functions
 SENSITIVE_KEYWORDS = {"password", "token", "secret", "key", "auth"}
@@ -254,26 +212,6 @@ def sanitize_headers(headers: Dict[str, str]) -> Dict[str, str]:
         else:
             sanitized[key] = value
     return sanitized
-
-
-class BoundLogger:
-    """A logger bound to a specific service for convenience"""
-
-    def __init__(self, grafana_logger: "GrafanaCloudLogger", service_name: str):
-        self.grafana_logger = grafana_logger
-        self.service_name = service_name
-
-    async def log_info(self, operation: str, message: str, **kwargs):
-        """Log info level application event"""
-        await self.grafana_logger.log_info(self.service_name, operation, message, **kwargs)
-
-    async def log_warning(self, operation: str, message: str, **kwargs):
-        """Log warning level application event"""
-        await self.grafana_logger.log_warning(self.service_name, operation, message, **kwargs)
-
-    async def log_error(self, operation: str, message: str, **kwargs):
-        """Log error level application event"""
-        await self.grafana_logger.log_error(self.service_name, operation, message, **kwargs)
 
 
 class GrafanaCloudLogger:
@@ -375,12 +313,9 @@ class GrafanaCloudLogger:
         streams = []
 
         for log_entry in self.log_batch:
-            # Convert to Loki timestamp (nanoseconds)
-            timestamp_ns = str(int(float(log_entry.timestamp) * 1_000_000_000))
+            # log_entry.timestamp is in milliseconds since epoch
+            timestamp_ns = str(int(int(log_entry.timestamp) * 1_000_000))
 
-            # Use LogEntry's built-in methods - no duplication!
-            # Labels contain: job, method, path, status_code, level
-            # Log content contains: timestamp, headers, body, processing_time, client_ip
             streams.append(
                 {
                     "stream": log_entry.get_labels(),
@@ -465,10 +400,6 @@ class GrafanaCloudLogger:
     async def log_error(self, service: str, operation: str, message: str, **kwargs):
         """Log error level application event"""
         await self.log_app_event(service, operation, message, "error", **kwargs)
-
-    def bind(self, service_name: str) -> BoundLogger:
-        """Create a bound logger for a specific service"""
-        return BoundLogger(self, service_name)
 
 
 loki_url = os.getenv("GRAFANA_LOKI_URL")
