@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Request, Form, HTTPException, Depends
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from .auth import get_current_user
-from typing import Optional
-import json
-import os
-from services.prompt_config.prompt_config import prompt_config
+from services.prompt_config.prompt_config import (
+    FORM_TYPE_DEFAULT,
+    FORM_TYPE_DELIVERED,
+)
 
 router = APIRouter(
     prefix="/forms",
@@ -15,55 +15,52 @@ router = APIRouter(
 # Initialize templates
 templates = Jinja2Templates(directory="templates")
 
+
 @router.get("/", response_class=HTMLResponse)
-async def show_form(request: Request, active_tab: str = "default", current_user: dict = Depends(get_current_user)):
+async def show_form(request: Request, active_tab: str = FORM_TYPE_DEFAULT, current_user: dict = Depends(get_current_user)):
     """Display the load check-in form with specified active tab"""
     if not current_user:
         return RedirectResponse(url="/auth/login", status_code=302)
     # Map URL parameters to actual tab names
     tab_mapping = {
-        "default": "Default Form",
+        FORM_TYPE_DEFAULT: "Default Form",
         "at-pickup": "At Pickup",
         "pickup-complete": "Pickup Complete",
         "in-transit": "In Transit",
         "at-drop": "At Drop",
-        "delivered": "Delivered",
+        FORM_TYPE_DELIVERED: "Delivered",
         "request-pod": "Request POD"
     }
-    
-    # Validate and get the correct tab name, default to "default" if invalid
+
+    # Validate and get the correct tab name, default to FORM_TYPE_DEFAULT if invalid
     active_tab = active_tab.lower()
     if active_tab not in tab_mapping:
-        active_tab = "default"
-    
+        active_tab = FORM_TYPE_DEFAULT
+
     return templates.TemplateResponse(
         "form.html",
         {
             "request": request,
             "active_tab": active_tab,
-            "tab_name": tab_mapping[active_tab]
+            "tab_name": tab_mapping[active_tab],
+            "current_user": current_user
         }
     )
 
-@router.post("/submit-load")
-async def submit_load(request: Request):
+
+@router.post("/submit")
+async def submit_form(request: Request):
     """Handle default form submission"""
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        # Prepare metadata for Retell call
-        metadata = {
-            "form_type": "default",
-            "form_data": data
-        }
-        
+
         # Return success response with call initiation details
         return templates.TemplateResponse(
             "form.html",
             {
                 "request": request,
-                "active_tab": "default",
+                "active_tab": FORM_TYPE_DEFAULT,
                 "success": True,
                 "message": "Call initiated successfully",
                 "form_data": data
@@ -74,10 +71,11 @@ async def submit_load(request: Request):
             "form.html",
             {
                 "request": request,
-                "active_tab": "default",
+                "active_tab": FORM_TYPE_DEFAULT,
                 "error": f"Failed to process form: {str(e)}"
             }
         )
+
 
 @router.post("/submit-at-pickup")
 async def submit_at_pickup(request: Request):
@@ -85,12 +83,7 @@ async def submit_at_pickup(request: Request):
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        metadata = {
-            "form_type": "at-pickup",
-            "form_data": data
-        }
-        
+
         return templates.TemplateResponse(
             "form.html",
             {
@@ -110,6 +103,7 @@ async def submit_at_pickup(request: Request):
                 "error": f"Failed to process form: {str(e)}"
             }
         )
+
 
 @router.post("/submit-pickup-complete")
 async def submit_pickup_complete(request: Request):
@@ -117,12 +111,7 @@ async def submit_pickup_complete(request: Request):
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        metadata = {
-            "form_type": "pickup-complete",
-            "form_data": data
-        }
-        
+
         return templates.TemplateResponse(
             "form.html",
             {
@@ -142,6 +131,7 @@ async def submit_pickup_complete(request: Request):
                 "error": f"Failed to process form: {str(e)}"
             }
         )
+
 
 @router.post("/submit-in-transit")
 async def submit_in_transit(request: Request):
@@ -149,12 +139,7 @@ async def submit_in_transit(request: Request):
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        metadata = {
-            "form_type": "in-transit",
-            "form_data": data
-        }
-        
+
         return templates.TemplateResponse(
             "form.html",
             {
@@ -174,6 +159,7 @@ async def submit_in_transit(request: Request):
                 "error": f"Failed to process form: {str(e)}"
             }
         )
+
 
 @router.post("/submit-at-drop")
 async def submit_at_drop(request: Request):
@@ -181,12 +167,7 @@ async def submit_at_drop(request: Request):
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        metadata = {
-            "form_type": "at-drop",
-            "form_data": data
-        }
-        
+
         return templates.TemplateResponse(
             "form.html",
             {
@@ -206,6 +187,7 @@ async def submit_at_drop(request: Request):
                 "error": f"Failed to process form: {str(e)}"
             }
         )
+
 
 @router.post("/submit-delivered")
 async def submit_delivered(request: Request):
@@ -213,17 +195,12 @@ async def submit_delivered(request: Request):
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        metadata = {
-            "form_type": "delivered",
-            "form_data": data
-        }
-        
+
         return templates.TemplateResponse(
             "form.html",
             {
                 "request": request,
-                "active_tab": "delivered",
+                "active_tab": FORM_TYPE_DELIVERED,
                 "success": True,
                 "message": "Call initiated successfully",
                 "form_data": data
@@ -234,10 +211,11 @@ async def submit_delivered(request: Request):
             "form.html",
             {
                 "request": request,
-                "active_tab": "delivered",
+                "active_tab": FORM_TYPE_DELIVERED,
                 "error": f"Failed to process form: {str(e)}"
             }
         )
+
 
 @router.post("/submit-request-pod")
 async def submit_request_pod(request: Request):
@@ -245,12 +223,7 @@ async def submit_request_pod(request: Request):
     try:
         form_data = await request.form()
         data = dict(form_data)
-        
-        metadata = {
-            "form_type": "request-pod",
-            "form_data": data
-        }
-        
+
         return templates.TemplateResponse(
             "form.html",
             {

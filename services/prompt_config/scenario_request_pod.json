@@ -1,0 +1,51 @@
+{
+	"title": "Request POD - follow-up when POD still missing",
+	"fields": {
+		"load_id": {
+			"label": "Load #",
+			"type": "text",
+			"required": true
+		},
+		"contact_phone": {
+			"label": "Driver phone",
+			"type": "tel",
+			"required": true
+		},
+		"trucker_name": {
+			"label": "Driver name",
+			"type": "text",
+			"required": true
+		},
+		"delivery_date": {
+			"label": "Delivery date/time",
+			"type": "datetime-local",
+			"required": true
+		},
+		"upload_method": {
+			"label": "Preferred upload method",
+			"type": "select",
+			"options": ["App", "MMS", "Email"],
+			"required": false
+		},
+		"reminder_attempt": {
+			"label": "Reminder attempt #",
+			"type": "select",
+			"options": ["1", "2", "3"],
+			"required": false,
+			"default": "1"
+		}
+	},
+	"voice_questions": [
+		"Ask the trucker have they uploaded the signed POD, sent it to your dispatcher or can you text a photo now since our records show we are still missing this."
+	],
+	"output_schema": {
+		"type": "object",
+		"properties": {
+			"POD_followup_received": {
+				"type": "boolean",
+				"description": "Whether the POD was successfully received during the follow-up call (via app upload or photo text)"
+			}
+		},
+		"required": ["POD_followup_received"]
+	}
+}

@@ -1,0 +1,74 @@
+{
+	"agent_id": "agent_6e445fc10ee5db15ae0b442067",
+	"channel": "voice",
+	"last_modification_timestamp": 1756489145031,
+	"agent_name": "zuum_staging",
+	"response_engine": {
+		"type": "retell-llm",
+		"llm_id": "llm_79e0ae47bcfd2b233d83c6685f41",
+		"version": 0
+	},
+	"webhook_url": "https://zuum-staging-b4iw7.ondigitalocean.app/api/retell/webhook/call-ended",
+	"language": "multi",
+	"opt_out_sensitive_data_storage": false,
+	"data_storage_setting": "everything",
+	"opt_in_signed_url": false,
+	"post_call_analysis_data": [
+		{
+			"type": "boolean",
+			"name": "issue_flagged",
+			"description": "Determine if it needs humans to be alerted?"
+		},
+		{
+			"name": "output",
+			"description": "The output json file which is according to {{output_schema}}",
+			"type": "string",
+			"examples": []
+		},
+		{
+			"type": "string",
+			"name": "exception_type",
+			"description": "The reason of this call, that can be: Late, Mechanical Issue, Wrong Address, etc"
+		},
+		{
+			"type": "string",
+			"name": "AI_Response_Summary",
+			"description": "It will be the summary of the conversation with the trucker like what you asked and what trucker replied."
+		},
+		{
+			"type": "number",
+			"name": "call_confidence_score",
+			"description": "Give score using LLM scoring / confidence thresholds from 0 to 100"
+		},
+		{
+			"type": "string",
+			"name": "tags",
+			"description": "tags for the conversation, that can be [\"Storm delay\", \"inbound\"], [\"Unresponsive\", \"outbound\"], [\"Rescheduled\", \"inbound\"] etc. Format: [\"tag_name\", \"call_direction\"] where call_direction is either \"inbound\" or \"outbound\""
+		},
+		{
+			"name": "purpose_fulfilled",
+			"description": "Assess whether all requirements in {{purpose}} were addressed. Return \"done\" if fulfilled, \"pending\" if incomplete. if you find wrong number call then mark it as \"done\"",
+			"type": "string",
+			"examples": []
+		}
+	],
+	"version": 0,
+	"is_published": false,
+	"post_call_analysis_model": "gpt-4o",
+	"voice_id": "11labs-Chloe",
+	"voice_model": "eleven_multilingual_v2",
+	"voice_temperature": 0.52,
+	"voice_speed": 0.88,
+	"volume": 0.88,
+	"enable_backchannel": false,
+	"backchannel_words": ["yeah", "uh-huh", "hmm."],
+	"reminder_trigger_ms": 10000,
+	"reminder_max_count": 1,
+	"max_call_duration_ms": 60000,
+	"interruption_sensitivity": 0.9,
+	"pronunciation_dictionary": [],
+	"normalize_for_speech": false,
+	"voicemail_option": { "action": { "type": "hangup" } },
+	"allow_user_dtmf": false,
+	"user_dtmf_options": {}
+}
