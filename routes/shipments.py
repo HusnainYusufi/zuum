@@ -7,6 +7,16 @@ from services.supabase import supabase_service
 router = APIRouter(prefix="/{env}/shipments", tags=["shipments"])
 
 
+def _validate_env(env: str) -> None:
+    """Validate environment parameter."""
+    allowed_envs = {"dev", "staging", "prod"}
+    if env not in allowed_envs:
+        raise HTTPException(
+            status_code=422, 
+            detail=f"Invalid environment '{env}'. Must be one of: {', '.join(allowed_envs)}"
+        )
+
+
 @router.get("/search")
 async def search_shipments(
     env: str,
@@ -25,6 +35,8 @@ async def search_shipments(
 ):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    _validate_env(env)
 
     try:
 
@@ -57,6 +69,8 @@ async def search_shipments(
 async def get_shipment_data(env: str, job_id: str, current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    _validate_env(env)
 
     try:
         result = await supabase_service.get_shipment_data(job_id, env)
