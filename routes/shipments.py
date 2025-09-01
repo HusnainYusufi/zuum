@@ -37,6 +37,7 @@ async def search_shipments(
             "fleet_name": fleet_name,
             "customer_name": customer_name,
             "carrier_id": carrier_id,
+            "env": env,
             "limit": limit,
             "offset": offset,
             "sort_dir": (sort_dir or "desc").lower(),
@@ -58,7 +59,7 @@ async def get_shipment_data(env: str, job_id: str, current_user: dict = Depends(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        result = await supabase_service.get_shipment_data(job_id)
+        result = await supabase_service.get_shipment_data(job_id, env)
         if not result.get("success"):
             raise HTTPException(status_code=404, detail=result.get("error", "Not found"))
         return JSONResponse(result)

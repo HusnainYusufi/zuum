@@ -401,7 +401,7 @@ class SupabaseService:
             return {"success": False, "error": str(e)}
 
     # Shipment ingestion and queries
-    async def upsert_shipment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def upsert_shipment(self, payload: Dict[str, Any], env: str = None) -> Dict[str, Any]:
         """Ingest shipment payload.
 
         - Promotes primary identifiers into first-class columns on `public.shipments`
@@ -440,7 +440,7 @@ class SupabaseService:
                 "customer_name": customer_name,
                 "carrier_id": carrier_id,
                 "job_id": job_id,
-                "env": ENVIRONMENT,
+                "env": env or ENVIRONMENT,
                 # Force touch updated_at on upsert so trigger runs consistently
                 "updated_at": datetime.now().isoformat(),
             }
@@ -470,7 +470,7 @@ class SupabaseService:
 
             filters = {k: params.get(k) for k in [
                 "tenant_id", "shipment_id", "load_id", "fleet_phone",
-                "fleet_name", "customer_name", "carrier_id", "job_id"
+                "fleet_name", "customer_name", "carrier_id", "job_id", "env"
             ] if params.get(k)}
 
             # Trim name filters to avoid leading/trailing whitespace mismatches
@@ -489,6 +489,7 @@ class SupabaseService:
                 "p_customer_name": filters.get("customer_name"),
                 "p_carrier_id": filters.get("carrier_id"),
                 "p_job_id": filters.get("job_id"),
+                "p_env": filters.get("env"),
                 "p_limit": limit,
                 "p_offset": offset,
                 "p_sort_dir": (params.get("sort_dir") or "desc").lower() if isinstance(params.get("sort_dir"), str) else "desc",
@@ -509,15 +510,29 @@ class SupabaseService:
             logger.error(f"Error searching shipments: {e}")
             return {"success": False, "error": str(e)}
 
-    async def get_shipment_data(self, job_id: str) -> Dict[str, Any]:
+    async def get_shipment_data(self, job_id: str, env: str = None) -> Dict[str, Any]:
         """Fetch full payload for a given `job_id` from `shipment_data`."""
         try:
             if not self.client:
                 return {"success": False, "error": "Supabase client not initialized"}
-            resp = self.client.table("shipment_data").select("job_id,payload").eq("job_id", job_id).single().execute()
-            if not resp.data:
-                return {"success": False, "error": "Not found"}
-            return {"success": True, "data": resp.data}
+            
+            if env:
+                # Join with shipments table to filter by environment
+                resp = self.client.table("shipment_data").select("job_id,payload").eq("job_id", job_id).execute()
+                if not resp.data:
+                    return {"success": False, "error": "Not found"}
+                
+                # Verify the shipment exists in the specified environment
+                shipment_resp = self.client.table("shipments").select("job_id").eq("job_id", job_id).eq("env", env).single().execute()
+                if not shipment_resp.data:
+                    return {"success": False, "error": "Not found in specified environment"}
+                    
+                return {"success": True, "data": resp.data[0]}
+            else:
+                resp = self.client.table("shipment_data").select("job_id,payload").eq("job_id", job_id).single().execute()
+                if not resp.data:
+                    return {"success": False, "error": "Not found"}
+                return {"success": True, "data": resp.data}
         except Exception as e:
             logger.error(f"Error fetching shipment data {job_id}: {e}")
             return {"success": False, "error": str(e)}
