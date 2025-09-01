@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from services.supabase import supabase_service
 
-router = APIRouter(prefix="/{env}/webhook", tags=["webhook"])
+router = APIRouter(prefix="/webhook", tags=["webhook"])
 
 
 payload_schema = Body(
@@ -36,7 +36,6 @@ def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.post("/shipment")
 async def ingest_shipment(
-    env: str,
     payload: Dict[str, Any] = payload_schema,
 ):
     """Webhook endpoint to ingest shipment JSON from external system.
@@ -51,7 +50,7 @@ async def ingest_shipment(
         if not job_id:
             raise HTTPException(status_code=422, detail="job._id is required")
 
-        result = await supabase_service.upsert_shipment(safe_payload, env)
+        result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             # Map missing job error to 422; otherwise 500
@@ -69,7 +68,6 @@ async def ingest_shipment(
 
 @router.post("/shipment/{id}")
 async def ingest_shipment_with_id(
-    env: str,
     id: str,
     payload: Dict[str, Any] = payload_schema,
 ):
