@@ -1,10 +1,37 @@
+import os
 from typing import Any, Dict
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Header
 from fastapi.responses import JSONResponse
 from loguru import logger
 from services.supabase import supabase_service
 
+# Initialize webhook secret at module level to avoid repeated os.getenv calls
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+
 router = APIRouter(prefix="/webhook", tags=["webhook"])
+
+
+def _verify_webhook_secret(x_webhook_secret: str = Header(None)) -> bool:
+    """Verify webhook secret if configured"""
+    if WEBHOOK_SECRET and x_webhook_secret != WEBHOOK_SECRET:
+        raise HTTPException(status_code=401, detail="Invalid webhook secret")
+    return True
+
+
+async def _log_webhook_event(webhook_type: str, source: str, payload: Dict[str, Any], headers: Dict[str, str], status: str = "pending", error_message: str = None):
+    """Log webhook event to the webhooks table"""
+    try:
+        webhook_data = {
+            "webhook_type": webhook_type,
+            "source": source,
+            "payload": payload,
+            "headers": headers,
+            "status": status,
+            "error_message": error_message
+        }
+        await supabase_service.insert_webhook_event(webhook_data)
+    except Exception as e:
+        logger.error(f"Failed to log webhook event: {e}")
 
 
 payload_schema = Body(
@@ -37,11 +64,15 @@ def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 @router.post("/shipment")
 async def ingest_shipment(
     payload: Dict[str, Any] = payload_schema,
+    x_webhook_secret: str = Header(None)
 ):
     """Webhook endpoint to ingest shipment JSON from external system.
 
     Expects a JSON body matching the sample schema in `shipment-es-sample.json`.
     """
+    # Verify webhook secret if configured
+    _verify_webhook_secret(x_webhook_secret)
+    
     try:
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
         # Enforce presence of job._id for this endpoint
@@ -52,12 +83,16 @@ async def ingest_shipment(
 
         result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
+            # Log failed webhook processing
+            await _log_webhook_event("shipment", "external", payload, headers, "failed", result.get("error"))
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             # Map missing job error to 422; otherwise 500
             if result.get("error") == "job._id is required for shipment upsert":
                 raise HTTPException(status_code=422, detail="job._id is required")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
+        # Log successful webhook processing
+        await _log_webhook_event("shipment", "external", payload, headers, "completed")
         return JSONResponse({"success": True, "job_id": result.get("job_id"), "updated_at": result.get("updated_at")})
     except HTTPException:
         raise
@@ -70,6 +105,7 @@ async def ingest_shipment(
 async def ingest_shipment_with_id(
     id: str,
     payload: Dict[str, Any] = payload_schema,
+    x_webhook_secret: str = Header(None)
 ):
     """Webhook endpoint to ingest shipment JSON with job id in path.
 
@@ -77,6 +113,13 @@ async def ingest_shipment_with_id(
     - Ensures the `jobs` array contains an entry for the job id (appends if missing)
     - Upserts shipment using Supabase
     """
+    # Verify webhook secret if configured
+    _verify_webhook_secret(x_webhook_secret)
+    
+    # Log webhook event
+    headers = {"x-webhook-secret": x_webhook_secret} if x_webhook_secret else {}
+    await _log_webhook_event("shipment_with_id", "external", payload, headers, "processing")
+    
     try:
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
 
@@ -113,9 +156,13 @@ async def ingest_shipment_with_id(
         # Upsert updated payload
         result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
+            # Log failed webhook processing
+            await _log_webhook_event("shipment_with_id", "external", payload, headers, "failed", result.get("error"))
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
+        # Log successful webhook processing
+        await _log_webhook_event("shipment_with_id", "external", payload, headers, "completed")
         return JSONResponse(
             {"success": True, "job_id": result.get("job_id") or id, "updated_at": result.get("updated_at"), "jobs_count": len(jobs_arr)}
         )

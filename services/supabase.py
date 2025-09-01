@@ -728,6 +728,25 @@ class SupabaseService:
             logger.error(f"Supabase health check failed: {e}")
             return False
 
+    async def insert_webhook_event(self, webhook_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Insert a webhook event into the webhooks table"""
+        try:
+            if not self.client:
+                return {"success": False, "error": "Supabase client not initialized"}
+
+            result = self.client.table("webhooks").insert(webhook_data).execute()
+
+            if result.data:
+                logger.info(f"Logged webhook event with ID: {result.data[0]['id']}")
+                return {"success": True, "data": result.data[0]}
+            else:
+                logger.error("Failed to log webhook event: No data returned")
+                return {"success": False, "error": "No data returned from database"}
+
+        except Exception as e:
+            logger.error(f"Error logging webhook event: {e}")
+            return {"success": False, "error": str(e)}
+
 
 # Create singleton instance
 supabase_service = SupabaseService()
@@ -749,3 +768,4 @@ get_retell_call_by_id = supabase_service.get_retell_call_by_id
 upsert_shipment = supabase_service.upsert_shipment
 search_shipments = supabase_service.search_shipments
 get_shipment_data = supabase_service.get_shipment_data
+insert_webhook_event = supabase_service.insert_webhook_event
