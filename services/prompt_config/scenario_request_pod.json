@@ -36,7 +36,7 @@
 		}
 	},
 	"voice_questions": [
-		"Ask the trucker have they uploaded the signed POD, sent it to your dispatcher or can you text a photo now since our records show we are still missing this."
+		"Ask the trucker if they have uploaded the signed POD, sent it to your dispatcher or can you text a photo now since our records show we are still missing this."
 	],
 	"output_schema": {
 		"type": "object",

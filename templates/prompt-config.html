@@ -1041,9 +1041,17 @@
 			</div>
 		</div>
 
+		<!-- Secure JSON data storage -->
+		<script type="application/json" id="config-data">
+			{{ config_data }}
+		</script>
+
 		<script>
 			let currentQuestions = [];
-			let originalConfig = {{ config_data|safe }};
+			// Secure JSON parsing - no XSS risk
+			let originalConfig = JSON.parse(
+				document.getElementById("config-data").textContent
+			);
 			let currentFormConfig = {};
 			let draggedElement = null;
 			let draggedIndex = null;
@@ -1052,33 +1060,33 @@
 			function handleDragStart(e) {
 				draggedElement = this;
 				draggedIndex = parseInt(this.dataset.index);
-				this.classList.add('dragging');
-				e.dataTransfer.effectAllowed = 'move';
-				e.dataTransfer.setData('text/html', this.innerHTML);
+				this.classList.add("dragging");
+				e.dataTransfer.effectAllowed = "move";
+				e.dataTransfer.setData("text/html", this.innerHTML);
 			}
 
 			function handleDragEnd(e) {
-				this.classList.remove('dragging');
+				this.classList.remove("dragging");
 
 				// Remove all drag-over classes
-				const allChips = document.querySelectorAll('.question-chip');
-				allChips.forEach(chip => chip.classList.remove('drag-over'));
+				const allChips = document.querySelectorAll(".question-chip");
+				allChips.forEach((chip) => chip.classList.remove("drag-over"));
 			}
 
 			function handleDragOver(e) {
 				if (e.preventDefault) {
 					e.preventDefault();
 				}
-				e.dataTransfer.dropEffect = 'move';
+				e.dataTransfer.dropEffect = "move";
 				return false;
 			}
 
 			function handleDragEnter(e) {
-				this.classList.add('drag-over');
+				this.classList.add("drag-over");
 			}
 
 			function handleDragLeave(e) {
-				this.classList.remove('drag-over');
+				this.classList.remove("drag-over");
 			}
 
 			function handleDrop(e) {
@@ -1102,16 +1110,19 @@
 
 			// Load questions for the selected form type
 			function loadFormQuestions() {
-				const formType = document.getElementById('formTypeSelect').value;
+				const formType = document.getElementById("formTypeSelect").value;
 				const formConfig = originalConfig.FORM_CONFIG[formType];
 				currentFormConfig = JSON.parse(JSON.stringify(formConfig)); // Deep copy
 
 				// Update form field count
 				const fieldCount = Object.keys(formConfig.fields).length;
-				document.getElementById('formFieldCount').textContent = `${fieldCount} fields configured`;
+				document.getElementById(
+					"formFieldCount"
+				).textContent = `${fieldCount} fields configured`;
 
 				// Update current form title
-				document.getElementById('currentFormTitle').textContent = formConfig.title || formType;
+				document.getElementById("currentFormTitle").textContent =
+					formConfig.title || formType;
 
 				// Load questions
 				currentQuestions = formConfig.voice_questions || [];
@@ -1121,11 +1132,15 @@
 				loadFormFields(formConfig.fields);
 
 				// Load current form JSON (only this form, not entire config)
-				document.getElementById('jsonEditor').value = JSON.stringify(currentFormConfig, null, 2);
+				document.getElementById("jsonEditor").value = JSON.stringify(
+					currentFormConfig,
+					null,
+					2
+				);
 
 				// Load output schema
 				const outputSchema = formConfig.output_schema || {};
-				const schemaContent = document.getElementById('outputSchemaContent');
+				const schemaContent = document.getElementById("outputSchemaContent");
 				schemaContent.textContent = JSON.stringify(outputSchema, null, 2);
 
 				// Load schema fields into table view
@@ -1134,8 +1149,8 @@
 
 			// Load form fields into the new Fields panel
 			function loadFormFields(fields) {
-				const container = document.getElementById('fieldsGrid');
-				container.innerHTML = '';
+				const container = document.getElementById("fieldsGrid");
+				container.innerHTML = "";
 
 				Object.entries(fields).forEach(([fieldName, fieldConfig]) => {
 					const fieldCard = createFieldCard(fieldName, fieldConfig);
@@ -1144,19 +1159,20 @@
 			}
 
 			function createFieldCard(fieldName, fieldConfig) {
-				const card = document.createElement('div');
-				card.className = 'field-card';
+				const card = document.createElement("div");
+				card.className = "field-card";
 
 				const required = fieldConfig.required;
-				const requiredBadge = required ?
-					'<span class="field-required">Required</span>' :
-					'<span class="field-optional">Optional</span>';
+				const requiredBadge = required
+					? '<span class="field-required">Required</span>'
+					: '<span class="field-optional">Optional</span>';
 
-				const options = fieldConfig.options ?
-					`<div class="field-detail">
+				const options = fieldConfig.options
+					? `<div class="field-detail">
 						<span class="field-detail-label">Options:</span>
-						<span class="field-detail-value">${fieldConfig.options.join(', ')}</span>
-					</div>` : '';
+						<span class="field-detail-value">${fieldConfig.options.join(", ")}</span>
+					</div>`
+					: "";
 
 				card.innerHTML = `
 					<div class="field-header">
@@ -1181,15 +1197,17 @@
 
 			// Load schema fields into table view
 			function loadSchemaFields(schema) {
-				const container = document.getElementById('schemaFieldsContainer');
-				container.innerHTML = '';
+				const container = document.getElementById("schemaFieldsContainer");
+				container.innerHTML = "";
 
 				const properties = schema.properties || {};
 				const required = schema.required || [];
 				const fields = Object.entries(properties);
 
 				// Update field count
-				document.getElementById('schemaFieldCount').textContent = `${fields.length} field${fields.length !== 1 ? 's' : ''}`;
+				document.getElementById("schemaFieldCount").textContent = `${
+					fields.length
+				} field${fields.length !== 1 ? "s" : ""}`;
 
 				if (fields.length === 0) {
 					container.innerHTML = `
@@ -1206,24 +1224,31 @@
 
 				fields.forEach(([fieldName, fieldConfig], index) => {
 					const isRequired = required.includes(fieldName);
-					const fieldRow = createSchemaFieldRow(fieldName, fieldConfig, isRequired, index);
+					const fieldRow = createSchemaFieldRow(
+						fieldName,
+						fieldConfig,
+						isRequired,
+						index
+					);
 					container.appendChild(fieldRow);
 				});
 			}
 
 			function createSchemaFieldRow(fieldName, fieldConfig, isRequired, index) {
-				const row = document.createElement('div');
-				row.className = 'schema-field-row';
+				const row = document.createElement("div");
+				row.className = "schema-field-row";
 				row.dataset.fieldName = fieldName;
 
-				const requiredBadge = isRequired ?
-					'<span class="field-required-badge required">R</span>' :
-					'<span class="field-required-badge optional">O</span>';
+				const requiredBadge = isRequired
+					? '<span class="field-required-badge required">R</span>'
+					: '<span class="field-required-badge optional">O</span>';
 
 				row.innerHTML = `
 					<div class="field-name-display">${fieldName}</div>
-					<div class="field-description">${fieldConfig.description || 'No description'}</div>
-					<div class="field-type">${fieldConfig.type || 'string'}</div>
+					<div class="field-description">${
+						fieldConfig.description || "No description"
+					}</div>
+					<div class="field-type">${fieldConfig.type || "string"}</div>
 					<div>${requiredBadge}</div>
 					<div>
 						<button class="btn-icon edit" onclick="editSchemaField('${fieldName}')" title="Edit">
@@ -1244,8 +1269,8 @@
 			}
 
 			function renderQuestions() {
-				const container = document.getElementById('questionsContainer');
-				container.innerHTML = '';
+				const container = document.getElementById("questionsContainer");
+				container.innerHTML = "";
 
 				if (currentQuestions.length === 0) {
 					container.innerHTML = `
@@ -1267,8 +1292,8 @@
 			}
 
 			function createQuestionChip(question, index) {
-				const chip = document.createElement('div');
-				chip.className = 'question-chip';
+				const chip = document.createElement("div");
+				chip.className = "question-chip";
 				chip.dataset.index = index;
 				chip.draggable = true;
 
@@ -1293,19 +1318,19 @@
 				`;
 
 				// Add drag and drop event listeners
-				chip.addEventListener('dragstart', handleDragStart);
-				chip.addEventListener('dragend', handleDragEnd);
-				chip.addEventListener('dragover', handleDragOver);
-				chip.addEventListener('dragenter', handleDragEnter);
-				chip.addEventListener('dragleave', handleDragLeave);
-				chip.addEventListener('drop', handleDrop);
+				chip.addEventListener("dragstart", handleDragStart);
+				chip.addEventListener("dragend", handleDragEnd);
+				chip.addEventListener("dragover", handleDragOver);
+				chip.addEventListener("dragenter", handleDragEnter);
+				chip.addEventListener("dragleave", handleDragLeave);
+				chip.addEventListener("drop", handleDrop);
 
 				return chip;
 			}
 
 			// Question management functions
 			function addNewQuestion() {
-				const question = prompt('Enter the new voice question:');
+				const question = prompt("Enter the new voice question:");
 				if (question && question.trim()) {
 					currentQuestions.push(question.trim());
 					renderQuestions();
@@ -1314,7 +1339,7 @@
 
 			function editQuestion(index) {
 				const currentQuestion = currentQuestions[index];
-				const newQuestion = prompt('Edit question:', currentQuestion);
+				const newQuestion = prompt("Edit question:", currentQuestion);
 				if (newQuestion !== null && newQuestion.trim()) {
 					currentQuestions[index] = newQuestion.trim();
 					renderQuestions();
@@ -1322,7 +1347,7 @@
 			}
 
 			function deleteQuestion(index) {
-				if (confirm('Are you sure you want to delete this question?')) {
+				if (confirm("Are you sure you want to delete this question?")) {
 					currentQuestions.splice(index, 1);
 					renderQuestions();
 				}
@@ -1331,98 +1356,116 @@
 			// Save current form configuration (not entire config)
 			function saveCurrentFormConfiguration() {
 				try {
-					const formType = document.getElementById('formTypeSelect').value;
-					const configText = document.getElementById('jsonEditor').value;
+					const formType = document.getElementById("formTypeSelect").value;
+					const configText = document.getElementById("jsonEditor").value;
 					const config = JSON.parse(configText);
 
 					showLoading();
 
 					// Save this specific form configuration
 					fetch(`/prompt-config/form-config/${formType}`, {
-						method: 'POST',
+						method: "POST",
 						headers: {
-							'Content-Type': 'application/json',
+							"Content-Type": "application/json",
 						},
-						body: JSON.stringify(config)
+						body: JSON.stringify(config),
 					})
-					.then(response => response.json())
-					.then(data => {
-						hideLoading();
-						if (data.error) {
-							showAlert('error', data.error);
-						} else {
-							showAlert('success', 'Form configuration saved successfully');
-							// Update the current form config
-							currentFormConfig = config;
-							// Reload the form data
-							loadFormQuestions();
-						}
-					})
-					.catch(error => {
-						hideLoading();
-						showAlert('error', 'Failed to save configuration: ' + error.message);
-					});
+						.then((response) => response.json())
+						.then((data) => {
+							hideLoading();
+							if (data.error) {
+								showAlert("error", data.error);
+							} else {
+								showAlert("success", "Form configuration saved successfully");
+								// Update the current form config
+								currentFormConfig = config;
+								// Reload the form data
+								loadFormQuestions();
+							}
+						})
+						.catch((error) => {
+							hideLoading();
+							showAlert(
+								"error",
+								"Failed to save configuration: " + error.message
+							);
+						});
 				} catch (error) {
 					hideLoading();
-					showAlert('error', 'Invalid JSON format: ' + error.message);
+					showAlert("error", "Invalid JSON format: " + error.message);
 				}
 			}
 
 			function resetCurrentForm() {
-				if (confirm('Are you sure you want to reset this form to its original configuration?')) {
+				if (
+					confirm(
+						"Are you sure you want to reset this form to its original configuration?"
+					)
+				) {
 					loadFormQuestions();
-					showAlert('success', 'Form configuration reset');
+					showAlert("success", "Form configuration reset");
 				}
 			}
 
 			// Save questions
 			function saveQuestions() {
-				const formType = document.getElementById('formTypeSelect').value;
+				const formType = document.getElementById("formTypeSelect").value;
 
 				showLoading();
 
 				fetch(`/prompt-config/update-questions/${formType}`, {
-					method: 'POST',
+					method: "POST",
 					headers: {
-						'Content-Type': 'application/json',
+						"Content-Type": "application/json",
 					},
-					body: JSON.stringify({questions: currentQuestions})
+					body: JSON.stringify({ questions: currentQuestions }),
 				})
-				.then(response => response.json())
-				.then(data => {
-					hideLoading();
-					if (data.error) {
-						showAlert('error', data.error);
-					} else {
-						showAlert('success', 'Voice questions saved successfully');
-						// Update current config and JSON editor
-						currentFormConfig.voice_questions = currentQuestions;
-						document.getElementById('jsonEditor').value = JSON.stringify(currentFormConfig, null, 2);
-					}
-				})
-				.catch(error => {
-					hideLoading();
-					showAlert('error', 'Failed to save questions: ' + error.message);
-				});
+					.then((response) => response.json())
+					.then((data) => {
+						hideLoading();
+						if (data.error) {
+							showAlert("error", data.error);
+						} else {
+							showAlert("success", "Voice questions saved successfully");
+							// Update current config and JSON editor
+							currentFormConfig.voice_questions = currentQuestions;
+							document.getElementById("jsonEditor").value = JSON.stringify(
+								currentFormConfig,
+								null,
+								2
+							);
+						}
+					})
+					.catch((error) => {
+						hideLoading();
+						showAlert("error", "Failed to save questions: " + error.message);
+					});
 			}
 
 			// Schema management functions
 			function addSchemaField() {
-				const fieldName = prompt('Enter field name:');
+				const fieldName = prompt("Enter field name:");
 				if (!fieldName || !fieldName.trim()) return;
 
-				const description = prompt('Enter field description:');
-				const type = prompt('Enter field type (string, boolean, number):', 'string');
-				const isRequired = confirm('Is this field required?');
+				const description = prompt("Enter field description:");
+				const type = prompt(
+					"Enter field type (string, boolean, number):",
+					"string"
+				);
+				const isRequired = confirm("Is this field required?");
 
 				// Get current schema
-				const formType = document.getElementById('formTypeSelect').value;
-				const outputSchema = currentFormConfig.output_schema || {type: 'object', properties: {}, required: []};
+				const formType = document.getElementById("formTypeSelect").value;
+				const outputSchema = currentFormConfig.output_schema || {
+					type: "object",
+					properties: {},
+					required: [],
+				};
 
 				// Add new field
 				outputSchema.properties[fieldName.trim()] = {
-					type: type || 'string',
-					description: description || ''
+					type: type || "string",
+					description: description || "",
 				};
 
 				if (isRequired && !outputSchema.required.includes(fieldName.trim())) {
@@ -1433,60 +1476,81 @@
 				currentFormConfig.output_schema = outputSchema;
 
 				// Refresh displays
-				document.getElementById('outputSchemaContent').textContent = JSON.stringify(outputSchema, null, 2);
-				document.getElementById('jsonEditor').value = JSON.stringify(currentFormConfig, null, 2);
+				document.getElementById("outputSchemaContent").textContent =
+					JSON.stringify(outputSchema, null, 2);
+				document.getElementById("jsonEditor").value = JSON.stringify(
+					currentFormConfig,
+					null,
+					2
+				);
 				loadSchemaFields(outputSchema);
 			}
 
 			function editSchemaField(fieldName) {
 				// Implementation for editing schema fields
-				showAlert('warning', 'Edit functionality coming soon - use JSON editor for now');
+				showAlert(
+					"warning",
+					"Edit functionality coming soon - use JSON editor for now"
+				);
 			}
 
 			function deleteSchemaField(fieldName) {
-				if (confirm(`Are you sure you want to delete the field "${fieldName}"?`)) {
-					const outputSchema = currentFormConfig.output_schema || {type: 'object', properties: {}, required: []};
+				if (
+					confirm(`Are you sure you want to delete the field "${fieldName}"?`)
+				) {
+					const outputSchema = currentFormConfig.output_schema || {
+						type: "object",
+						properties: {},
+						required: [],
+					};
 
 					// Remove from properties and required
 					delete outputSchema.properties[fieldName];
-					outputSchema.required = outputSchema.required.filter(f => f !== fieldName);
+					outputSchema.required = outputSchema.required.filter(
+						(f) => f !== fieldName
+					);
 
 					// Update current config
 					currentFormConfig.output_schema = outputSchema;
 
 					// Refresh displays
-					document.getElementById('outputSchemaContent').textContent = JSON.stringify(outputSchema, null, 2);
-					document.getElementById('jsonEditor').value = JSON.stringify(currentFormConfig, null, 2);
+					document.getElementById("outputSchemaContent").textContent =
+						JSON.stringify(outputSchema, null, 2);
+					document.getElementById("jsonEditor").value = JSON.stringify(
+						currentFormConfig,
+						null,
+						2
+					);
 					loadSchemaFields(outputSchema);
 				}
 			}
 
 			function saveOutputSchema() {
-				const formType = document.getElementById('formTypeSelect').value;
+				const formType = document.getElementById("formTypeSelect").value;
 				const outputSchema = currentFormConfig.output_schema || {};
 
 				showLoading();
 
 				fetch(`/prompt-config/update-output-schema/${formType}`, {
-					method: 'POST',
+					method: "POST",
 					headers: {
-						'Content-Type': 'application/json',
+						"Content-Type": "application/json",
 					},
-					body: JSON.stringify({output_schema: outputSchema})
+					body: JSON.stringify({ output_schema: outputSchema }),
 				})
-				.then(response => response.json())
-				.then(data => {
-					hideLoading();
-					if (data.error) {
-						showAlert('error', data.error);
-					} else {
-						showAlert('success', 'Output schema saved successfully');
-					}
-				})
-				.catch(error => {
-					hideLoading();
-					showAlert('error', 'Failed to save schema: ' + error.message);
-				});
+					.then((response) => response.json())
+					.then((data) => {
+						hideLoading();
+						if (data.error) {
+							showAlert("error", data.error);
+						} else {
+							showAlert("success", "Output schema saved successfully");
+						}
+					})
+					.catch((error) => {
+						hideLoading();
+						showAlert("error", "Failed to save schema: " + error.message);
+					});
 			}
 
 			function validateOutputSchema() {
@@ -1494,56 +1558,67 @@
 					const outputSchema = currentFormConfig.output_schema || {};
 
 					// Basic validation
-					if (!outputSchema.type || outputSchema.type !== 'object') {
+					if (!outputSchema.type || outputSchema.type !== "object") {
 						throw new Error('Schema must be of type "object"');
 					}
 
-					if (!outputSchema.properties || typeof outputSchema.properties !== 'object') {
+					if (
+						!outputSchema.properties ||
+						typeof outputSchema.properties !== "object"
+					) {
 						throw new Error('Schema must have a "properties" object');
 					}
 
 					if (outputSchema.required && !Array.isArray(outputSchema.required)) {
-						throw new Error('Required field must be an array');
+						throw new Error("Required field must be an array");
 					}
 
 					// Check that all required fields exist in properties
 					for (const requiredField of outputSchema.required) {
 						if (!outputSchema.properties[requiredField]) {
-							throw new Error(`Required field "${requiredField}" not found in properties`);
+							throw new Error(
+								`Required field "${requiredField}" not found in properties`
+							);
 						}
 					}
 
-					showAlert('success', 'Schema is valid!');
+					showAlert("success", "Schema is valid!");
 				} catch (error) {
-					showAlert('error', 'Schema validation failed: ' + error.message);
+					showAlert("error", "Schema validation failed: " + error.message);
 				}
 			}
 
 			function toggleSchemaView() {
-				const tableView = document.getElementById('schemaTableView');
-				const jsonView = document.getElementById('schemaJsonView');
+				const tableView = document.getElementById("schemaTableView");
+				const jsonView = document.getElementById("schemaJsonView");
 
-				if (tableView.style.display === 'none') {
-					tableView.style.display = 'block';
-					jsonView.style.display = 'none';
+				if (tableView.style.display === "none") {
+					tableView.style.display = "block";
+					jsonView.style.display = "none";
 				} else {
-					tableView.style.display = 'none';
-					jsonView.style.display = 'block';
+					tableView.style.display = "none";
+					jsonView.style.display = "block";
 				}
 			}
 
 			// Fields management (placeholder functions)
 			function addNewField() {
-				showAlert('warning', 'Add field functionality coming soon - use JSON editor for now');
+				showAlert(
+					"warning",
+					"Add field functionality coming soon - use JSON editor for now"
+				);
 			}
 
 			function saveFields() {
-				showAlert('warning', 'Save fields functionality coming soon - use JSON editor for now');
+				showAlert(
+					"warning",
+					"Save fields functionality coming soon - use JSON editor for now"
+				);
 			}
 
 			// Utility functions
 			function showAlert(type, message) {
-				const alert = document.createElement('div');
+				const alert = document.createElement("div");
 				alert.className = `alert ${type}`;
 				alert.innerHTML = `
 					<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
@@ -1560,20 +1635,22 @@
 			}
 
 			function showLoading() {
-				document.getElementById('loading').style.display = 'flex';
+				document.getElementById("loading").style.display = "flex";
 			}
 
 			function hideLoading() {
-				document.getElementById('loading').style.display = 'none';
+				document.getElementById("loading").style.display = "none";
 			}
 
 			// Initialize on page load
-			document.addEventListener('DOMContentLoaded', function() {
+			document.addEventListener("DOMContentLoaded", function () {
 				// Load saved form type selection
-				const savedFormType = localStorage.getItem('selectedFormType');
+				const savedFormType = localStorage.getItem("selectedFormType");
 				if (savedFormType) {
-					const formTypeSelect = document.getElementById('formTypeSelect');
-					const optionExists = Array.from(formTypeSelect.options).some(option => option.value === savedFormType);
+					const formTypeSelect = document.getElementById("formTypeSelect");
+					const optionExists = Array.from(formTypeSelect.options).some(
+						(option) => option.value === savedFormType
+					);
 					if (optionExists) {
 						formTypeSelect.value = savedFormType;
 					}
@@ -1582,9 +1659,11 @@
 				loadFormQuestions();
 
 				// Save form type selection to localStorage when changed
-				document.getElementById('formTypeSelect').addEventListener('change', function() {
-					localStorage.setItem('selectedFormType', this.value);
-				});
+				document
+					.getElementById("formTypeSelect")
+					.addEventListener("change", function () {
+						localStorage.setItem("selectedFormType", this.value);
+					});
 			});
 		</script>
 	</body>

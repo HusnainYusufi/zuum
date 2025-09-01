@@ -35,7 +35,7 @@
 		}
 	},
 	"voice_questions": [
-		"Tell the driver we are calling since we dont see them tracking or stopped tracking for some time and ask what city and state they are in.",
+		"Tell the driver we are calling since we don't see them tracking or stopped tracking for some time and ask what city and state they are in.",
 		"What's your updated ETA to the receiver?",
 		"Do you foresee anything that could make you late—weather, HOS, equipment?",
 		"Tell the driver to please turn on tracking so we don't have to keep calling for updates"
