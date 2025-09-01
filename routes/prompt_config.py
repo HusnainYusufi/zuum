@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-import json
 from services.prompt_config.prompt_config import prompt_config
 
 router = APIRouter(
@@ -37,7 +36,7 @@ async def get_prompt_config(request: Request):
         "prompt-config.html",
         {
             "request": request,
-            "config_data": json.dumps(config_data, indent=2),
+            "config_data": config_data,
             "form_types": list(form_config.keys()),
             "form_config": form_config
         }
@@ -138,4 +137,30 @@ async def get_form_config(form_type: str):
         return JSONResponse(
             status_code=404,
             content={"error": f"Form type '{form_type}' not found"}
+        )
+
+
+@router.post("/form-config/{form_type}", response_class=JSONResponse)
+async def update_form_config(form_type: str, request: Request):
+    """Update configuration for a specific form type"""
+    try:
+        # Get the JSON data from the request
+        config = await request.json()
+
+        # Update the specific form configuration
+        prompt_config.update_form_config(form_type, config)
+
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Form configuration updated successfully"}
+        )
+    except FileNotFoundError:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Form type '{form_type}' not found"}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to update form configuration: {str(e)}"}
         )

@@ -1,77 +1,90 @@
 {
-	"title": "Delivered",
 	"fields": {
-		"load_id": {
-			"label": "Load #",
-			"type": "text",
-			"required": true
-		},
 		"contact_phone": {
 			"label": "Driver phone",
-			"type": "tel",
-			"required": true
-		},
-		"trucker_name": {
-			"label": "Driver name",
-			"type": "text",
-			"required": true
+			"required": true,
+			"type": "tel"
 		},
 		"empty_time": {
 			"label": "Time empty / out-gate time",
-			"type": "datetime-local",
-			"required": true
-		},
-		"pod_uploaded": {
-			"label": "POD uploaded?",
-			"type": "select",
-			"options": ["Y", "N"],
-			"required": false
-		},
-		"lumper_receipt": {
-			"label": "Lumper receipt / scale ticket collected?",
-			"type": "select",
-			"options": ["Y", "N"],
-			"required": false
+			"required": true,
+			"type": "datetime-local"
 		},
 		"final_osd": {
 			"label": "Final OS&D?",
-			"type": "select",
-			"options": ["Y", "N"],
-			"required": false
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"load_id": {
+			"label": "Load #",
+			"required": true,
+			"type": "text"
+		},
+		"lumper_receipt": {
+			"label": "Lumper receipt / scale ticket collected?",
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": false,
+			"type": "select"
 		},
 		"osd_notes": {
 			"label": "OS&D notes",
-			"type": "textarea",
-			"required": false
+			"required": false,
+			"type": "textarea"
+		},
+		"pod_uploaded": {
+			"label": "POD uploaded?",
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"trucker_name": {
+			"label": "Driver name",
+			"required": true,
+			"type": "text"
 		}
 	},
+	"output_schema": {
+		"properties": {
+			"Dock_release_time": {
+				"description": "The time the driver was released from the dock (e.g., '15:45' or '2025-06-06T15:45:00')",
+				"type": "string"
+			},
+			"OSD_notes": {
+				"description": "Driver's stated overages, shortages or damages noted by the warehouse. If no OSD, then 'None'.",
+				"type": "string"
+			},
+			"POD_texted": {
+				"description": "Whether the driver texted a photo of the signed POD (if not uploaded via app)",
+				"type": "boolean"
+			},
+			"POD_uploaded": {
+				"description": "Whether the signed POD has been uploaded to the Zuum app",
+				"type": "boolean"
+			}
+		},
+		"required": [
+			"OSD_notes",
+			"Dock_release_time",
+			"POD_uploaded"
+		],
+		"type": "object"
+	},
+	"title": "Delivered",
 	"voice_questions": [
 		"What time were you released from the dock?",
 		"Ask for any overages, shortages or damages noted by the warehouse?",
 		"Have you uploaded the signed POD, sent it to your dispatcher or can you text a photo now",
 		"Any lumper receipts or scale tickets we still need?",
 		"Ask the trucker if he needs any further assistance."
-	],
-	"output_schema": {
-		"type": "object",
-		"properties": {
-			"OSD_notes": {
-				"type": "string",
-				"description": "Driver's stated overages, shortages or damages noted by the warehouse. If no OSD, then 'None'."
-			},
-			"Dock_release_time": {
-				"type": "string",
-				"description": "The time the driver was released from the dock (e.g., '15:45' or '2025-06-06T15:45:00')"
-			},
-			"POD_uploaded": {
-				"type": "boolean",
-				"description": "Whether the signed POD has been uploaded to the Zuum app"
-			},
-			"POD_texted": {
-				"type": "boolean",
-				"description": "Whether the driver texted a photo of the signed POD (if not uploaded via app)"
-			}
-		},
-		"required": ["OSD_notes", "Dock_release_time", "POD_uploaded"]
-	}
+	]
 }

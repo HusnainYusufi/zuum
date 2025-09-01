@@ -165,15 +165,9 @@
 			/* Grid Layout */
 			.main-grid {
 				display: grid;
-				grid-template-columns: 1fr 1fr;
+				grid-template-columns: 1fr;
 				gap: 2rem;
 				margin-bottom: 2rem;
-			}
-
-			@media (max-width: 1024px) {
-				.main-grid {
-					grid-template-columns: 1fr;
-				}
 			}
 
 			/* Panel Styles */
@@ -216,10 +210,15 @@
 			}
 
 			/* Panel body with scrollable content */
-			.voice-questions-panel .panel-body,
 			.json-config-panel .panel-body {
 				max-height: 600px;
 				overflow: hidden;
+			}
+
+			/* Remove height restrictions for voice questions panel */
+			.voice-questions-panel .panel-body {
+				overflow: visible; /* Allow content to show */
+				/* Remove max-height restriction */
 			}
 
 			.icon-sm {
@@ -385,9 +384,7 @@
 				flex-direction: column;
 				gap: 0.75rem;
 				flex: 1;
-				overflow-y: auto;
 				margin-bottom: 1rem;
-				max-height: 350px;
 			}
 
 			.question-chip {
@@ -709,9 +706,15 @@
 					flex-direction: column;
 				}
 
-				.voice-questions-panel .panel-body,
+				/* Keep height restriction only for JSON config panel on mobile */
 				.json-config-panel .panel-body {
 					max-height: 400px;
+				}
+
+				/* Remove height restriction for voice questions on mobile too */
+				.voice-questions-panel .panel-body {
+					max-height: none;
+					overflow: visible;
 				}
 			}
 		</style>
@@ -726,8 +729,7 @@
 			<div class="header">
 				<h1 class="header-title">Form Configuration Manager</h1>
 				<p class="header-subtitle">
-					Manage voice questions, form fields, and output schemas for different
-					form types
+					Manage voice questions for different form types
 				</p>
 			</div>
 
@@ -749,69 +751,6 @@
 							</option>
 							{% endfor %}
 						</select>
-						<div class="form-info-inline">
-							<svg
-								class="form-info-inline-icon icon-sm"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
-								<path
-									fill-rule="evenodd"
-									d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-							<span class="form-info-inline-text" id="formFieldCount"
-								>Loading...</span
-							>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Fields Panel (NEW) -->
-			<div class="panel fields-panel">
-				<div class="panel-header">
-					<h2 class="panel-title">
-						<svg
-							class="icon-md"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-							/>
-						</svg>
-						Form Fields
-					</h2>
-				</div>
-				<div class="panel-body">
-					<div id="fieldsGrid" class="fields-grid">
-						<!-- Fields will be loaded here -->
-					</div>
-					<div class="action-buttons">
-						<button class="btn btn-primary" onclick="addNewField()">
-							<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-								<path
-									fill-rule="evenodd"
-									d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-							Add Field
-						</button>
-						<button class="btn btn-secondary" onclick="saveFields()">
-							<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-								<path
-									d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"
-								/>
-							</svg>
-							Save Fields
-						</button>
 					</div>
 				</div>
 			</div>
@@ -930,120 +869,12 @@
 						</div>
 					</div>
 				</div>
-
-				<!-- Output Schema Panel -->
-				<div class="panel output-schema-panel">
-					<div class="panel-header">
-						<h2 class="panel-title">
-							<svg
-								class="icon-md"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/>
-							</svg>
-							Output Schema
-						</h2>
-					</div>
-					<div class="panel-body">
-						<div class="schema-header">
-							<div class="schema-controls">
-								<button class="btn btn-secondary" onclick="addSchemaField()">
-									<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-										<path
-											fill-rule="evenodd"
-											d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-											clip-rule="evenodd"
-										/>
-									</svg>
-									Add Field
-								</button>
-								<button class="btn btn-secondary" onclick="toggleSchemaView()">
-									<svg
-										class="icon-sm"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-										/>
-									</svg>
-									View JSON
-								</button>
-								<div class="schema-info">
-									<span id="schemaFieldCount">0 fields</span>
-								</div>
-							</div>
-						</div>
-
-						<!-- Schema Fields Table View -->
-						<div id="schemaTableView">
-							<div class="schema-table-header">
-								<div class="schema-col schema-col-name">Parameter Name</div>
-								<div class="schema-col schema-col-desc">Description</div>
-								<div class="schema-col schema-col-type">Type</div>
-								<div class="schema-col schema-col-required">Required</div>
-								<div class="schema-col schema-col-actions"></div>
-							</div>
-							<div id="schemaFieldsContainer" class="schema-fields-container">
-								<!-- Schema fields will be rendered here -->
-							</div>
-						</div>
-
-						<!-- JSON View (hidden by default) -->
-						<div id="schemaJsonView" style="display: none">
-							<div id="outputSchemaDisplay" class="output-schema-display">
-								<pre id="outputSchemaContent">
-									<!-- Output schema will be displayed here -->
-								</pre>
-							</div>
-							<textarea
-								id="outputSchemaEditor"
-								style="display: none"
-							></textarea>
-						</div>
-
-						<div class="action-buttons">
-							<button class="btn btn-primary" onclick="saveOutputSchema()">
-								<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-									<path
-										d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"
-									/>
-								</svg>
-								Save Schema
-							</button>
-							<button
-								class="btn btn-secondary"
-								onclick="validateOutputSchema()"
-							>
-								<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-									<path
-										fill-rule="evenodd"
-										d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-								Validate
-							</button>
-						</div>
-					</div>
-				</div>
 			</div>
 		</div>
 
 		<!-- Secure JSON data storage -->
 		<script type="application/json" id="config-data">
-			{{ config_data }}
+			{{ config_data | tojson }}
 		</script>
 
 		<script>
@@ -1114,11 +945,11 @@
 				const formConfig = originalConfig.FORM_CONFIG[formType];
 				currentFormConfig = JSON.parse(JSON.stringify(formConfig)); // Deep copy
 
-				// Update form field count
-				const fieldCount = Object.keys(formConfig.fields).length;
-				document.getElementById(
-					"formFieldCount"
-				).textContent = `${fieldCount} fields configured`;
+				// Hide the form field count since we removed form fields functionality
+				const formFieldCount = document.getElementById("formFieldCount");
+				if (formFieldCount) {
+					formFieldCount.style.display = "none";
+				}
 
 				// Update current form title
 				document.getElementById("currentFormTitle").textContent =
@@ -1128,144 +959,12 @@
 				currentQuestions = formConfig.voice_questions || [];
 				renderQuestions();
 
-				// Load form fields
-				loadFormFields(formConfig.fields);
-
 				// Load current form JSON (only this form, not entire config)
 				document.getElementById("jsonEditor").value = JSON.stringify(
 					currentFormConfig,
 					null,
 					2
 				);
-
-				// Load output schema
-				const outputSchema = formConfig.output_schema || {};
-				const schemaContent = document.getElementById("outputSchemaContent");
-				schemaContent.textContent = JSON.stringify(outputSchema, null, 2);
-
-				// Load schema fields into table view
-				loadSchemaFields(outputSchema);
-			}
-
-			// Load form fields into the new Fields panel
-			function loadFormFields(fields) {
-				const container = document.getElementById("fieldsGrid");
-				container.innerHTML = "";
-
-				Object.entries(fields).forEach(([fieldName, fieldConfig]) => {
-					const fieldCard = createFieldCard(fieldName, fieldConfig);
-					container.appendChild(fieldCard);
-				});
-			}
-
-			function createFieldCard(fieldName, fieldConfig) {
-				const card = document.createElement("div");
-				card.className = "field-card";
-
-				const required = fieldConfig.required;
-				const requiredBadge = required
-					? '<span class="field-required">Required</span>'
-					: '<span class="field-optional">Optional</span>';
-
-				const options = fieldConfig.options
-					? `<div class="field-detail">
-						<span class="field-detail-label">Options:</span>
-						<span class="field-detail-value">${fieldConfig.options.join(", ")}</span>
-					</div>`
-					: "";
-
-				card.innerHTML = `
-					<div class="field-header">
-						<span class="field-name">${fieldName}</span>
-						${requiredBadge}
-					</div>
-					<div class="field-details">
-						<div class="field-detail">
-							<span class="field-detail-label">Label:</span>
-							<span class="field-detail-value">${fieldConfig.label}</span>
-						</div>
-						<div class="field-detail">
-							<span class="field-detail-label">Type:</span>
-							<span class="field-detail-value field-type-select">${fieldConfig.type}</span>
-						</div>
-						${options}
-					</div>
-				`;
-
-				return card;
-			}
-
-			// Load schema fields into table view
-			function loadSchemaFields(schema) {
-				const container = document.getElementById("schemaFieldsContainer");
-				container.innerHTML = "";
-
-				const properties = schema.properties || {};
-				const required = schema.required || [];
-				const fields = Object.entries(properties);
-
-				// Update field count
-				document.getElementById("schemaFieldCount").textContent = `${
-					fields.length
-				} field${fields.length !== 1 ? "s" : ""}`;
-
-				if (fields.length === 0) {
-					container.innerHTML = `
-						<div class="empty-schema-message">
-							<svg fill="currentColor" viewBox="0 0 20 20">
-								<path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 2h10v10H5V5z" clip-rule="evenodd"/>
-							</svg>
-							<p>No fields defined yet</p>
-							<p style="font-size: 0.875rem; margin-top: 0.5rem;">Click "Add Field" to create your first schema field</p>
-						</div>
-					`;
-					return;
-				}
-
-				fields.forEach(([fieldName, fieldConfig], index) => {
-					const isRequired = required.includes(fieldName);
-					const fieldRow = createSchemaFieldRow(
-						fieldName,
-						fieldConfig,
-						isRequired,
-						index
-					);
-					container.appendChild(fieldRow);
-				});
-			}
-
-			function createSchemaFieldRow(fieldName, fieldConfig, isRequired, index) {
-				const row = document.createElement("div");
-				row.className = "schema-field-row";
-				row.dataset.fieldName = fieldName;
-
-				const requiredBadge = isRequired
-					? '<span class="field-required-badge required">R</span>'
-					: '<span class="field-required-badge optional">O</span>';
-
-				row.innerHTML = `
-					<div class="field-name-display">${fieldName}</div>
-					<div class="field-description">${
-						fieldConfig.description || "No description"
-					}</div>
-					<div class="field-type">${fieldConfig.type || "string"}</div>
-					<div>${requiredBadge}</div>
-					<div>
-						<button class="btn-icon edit" onclick="editSchemaField('${fieldName}')" title="Edit">
-							<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-								<path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-							</svg>
-						</button>
-						<button class="btn-icon delete" onclick="deleteSchemaField('${fieldName}')" title="Delete">
-							<svg class="icon-sm" fill="currentColor" viewBox="0 0 20 20">
-								<path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
-								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-							</svg>
-						</button>
-					</div>
-				`;
-
-				return row;
 			}
 
 			function renderQuestions() {
@@ -1440,180 +1139,6 @@
 						hideLoading();
 						showAlert("error", "Failed to save questions: " + error.message);
 					});
-			}
-
-			// Schema management functions
-			function addSchemaField() {
-				const fieldName = prompt("Enter field name:");
-				if (!fieldName || !fieldName.trim()) return;
-
-				const description = prompt("Enter field description:");
-				const type = prompt(
-					"Enter field type (string, boolean, number):",
-					"string"
-				);
-				const isRequired = confirm("Is this field required?");
-
-				// Get current schema
-				const formType = document.getElementById("formTypeSelect").value;
-				const outputSchema = currentFormConfig.output_schema || {
-					type: "object",
-					properties: {},
-					required: [],
-				};
-
-				// Add new field
-				outputSchema.properties[fieldName.trim()] = {
-					type: type || "string",
-					description: description || "",
-				};
-
-				if (isRequired && !outputSchema.required.includes(fieldName.trim())) {
-					outputSchema.required.push(fieldName.trim());
-				}
-
-				// Update current config
-				currentFormConfig.output_schema = outputSchema;
-
-				// Refresh displays
-				document.getElementById("outputSchemaContent").textContent =
-					JSON.stringify(outputSchema, null, 2);
-				document.getElementById("jsonEditor").value = JSON.stringify(
-					currentFormConfig,
-					null,
-					2
-				);
-				loadSchemaFields(outputSchema);
-			}
-
-			function editSchemaField(fieldName) {
-				// Implementation for editing schema fields
-				showAlert(
-					"warning",
-					"Edit functionality coming soon - use JSON editor for now"
-				);
-			}
-
-			function deleteSchemaField(fieldName) {
-				if (
-					confirm(`Are you sure you want to delete the field "${fieldName}"?`)
-				) {
-					const outputSchema = currentFormConfig.output_schema || {
-						type: "object",
-						properties: {},
-						required: [],
-					};
-
-					// Remove from properties and required
-					delete outputSchema.properties[fieldName];
-					outputSchema.required = outputSchema.required.filter(
-						(f) => f !== fieldName
-					);
-
-					// Update current config
-					currentFormConfig.output_schema = outputSchema;
-
-					// Refresh displays
-					document.getElementById("outputSchemaContent").textContent =
-						JSON.stringify(outputSchema, null, 2);
-					document.getElementById("jsonEditor").value = JSON.stringify(
-						currentFormConfig,
-						null,
-						2
-					);
-					loadSchemaFields(outputSchema);
-				}
-			}
-
-			function saveOutputSchema() {
-				const formType = document.getElementById("formTypeSelect").value;
-				const outputSchema = currentFormConfig.output_schema || {};
-
-				showLoading();
-
-				fetch(`/prompt-config/update-output-schema/${formType}`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({ output_schema: outputSchema }),
-				})
-					.then((response) => response.json())
-					.then((data) => {
-						hideLoading();
-						if (data.error) {
-							showAlert("error", data.error);
-						} else {
-							showAlert("success", "Output schema saved successfully");
-						}
-					})
-					.catch((error) => {
-						hideLoading();
-						showAlert("error", "Failed to save schema: " + error.message);
-					});
-			}
-
-			function validateOutputSchema() {
-				try {
-					const outputSchema = currentFormConfig.output_schema || {};
-
-					// Basic validation
-					if (!outputSchema.type || outputSchema.type !== "object") {
-						throw new Error('Schema must be of type "object"');
-					}
-
-					if (
-						!outputSchema.properties ||
-						typeof outputSchema.properties !== "object"
-					) {
-						throw new Error('Schema must have a "properties" object');
-					}
-
-					if (outputSchema.required && !Array.isArray(outputSchema.required)) {
-						throw new Error("Required field must be an array");
-					}
-
-					// Check that all required fields exist in properties
-					for (const requiredField of outputSchema.required) {
-						if (!outputSchema.properties[requiredField]) {
-							throw new Error(
-								`Required field "${requiredField}" not found in properties`
-							);
-						}
-					}
-
-					showAlert("success", "Schema is valid!");
-				} catch (error) {
-					showAlert("error", "Schema validation failed: " + error.message);
-				}
-			}
-
-			function toggleSchemaView() {
-				const tableView = document.getElementById("schemaTableView");
-				const jsonView = document.getElementById("schemaJsonView");
-
-				if (tableView.style.display === "none") {
-					tableView.style.display = "block";
-					jsonView.style.display = "none";
-				} else {
-					tableView.style.display = "none";
-					jsonView.style.display = "block";
-				}
-			}
-
-			// Fields management (placeholder functions)
-			function addNewField() {
-				showAlert(
-					"warning",
-					"Add field functionality coming soon - use JSON editor for now"
-				);
-			}
-
-			function saveFields() {
-				showAlert(
-					"warning",
-					"Save fields functionality coming soon - use JSON editor for now"
-				);
 			}
 
 			// Utility functions

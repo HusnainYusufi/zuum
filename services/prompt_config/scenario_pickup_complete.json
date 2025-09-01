@@ -1,106 +1,97 @@
 {
-	"title": "Pickup Complete",
 	"fields": {
-		"load_id": {
-			"label": "Load #",
-			"type": "text",
-			"required": true
-		},
-		"contact_phone": {
-			"label": "Driver phone",
-			"type": "tel",
-			"required": true
-		},
-		"trucker_name": {
-			"label": "Driver name",
-			"type": "text",
-			"required": true
-		},
-		"carrier_company": {
-			"label": "Carrier company",
-			"type": "text",
-			"required": true
+		"accessorials_needed": {
+			"label": "Accessorials needed so far? (lumper, temp check, straps)",
+			"required": false,
+			"type": "text"
 		},
 		"actual_pickup_time": {
 			"label": "Actual pickup time stamp",
-			"type": "datetime-local",
-			"required": true
+			"required": true,
+			"type": "datetime-local"
 		},
 		"bol_verified": {
 			"label": "BOL / PO verified?",
-			"type": "select",
-			"options": ["Y", "N"],
-			"required": true
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": true,
+			"type": "select"
+		},
+		"carrier_company": {
+			"label": "Carrier company",
+			"required": true,
+			"type": "text"
 		},
 		"commodity_description": {
 			"label": "Commodity description",
-			"type": "text",
-			"required": false
+			"required": false,
+			"type": "text"
+		},
+		"contact_phone": {
+			"label": "Driver phone",
+			"required": true,
+			"type": "tel"
+		},
+		"load_id": {
+			"label": "Load #",
+			"required": true,
+			"type": "text"
 		},
 		"next_stop_location": {
 			"label": "Next stop city/state",
-			"type": "text",
-			"required": false
+			"required": false,
+			"type": "text"
 		},
 		"scheduled_eta": {
 			"label": "Scheduled ETA",
-			"type": "datetime-local",
-			"required": false
+			"required": false,
+			"type": "datetime-local"
 		},
-		"accessorials_needed": {
-			"label": "Accessorials needed so far? (lumper, temp check, straps)",
-			"type": "text",
-			"required": false
+		"trucker_name": {
+			"label": "Driver name",
+			"required": true,
+			"type": "text"
 		}
 	},
-	"voice_questions": [
-		"Hi [driver name] with [carrier company], this is Zuum calling about load ###",
-		"Have you been loaded and left the dock?",
-		"If they have left the dock, ask what time did you pull out?",
-		"Does the PO or BOL on your paperwork match the rate confirmation? If not, please stay at the shipper - do not leave until this is corrected and you get Zuum's approval",
-		"Are you the local/OTR driver who will be delivering this load, or will another driver take over?",
-		"Where are you heading next - please confirm the delivery location",
-		"What is your estimated time of arrival to that destination?",
-		"Is there anything else you need assistance with regarding this load?"
-	],
 	"output_schema": {
-		"type": "object",
 		"properties": {
-			"Loaded_and_left_dock": {
-				"type": "boolean",
-				"description": "Whether the driver has been loaded and left the dock"
-			},
-			"Departure_time": {
-				"type": "string",
-				"description": "Time the driver pulled out from the shipper, as stated by the driver"
-			},
-			"PO_BOL_matches_rate_con": {
-				"type": "boolean",
-				"description": "Whether the PO or BOL on the paperwork matches the rate confirmation"
+			"Additional_assistance_needed": {
+				"description": "Whether the driver needs any additional assistance",
+				"type": "boolean"
 			},
 			"BOL_issue_resolved": {
-				"type": "boolean",
-				"description": "If BOL doesn't match, whether the driver will stay to resolve the issue"
+				"description": "If BOL doesn't match, whether the driver will stay to resolve the issue",
+				"type": "boolean"
+			},
+			"Departure_time": {
+				"description": "Time the driver pulled out from the shipper, as stated by the driver",
+				"type": "string"
 			},
 			"Driver_will_deliver": {
-				"type": "boolean",
-				"description": "Whether this driver will deliver the load or hand off to another driver"
-			},
-			"Next_destination_confirmed": {
-				"type": "string",
-				"description": "The confirmed delivery location where driver is headed"
+				"description": "Whether this driver will deliver the load or hand off to another driver",
+				"type": "boolean"
 			},
 			"ETA_to_destination": {
-				"type": "string",
-				"description": "Driver's estimated time of arrival to the destination"
+				"description": "Driver's estimated time of arrival to the destination",
+				"type": "string"
+			},
+			"Loaded_and_left_dock": {
+				"description": "Whether the driver has been loaded and left the dock",
+				"type": "boolean"
+			},
+			"Next_destination_confirmed": {
+				"description": "The confirmed delivery location where driver is headed",
+				"type": "string"
+			},
+			"PO_BOL_matches_rate_con": {
+				"description": "Whether the PO or BOL on the paperwork matches the rate confirmation",
+				"type": "boolean"
 			},
 			"Shipper_issues_reported": {
-				"type": "boolean",
-				"description": "Whether the driver reported any problems at the shipper"
-			},
-			"Additional_assistance_needed": {
-				"type": "boolean",
-				"description": "Whether the driver needs any additional assistance"
+				"description": "Whether the driver reported any problems at the shipper",
+				"type": "boolean"
 			}
 		},
 		"required": [
@@ -112,6 +103,18 @@
 			"ETA_to_destination",
 			"Shipper_issues_reported",
 			"Additional_assistance_needed"
-		]
-	}
+		],
+		"type": "object"
+	},
+	"title": "Pickup Complete",
+	"voice_questions": [
+		"Hi [driver name] with [carrier company], this is Zuum calling about load ###",
+		"Have you been loaded and left the dock?",
+		"If they have left the dock, ask what time did you pull out?",
+		"Does the PO or BOL on your paperwork match the rate confirmation? If not, please stay at the shipper - do not leave until this is corrected and you get Zuum's approval",
+		"Are you the local/OTR driver who will be delivering this load, or will another driver take over?",
+		"Where are you heading next - please confirm the delivery location",
+		"What is your estimated time of arrival to that destination?",
+		"Is there anything else you need assistance with regarding this load?"
+	]
 }
