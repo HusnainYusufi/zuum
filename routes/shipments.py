@@ -4,11 +4,12 @@ from fastapi.responses import JSONResponse
 from .auth import get_current_user
 from services.supabase import supabase_service
 
-router = APIRouter(prefix="/shipments", tags=["shipments"])
+router = APIRouter(prefix="/{env}/shipments", tags=["shipments"])
 
 
 @router.get("/search")
 async def search_shipments(
+    env: str,
     tenant_id: Optional[str] = Query(None),
     shipment_id: Optional[str] = Query(None),
     load_id: Optional[str] = Query(None),
@@ -52,7 +53,7 @@ async def search_shipments(
 
 
 @router.get("/data/{job_id}")
-async def get_shipment_data(job_id: str, current_user: dict = Depends(get_current_user)):
+async def get_shipment_data(env: str, job_id: str, current_user: dict = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
