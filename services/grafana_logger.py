@@ -28,6 +28,7 @@ class LogEntry:
     error_code: Optional[str] = None
     error_message: Optional[str] = None
     service: Optional[str] = None
+    job_id: Optional[str] = None  # Add this line
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert LogEntry to dictionary for JSON serialization - only detailed fields"""
@@ -46,6 +47,8 @@ class LogEntry:
             result["error_message"] = self.error_message
         if self.service:
             result["service"] = self.service
+        if self.job_id:  # Add this
+            result["job_id"] = self.job_id
 
         return result
 
@@ -176,6 +179,23 @@ class LogEntry:
         """Convert LogEntry directly to JSON string - optimized"""
         # Use compact JSON formatting to reduce payload size
         return json.dumps(self.to_dict(), separators=(",", ":"))
+
+    @classmethod
+    def extract_job_id(cls, request, body: str) -> Optional[str]:
+        """
+        Extract job_id from request - simple priority order.
+        """
+
+        if body:
+            try:
+                data = json.loads(body)
+                job_id = data.get("job", {}).get("_id")
+                if job_id:
+                    return str(job_id)
+            except Exception:
+                pass
+
+        return request.query_params.get("job_id", None)
 
 
 # Sanitization functions

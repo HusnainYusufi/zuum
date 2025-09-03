@@ -134,6 +134,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         sanitized_body_str = normalize_body_to_json(body_bytes, content_type)
         sanitized_headers = sanitize_headers(dict(request.headers))
 
+        job_id = LogEntry.extract_job_id(request, sanitized_body_str)
+
         log_entry = LogEntry(
             timestamp=str(int(start_time * 1000)),
             method=request.method,
@@ -145,6 +147,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             client_ip=request.client.host,
             log_level=grafana_logger.get_log_level(response.status_code),
             environment=grafana_logger.environment,
+            job_id=job_id,
         )
 
         asyncio.create_task(grafana_logger.add_log(log_entry))
