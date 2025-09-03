@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from services.supabase import supabase_service
 
-router = APIRouter(prefix="/{env}/webhook", tags=["webhook"])
+router = APIRouter(prefix="/webhook", tags=["webhook"])
 
 
 payload_schema = Body(
@@ -16,16 +16,6 @@ payload_schema = Body(
         "job": {"_id": "6690e75db20ba727d428a143", "carrierId": "667170c6b77ccd0008930e69", "offer": "6690e75bb20ba727d428a136"},
     },
 )
-
-
-def _validate_env(env: str) -> None:
-    """Validate environment parameter."""
-    allowed_envs = {"dev", "staging", "prod"}
-    if env not in allowed_envs:
-        raise HTTPException(
-            status_code=422, 
-            detail=f"Invalid environment '{env}'. Must be one of: {', '.join(allowed_envs)}"
-        )
 
 
 def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -46,7 +36,6 @@ def _validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.post("/shipment")
 async def ingest_shipment(
-    env: str,
     payload: Dict[str, Any] = payload_schema,
 ):
     """Webhook endpoint to ingest shipment JSON from external system.
@@ -54,7 +43,6 @@ async def ingest_shipment(
     Expects a JSON body matching the sample schema in `shipment-es-sample.json`.
     """
     try:
-        _validate_env(env)
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
         # Enforce presence of job._id for this endpoint
         job_obj = safe_payload.get("job") if isinstance(safe_payload, dict) else None
@@ -62,7 +50,7 @@ async def ingest_shipment(
         if not job_id:
             raise HTTPException(status_code=422, detail="job._id is required")
 
-        result = await supabase_service.upsert_shipment(safe_payload, env)
+        result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             # Map missing job error to 422; otherwise 500
@@ -80,7 +68,6 @@ async def ingest_shipment(
 
 @router.post("/shipment/{id}")
 async def ingest_shipment_with_id(
-    env: str,
     id: str,
     payload: Dict[str, Any] = payload_schema,
 ):
@@ -91,7 +78,6 @@ async def ingest_shipment_with_id(
     - Upserts shipment using Supabase
     """
     try:
-        _validate_env(env)
         safe_payload = _validate_payload(payload.copy() if isinstance(payload, dict) else payload)
 
         # Normalize job object (clone before mutation to avoid leaking changes)
@@ -125,7 +111,7 @@ async def ingest_shipment_with_id(
         safe_payload["jobs"] = jobs_arr
 
         # Upsert updated payload
-        result = await supabase_service.upsert_shipment(safe_payload, env)
+        result = await supabase_service.upsert_shipment(safe_payload)
         if not result.get("success"):
             logger.error(f"Failed to upsert shipment: {result.get('error')}")
             raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
