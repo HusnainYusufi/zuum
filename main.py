@@ -8,15 +8,31 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
+import json
 
-from routes import ui_router, retell_router, notifications_router, checkin_router, retell_check_in_router, forms_router, auth_router,prompt_config_router, webhook_router, shipments_router
+from routes import (
+    ui_router,
+    retell_router,
+    notifications_router,
+    checkin_router,
+    retell_check_in_router,
+    forms_router,
+    auth_router,
+    prompt_config_router,
+    webhook_router,
+    shipments_router,
+)
 
 from dotenv import load_dotenv
 from twilio.rest import Client
 from datetime import datetime
 from pathlib import Path
 from services.github_service import github_service
+from services.grafana_logger import grafana_logger, LogEntry, sanitize_json, sanitize_headers
+import time
+import asyncio
+from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
@@ -54,14 +70,98 @@ app.include_router(webhook_router)
 app.include_router(shipments_router)
 
 # Initialize Twilio client
-twilio_client = Client(
-    os.getenv('TWILIO_ACCOUNT_SID', ''),
-    os.getenv('TWILIO_AUTH_TOKEN', '')
-)
-TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')
+twilio_client = Client(os.getenv("TWILIO_ACCOUNT_SID", ""), os.getenv("TWILIO_AUTH_TOKEN", ""))
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
 
 # Get recipient phone numbers from environment variable
-FEEDBACK_RECIPIENT_PHONES = os.getenv('FEEDBACK_RECIPIENT_PHONES', '').split(',')
+FEEDBACK_RECIPIENT_PHONES = os.getenv("FEEDBACK_RECIPIENT_PHONES", "").split(",")
+
+
+def normalize_body_to_json(body_bytes: bytes, content_type: str) -> str:
+    """Convert different body formats to JSON for consistent logging"""
+    if not body_bytes:
+        return ""
+
+    try:
+        body_str = body_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return "[BINARY_DATA]"
+
+    # If it's already JSON, sanitize and return
+    if "application/json" in content_type:
+        return sanitize_json(body_str)
+
+    # If it's form data, convert to JSON
+    if "application/x-www-form-urlencoded" in content_type:
+        try:
+            # Parse form data into a dictionary
+            parsed_data = parse_qs(body_str, keep_blank_values=True)
+
+            # Convert lists with single values to just the value for cleaner JSON
+            normalized_data = {}
+            for key, values in parsed_data.items():
+                if len(values) == 1:
+                    normalized_data[key] = values[0]
+                else:
+                    normalized_data[key] = values
+
+            # Convert to JSON and sanitize
+            json_str = json.dumps(normalized_data, separators=(",", ":"))
+            return sanitize_json(json_str)
+        except Exception:
+            # If parsing fails, sanitize as regular text
+            return sanitize_json(f'{{"raw_body": "{body_str}"}}')
+
+    # For other content types, wrap in JSON structure
+    return sanitize_json(f'{{"raw_body": "{body_str}", "content_type": "{content_type}"}}')
+
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+
+        body_bytes = await request.body()
+
+        async def receive():
+            return {"type": "http.request", "body": body_bytes, "more_body": False}
+
+        request = Request(request.scope, receive=receive)
+
+        response = await call_next(request)
+        processing_time = time.time() - start_time
+
+        content_type = request.headers.get("content-type", "")
+        sanitized_body_str = normalize_body_to_json(body_bytes, content_type)
+        sanitized_headers = sanitize_headers(dict(request.headers))
+
+        job_id = LogEntry.extract_job_id(request, sanitized_body_str)
+
+        log_entry = LogEntry(
+            timestamp=str(int(start_time * 1000)),
+            method=request.method,
+            path=request.url.path,
+            headers=sanitized_headers,
+            body=sanitized_body_str,
+            status_code=response.status_code,
+            processing_time=processing_time,
+            client_ip=request.client.host,
+            log_level=grafana_logger.get_log_level(response.status_code),
+            environment=grafana_logger.environment,
+            job_id=job_id,
+        )
+
+        asyncio.create_task(grafana_logger.add_log(log_entry))
+
+        return response
+
+
+app.add_middleware(LoggingMiddleware)
+
+
+# Add this shutdown event to ensure all logs are sent before the app closes
+@app.on_event("shutdown")
+async def shutdown_event():
+    await grafana_logger.close()
 
 
 def _extract_checkin_id_from_referer(request: Request) -> Optional[int]:
@@ -105,9 +205,7 @@ async def send_feedback(
 
         # Derive check-in ID from Referer URL (non-fatal)
         checkin_id = _extract_checkin_id_from_referer(request)
-        logger.info(
-            f"Received feedback from {userName} ({userEmail}) - Type: {feedbackType}, Check-in ID: {checkin_id}"
-        )
+        logger.info(f"Received feedback from {userName} ({userEmail}) - Type: {feedbackType}, Check-in ID: {checkin_id}")
 
         # Check required environment variables for Twilio
         required_env_vars = {
@@ -155,9 +253,7 @@ async def send_feedback(
         try:
             from services.supabase import supabase_service
 
-            supabase_result = await supabase_service.create_feedback(
-                supabase_feedback_data, supabase_image_files
-            )
+            supabase_result = await supabase_service.create_feedback(supabase_feedback_data, supabase_image_files)
 
             if supabase_result["success"]:
                 feedback_id = supabase_result["data"]["feedback"]["id"]
@@ -235,15 +331,9 @@ async def send_feedback(
         for i, phone_number in enumerate(recipient_phones):
             try:
                 logger.info(f"Sending SMS {i+1}/{len(recipient_phones)} to {phone_number}")
-                clean_from_number = (
-                    TWILIO_FROM_NUMBER.replace(" ", "").replace("(", "").replace(")", "").replace("-", "")
-                )
-                clean_to_number = (
-                    phone_number.strip().replace(" ", "").replace("(", "").replace(")", "").replace("-", "")
-                )
-                message = twilio_client.messages.create(
-                    body=sms_body, from_=clean_from_number, to=clean_to_number
-                )
+                clean_from_number = TWILIO_FROM_NUMBER.replace(" ", "").replace("(", "").replace(")", "").replace("-", "")
+                clean_to_number = phone_number.strip().replace(" ", "").replace("(", "").replace(")", "").replace("-", "")
+                message = twilio_client.messages.create(body=sms_body, from_=clean_from_number, to=clean_to_number)
                 logger.info(f"SMS sent successfully to {phone_number}. Message SID: {message.sid}")
             except Exception as sms_error:
                 err = f"Failed to send SMS to {phone_number}: {str(sms_error)}"
@@ -275,8 +365,8 @@ async def send_feedback(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-
 state_dict = {}
+
 
 # Root route redirects to dashboard if authenticated, login otherwise
 @app.get("/")
@@ -290,33 +380,28 @@ async def root(request: Request, session_token: str = Cookie(None)):
     else:
         return RedirectResponse(url="/auth/login")
 
+
 @app.get("/health-check")
 async def health_check():
     """Health check endpoint to verify all services are working"""
-    health_status = {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "services": {},
-        "environment": {}
-    }
+    health_status = {"status": "healthy", "timestamp": datetime.now().isoformat(), "services": {}, "environment": {}}
 
     # Check environment variables
     env_vars_to_check = [
-        'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER',
-        'FEEDBACK_RECIPIENT_PHONES',
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_AUTH_TOKEN",
+        "TWILIO_FROM_NUMBER",
+        "FEEDBACK_RECIPIENT_PHONES",
     ]
 
     for var in env_vars_to_check:
         value = os.getenv(var)
-        health_status["environment"][var] = {
-            "configured": bool(value),
-            "length": len(value) if value else 0
-        }
+        health_status["environment"][var] = {"configured": bool(value), "length": len(value) if value else 0}
 
     # Test Twilio connection
     try:
         # Simple test to verify Twilio client works
-        twilio_client.api.accounts(os.getenv('TWILIO_ACCOUNT_SID')).fetch()
+        twilio_client.api.accounts(os.getenv("TWILIO_ACCOUNT_SID")).fetch()
         health_status["services"]["twilio"] = {"status": "connected", "error": None}
     except Exception as e:
         health_status["services"]["twilio"] = {"status": "failed", "error": str(e)}

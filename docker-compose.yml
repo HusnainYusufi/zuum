@@ -41,6 +41,9 @@ services:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
       - BASE_URL=
+      - GRAFANA_LOKI_URL=${GRAFANA_LOKI_URL}
+      - GRAFANA_USERNAME=${GRAFANA_USERNAME}
+      - GRAFANA_API_KEY=${GRAFANA_API_KEY}
     volumes:
       - .:/app
       - ./transit.db:/app/data/transit.db
