@@ -7,7 +7,16 @@ import os
 import httpx
 from dotenv import load_dotenv
 import json
-from services.prompt_config.prompt_config import prompt_config
+from services.prompt_config.prompt_config import (
+    prompt_config,
+    FORM_TYPE_DEFAULT,
+    FORM_TYPE_AT_PICKUP,
+    FORM_TYPE_PICKUP_COMPLETE,
+    FORM_TYPE_IN_TRANSIT,
+    FORM_TYPE_AT_DROP,
+    FORM_TYPE_DELIVERED,
+    FORM_TYPE_REQUEST_POD
+)
 import logging
 
 # Replace old database imports with new Supabase service
@@ -43,7 +52,7 @@ logging.basicConfig(
 # Silence noisy HTTP libraries if you want to use DEBUG level
 # Uncomment these lines if you change back to DEBUG level:
 logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING) 
+logging.getLogger('httpcore').setLevel(logging.WARNING)
 logging.getLogger('h11').setLevel(logging.WARNING)
 logging.getLogger('h2').setLevel(logging.WARNING)
 
@@ -52,25 +61,26 @@ logger = logging.getLogger(__name__)
 def normalize_phone_number(country_code: str, contact_phone: str) -> str:
     """
     Normalize phone number by combining country code and cleaning the phone number.
-    
+
     Args:
         country_code: The country code (e.g., "+1")
         contact_phone: The phone number to normalize
-        
+
     Returns:
         Normalized phone number in E.164 format
     """
     return country_code + contact_phone.lstrip('0').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
 
+
 async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
     """
     Reusable function to make Retell API calls
-    
+
     Args:
         contact_phone: Phone number to call
         form_type: Type of form (at_pickup, pickup_complete, etc.)
         form_data: Dictionary containing all form field values
-    
+
     Returns:
         Dictionary with status and response data
     """
@@ -80,69 +90,47 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
             "status": "error",
             "message": "Missing configuration. Please check environment variables."
         }
-    
+
     # Format phone number to E.164 format if needed
     to_number = contact_phone
-    # Get form configuration and voice questions
+
+    # Get all form configuration data in one efficient call
     form_config = prompt_config.get_form_config(form_type)
-    voice_questions = prompt_config.get_voice_questions(form_type)
     form_number = prompt_config.FORM_TYPE_MAPPING.get(form_type, 0)
-    
-    # Get output schema from form configuration
-    output_schema = form_config.get("output_schema", {})
-    
-    # Extract transfer call number from form data if present
-    transfer_call = None
-    # Look for the transfer_call_to field name that matches the form.html
-    for field_name in ["transfer_call_to"]:
-        if field_name in form_data and form_data[field_name]:
-            transfer_call = form_data[field_name]
-            break
-    
-    # Convert data to JSON strings
-    form_data_json = json.dumps(form_data)
-    voice_questions_json = json.dumps(voice_questions)
-    form_number_json = json.dumps(form_number)
-    output_schema_json = json.dumps(output_schema)
-    
-    # Prepare metadata for the call
-    metadata = {
-        "form_number": form_number_json,
+
+    # Extract transfer call number from form data (simplified)
+    transfer_call = form_data.get("transfer_call_to")
+
+    # Prepare call data (no duplication, no unnecessary JSON conversion)
+    call_data = {
+        "form_number": str(form_number),
         "form_title": form_config.get("title", ""),
-        "purpose": voice_questions_json,
-        "form": form_data_json,
-        "output_schema": output_schema_json
+        "purpose": json.dumps(form_config.get("voice_questions", [])),  # Stringify voice questions array
+        "form": json.dumps(form_data),  # Stringify form data dictionary
+        "output_schema": json.dumps(form_config.get("output_schema", {}))  # Stringify output schema dictionary
     }
-    logger.info(f"Retell call metadata: {json.dumps(metadata, indent=2)}")
-    
-    # Prepare dynamic variables for the agent
-    dynamic_variables = {
-        "form_number": form_number_json,
-        "form_title": form_config.get("title", ""),
-        "purpose": voice_questions_json,
-        "form": form_data_json,
-        "output_schema": output_schema_json
-    }
-    
+
     # Add transfer call if present
     if transfer_call:
-        dynamic_variables["transfer_call_to"] = json.dumps(transfer_call)
+        call_data["transfer_call_to"] = transfer_call
         logger.info(f"Transfer call number included: {transfer_call}")
-    
+
+    logger.info(f"Retell call data: {json.dumps(call_data, indent=2, default=str)}")
+
     # Make the Retell API call
     headers = {
         "Authorization": f"Bearer {RETELL_API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     payload = {
         "from_number": FROM_PHONE_NUMBER,
         "to_number": to_number,
         "override_agent_id": AGENT_ID,
-        "metadata": metadata,
-        "retell_llm_dynamic_variables": dynamic_variables
+        "metadata": call_data,
+        "retell_llm_dynamic_variables": call_data  # Same data, no duplication
     }
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -153,19 +141,20 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
             if response.status_code == 201:
                 call_data = response.json()
                 call_id = call_data.get("call_id")
-                
+
                 # Extract load_id from form_data - handle different field names
-                load_id = (form_data.get("load_id") or 
-                          form_data.get("pickup_load_id") or 
-                          form_data.get("pc_load_id") or 
-                          form_data.get("it_load_id") or 
-                          form_data.get("ad_load_id") or 
-                          form_data.get("del_load_id") or 
-                          form_data.get("pod_load_id"))
-                
+                load_id = (form_data.get("load_id") or
+                    form_data.get("pickup_load_id") or
+                    form_data.get("pc_load_id") or
+                    form_data.get("it_load_id") or
+                    form_data.get("ad_load_id") or
+                    form_data.get("del_load_id") or
+                    form_data.get("pod_load_id")
+                        )
+
                 # Create check-in entry
                 checkin_result = await create_checkin_entry(call_id, load_id, form_type, form_data)
-                
+
                 return {
                     "status": "success",
                     "call_id": call_id,
@@ -173,7 +162,7 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
                     "form_type": form_type,
                     "load_id": load_id,
                     "transfer_call": transfer_call,
-                    "output_schema_properties": len(output_schema.get('properties', {})) if output_schema else 0,
+                    "output_schema_properties": len(form_config.get('output_schema', {}).get('properties', {})) if form_config.get('output_schema') else 0,
                     "checkin_link": checkin_result.get("checkin_page_link") if checkin_result.get("status") == "success" else None,
                     "checkin_id": checkin_result.get("checkin_id") if checkin_result.get("status") == "success" else None,
                     "form_data_stored": checkin_result.get("form_data_stored", False) if checkin_result.get("status") == "success" else False
@@ -184,7 +173,7 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
                     "status": "error",
                     "message": f"Failed to initiate call: {response.status_code} - {error_detail}"
                 }
-                
+
     except Exception as e:
         return {
             "status": "error",
@@ -195,29 +184,17 @@ async def make_retell_call(contact_phone: str, form_type: str, form_data: dict):
 async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_data: dict = None):
     """
     Create a check-in entry using Supabase service with associated RetellCall.
-    
+
     Args:
         call_id: The Retell call ID
         load_id: The load ID from the form
         form_type: The type of form being submitted
-        form_data: The form data dictionary to store as JSON
-    
-    Returns:
-        Dictionary with check-in creation result
+        form_data: Optional form data dictionary
     """
     try:
-        # Determine stop_id based on form_type (keeping for backward compatibility)
-        stop_id_mapping = {
-            "default": 0,
-            "at_pickup": 1,
-            "pickup_complete": 2,
-            "in_transit": 3,
-            "at_drop": 4,
-            "delivered": 5,
-            "request_pod": 6
-        }
-        stop_id = stop_id_mapping.get(form_type, 0)
-        
+        # Use the shared mapping from prompt_config instead of duplicating it
+        stop_id = prompt_config.FORM_TYPE_MAPPING.get(form_type, 0)
+
         # Prepare check-in data for Supabase
         check_in_data = {
             "load_id": load_id,
@@ -232,19 +209,19 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
             "tags": [form_type] if form_type else [],
             "user_picked_up": False
         }
-        
+
         # Create check-in using Supabase service
         checkin_result = await supabase_service.create_check_in(check_in_data)
-        
+
         if not checkin_result["success"]:
             logger.error(f"Failed to create check-in: {checkin_result['error']}")
             return {
                 "status": "error",
                 "message": f"Error creating check-in: {checkin_result['error']}"
             }
-        
+
         new_checkin = checkin_result["data"]
-        
+
         # Create RetellCall record associated with this check-in
         retell_call_data = {
             "check_in_id": new_checkin["id"],
@@ -253,17 +230,17 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
             "recording_url": None,
             "output_data": {"form_type": form_type}
         }
-        
+
         call_result = await supabase_service.create_retell_call(retell_call_data)
-        
+
         if not call_result["success"]:
             logger.error(f"Failed to create retell call: {call_result['error']}")
             # Don't fail the request, just log the error
-        
+
         logger.info(f"Created new check-in with ID: {new_checkin['id']} and RetellCall with call_id: {call_id}")
         if form_data:
             logger.info(f"Form data successfully stored for check-in {new_checkin['id']} : {json.dumps(form_data, indent=2)}")
-        
+
         # Prepare notification data for backward compatibility
         check_in_data_notification = {
             'id': new_checkin['id'],
@@ -282,7 +259,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
             'stop_location': None,
             'stop_eta': None
         }
-        
+
         # Send notification asynchronously - call initiated
         try:
             await notify_check_in_update(check_in_data_notification)
@@ -290,7 +267,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
         except Exception as e:
             logger.warning(f"Could not send notification: {e}")
             # Don't fail the request if notification fails
-        
+
         # Also create a notification record in the database
         notification_data = {
             "message": f"New {form_type.replace('_', ' ').title()} check-in created for load {load_id}",
@@ -303,15 +280,15 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
                 "stop_id": stop_id
             }
         }
-        
+
         try:
             await supabase_service.create_notification(notification_data)
         except Exception as e:
             logger.warning(f"Could not create notification record: {e}")
-        
+
         # Generate the link to the checkin page
         checkin_page_link = f"/checkin/{new_checkin['id']}"
-        
+
         return {
             "status": "success",
             "checkin_id": new_checkin['id'],
@@ -319,7 +296,7 @@ async def create_checkin_entry(call_id: str, load_id: str, form_type: str, form_
             "message": "Check-in created successfully",
             "form_data_stored": bool(form_data)
         }
-                
+
     except Exception as e:
         logger.error(f"Error creating check-in entry: {str(e)}")
         return {
@@ -366,9 +343,9 @@ async def submit_default_load(
         "transfer_country_code": transfer_country_code,
         "notes": notes
     }
-    
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "default", form_data)
-    
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_DEFAULT, form_data)
+
     # Return HTML response
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -379,7 +356,7 @@ async def submit_default_load(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "default",
+                "active_tab": FORM_TYPE_DEFAULT,
                 "tab_name": "Default Form"
             }
         )
@@ -390,7 +367,7 @@ async def submit_default_load(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,
-                "active_tab": "default",
+                "active_tab": FORM_TYPE_DEFAULT,
                 "tab_name": "Default Form"
             }
         )
@@ -429,9 +406,9 @@ async def submit_at_pickup(
         "transfer_call_to": transfer_call_to,
         "transfer_country_code": transfer_country_code
     }
-    
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "at_pickup", form_data)
-    
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_AT_PICKUP, form_data)
+
     # Return HTML response with form data for persistence
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -442,7 +419,7 @@ async def submit_at_pickup(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "at-pickup",
+                "active_tab": FORM_TYPE_AT_PICKUP,
                 "tab_name": "At Pickup",
                 "form_data": form_data  # Include form data for persistence
             }
@@ -454,7 +431,7 @@ async def submit_at_pickup(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,  # Include form data for persistence
-                "active_tab": "at-pickup",
+                "active_tab": FORM_TYPE_AT_PICKUP,
                 "tab_name": "At Pickup"
             }
         )
@@ -492,8 +469,8 @@ async def submit_pickup_complete(
         "transfer_country_code": transfer_country_code
     }
 
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "pickup_complete", form_data)
-    
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_PICKUP_COMPLETE, form_data)
+
     # Return HTML response with form data for persistence
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -504,7 +481,7 @@ async def submit_pickup_complete(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "pickup-complete",
+                "active_tab": FORM_TYPE_PICKUP_COMPLETE,
                 "tab_name": "Pickup Complete",
                 "form_data": form_data  # Include form data for persistence
             }
@@ -516,7 +493,7 @@ async def submit_pickup_complete(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,  # Include form data for persistence
-                "active_tab": "pickup-complete",
+                "active_tab": FORM_TYPE_PICKUP_COMPLETE,
                 "tab_name": "Pickup Complete"
             }
         )
@@ -549,9 +526,9 @@ async def submit_in_transit(
         "transfer_call_to": transfer_call_to,
         "transfer_country_code": transfer_country_code
     }
-    
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "in_transit", form_data)
-    
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_IN_TRANSIT, form_data)
+
     # Return HTML response with form data for persistence
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -562,7 +539,7 @@ async def submit_in_transit(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "in-transit",
+                "active_tab": FORM_TYPE_IN_TRANSIT,
                 "tab_name": "In Transit",
                 "form_data": form_data  # Include form data for persistence
             }
@@ -574,7 +551,7 @@ async def submit_in_transit(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,  # Include form data for persistence
-                "active_tab": "in-transit",
+                "active_tab": FORM_TYPE_IN_TRANSIT,
                 "tab_name": "In Transit"
             }
         )
@@ -613,9 +590,9 @@ async def submit_at_drop(
         "transfer_call_to": transfer_call_to,
         "transfer_country_code": transfer_country_code
     }
-    
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "at_drop", form_data)
-    
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_AT_DROP, form_data)
+
     # Return HTML response with form data for persistence
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -626,7 +603,7 @@ async def submit_at_drop(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "at-drop",
+                "active_tab": FORM_TYPE_AT_DROP,
                 "tab_name": "At Drop",
                 "form_data": form_data  # Include form data for persistence
             }
@@ -638,7 +615,7 @@ async def submit_at_drop(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,  # Include form data for persistence
-                "active_tab": "at-drop",
+                "active_tab": FORM_TYPE_AT_DROP,
                 "tab_name": "At Drop"
             }
         )
@@ -658,7 +635,7 @@ async def submit_delivered(
     osd_notes: Optional[str] = Form(None),
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
-):  
+):
     # Prepare form data for persistence - using the same IDs as fillTestData
     form_data = {
         "del_load_id": load_id,
@@ -673,9 +650,9 @@ async def submit_delivered(
         "transfer_call_to": transfer_call_to,
         "transfer_country_code": transfer_country_code
     }
-    
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "delivered", form_data)
-    
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_DELIVERED, form_data)
+
     # Return HTML response with form data for persistence
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -686,7 +663,7 @@ async def submit_delivered(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "delivered",
+                "active_tab": FORM_TYPE_DELIVERED,
                 "tab_name": "Delivered",
                 "form_data": form_data  # Include form data for persistence
             }
@@ -698,7 +675,7 @@ async def submit_delivered(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,  # Include form data for persistence
-                "active_tab": "delivered",
+                "active_tab": FORM_TYPE_DELIVERED,
                 "tab_name": "Delivered"
             }
         )
@@ -716,7 +693,7 @@ async def submit_request_pod(
     reminder_attempt: Optional[str] = Form("1"),
     transfer_call_to: Optional[str] = Form(None),
     transfer_country_code: Optional[str] = Form(None)
-):    
+):
     # Prepare form data for persistence - using the same IDs as fillTestData
     form_data = {
         "pod_load_id": load_id,
@@ -729,9 +706,9 @@ async def submit_request_pod(
         "transfer_call_to": transfer_call_to,
         "transfer_country_code": transfer_country_code
     }
-    
-    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), "request_pod", form_data)
-    
+
+    result = await make_retell_call(normalize_phone_number(country_code, contact_phone), FORM_TYPE_REQUEST_POD, form_data)
+
     # Return HTML response with form data for persistence
     if result["status"] == "success":
         return templates.TemplateResponse(
@@ -742,7 +719,7 @@ async def submit_request_pod(
                 "call_id": result.get("call_id"),
                 "message": result.get("message"),
                 "checkin_link": result.get("checkin_link"),
-                "active_tab": "request-pod",
+                "active_tab": FORM_TYPE_REQUEST_POD,
                 "tab_name": "Request POD",
                 "form_data": form_data  # Include form data for persistence
             }
@@ -754,7 +731,7 @@ async def submit_request_pod(
                 "request": request,
                 "error": result.get("message"),
                 "form_data": form_data,  # Include form data for persistence
-                "active_tab": "request-pod",
+                "active_tab": FORM_TYPE_REQUEST_POD,
                 "tab_name": "Request POD"
             }
         )

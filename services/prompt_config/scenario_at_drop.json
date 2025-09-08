@@ -1,0 +1,128 @@
+{
+	"fields": {
+		"arrival_time": {
+			"label": "Arrival time stamp",
+			"required": true,
+			"type": "datetime-local"
+		},
+		"contact_phone": {
+			"label": "Driver phone",
+			"required": true,
+			"type": "tel"
+		},
+		"delivery_type": {
+			"label": "Delivery type",
+			"options": [
+				"Live unload",
+				"Drop trailer"
+			],
+			"required": true,
+			"type": "select"
+		},
+		"dock_number": {
+			"label": "Dock #",
+			"required": false,
+			"type": "text"
+		},
+		"load_id": {
+			"label": "Load #",
+			"required": true,
+			"type": "text"
+		},
+		"lumper_amount": {
+			"label": "Lumper amount",
+			"required": false,
+			"type": "number"
+		},
+		"lumper_needed": {
+			"label": "Lumper needed?",
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"osd_observed": {
+			"label": "OS&D observed so far?",
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"payment_method": {
+			"label": "Payment method",
+			"required": false,
+			"type": "text"
+		},
+		"receiver_address": {
+			"label": "Receiver address",
+			"required": false,
+			"type": "text"
+		},
+		"receiver_name": {
+			"label": "Receiver name",
+			"required": false,
+			"type": "text"
+		},
+		"trucker_name": {
+			"label": "Driver name",
+			"required": true,
+			"type": "text"
+		}
+	},
+	"output_schema": {
+		"properties": {
+			"Arrived_at_receiver": {
+				"description": "Whether the driver has arrived at the receiver address",
+				"type": "boolean"
+			},
+			"Checked_in": {
+				"description": "Whether the driver has checked in at the receiver",
+				"type": "boolean"
+			},
+			"Dock_number": {
+				"description": "The dock number assigned to the driver",
+				"type": "string"
+			},
+			"Lumper_amount": {
+				"description": "Amount for lumper service if needed",
+				"type": "string"
+			},
+			"Lumper_code_needed": {
+				"description": "Whether the driver needs a lumper code (only applicable for live unload)",
+				"type": "boolean"
+			},
+			"Lumper_payment_type": {
+				"description": "Payment type accepted for lumper service if needed",
+				"type": "string"
+			},
+			"Unloading_duration_estimate": {
+				"description": "Estimated time to complete unloading as quoted to the driver",
+				"type": "string"
+			},
+			"Unloading_started": {
+				"description": "Whether unloading has started",
+				"type": "boolean"
+			}
+		},
+		"required": [
+			"Arrived_at_receiver",
+			"Checked_in",
+			"Dock_number",
+			"Unloading_started",
+			"Unloading_duration_estimate"
+		],
+		"type": "object"
+	},
+	"title": "At Drop (On site, unloading)",
+	"voice_questions": [
+		"I'm calling to check on your delivery at [receiver address] - have you arrived and checked in?",
+		"What dock number did they assign you?",
+		"Has unloading started, and how long did they quote you for completion?",
+		"Only ask if delivery type is live unload and lumper field is not 'N': Do you need a lumper code?",
+		"If they need lumper code, ask how much and what payment type do they accept?"
+	]
+}

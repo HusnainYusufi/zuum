@@ -1,0 +1,160 @@
+{
+	"fields": {
+		"appointment_time": {
+			"label": "Appointment time/window",
+			"required": true,
+			"type": "text"
+		},
+		"carrier_company": {
+			"label": "Carrier company",
+			"required": true,
+			"type": "text"
+		},
+		"contact_phone": {
+			"label": "Driver phone",
+			"required": true,
+			"type": "tel"
+		},
+		"driver_type": {
+			"label": "Driver type",
+			"options": [
+				"Local",
+				"OTR"
+			],
+			"required": true,
+			"type": "select"
+		},
+		"load_id": {
+			"label": "Load # / Customer ref #",
+			"required": true,
+			"type": "text"
+		},
+		"load_type": {
+			"label": "Load type",
+			"options": [
+				"Live load",
+				"Drop trailer"
+			],
+			"required": true,
+			"type": "select"
+		},
+		"pickup_address": {
+			"label": "Pickup address + appointment or FCFS window",
+			"required": true,
+			"type": "text"
+		},
+		"preferred_comms": {
+			"label": "Preferred comms",
+			"options": [
+				"Call",
+				"Text"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"required_equipment": {
+			"label": "Required equipment (van/reefer/flatbed, temp, straps, etc.)",
+			"required": false,
+			"type": "text"
+		},
+		"tracking_on": {
+			"label": "Current tracking on?",
+			"options": [
+				"Y",
+				"N"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"tractor_number": {
+			"label": "Tractor #",
+			"required": false,
+			"type": "text"
+		},
+		"trailer_number": {
+			"label": "Trailer #",
+			"required": false,
+			"type": "text"
+		},
+		"trucker_name": {
+			"label": "Driver name",
+			"required": true,
+			"type": "text"
+		}
+	},
+	"output_schema": {
+		"properties": {
+			"Carrier_company_confirmed": {
+				"description": "The confirmed carrier company name",
+				"type": "string"
+			},
+			"Checked_in_at_shipper": {
+				"description": "Whether the driver has already checked in at the shipper",
+				"type": "boolean"
+			},
+			"Confirmed_equipment": {
+				"description": "Whether the driver confirmed they have the correct tractor, trailer, and required equipment",
+				"type": "boolean"
+			},
+			"Door_number": {
+				"description": "The door number assigned to the driver, or 'waiting' if not yet assigned",
+				"type": "string"
+			},
+			"Driver_name_confirmed": {
+				"description": "The confirmed name of the driver",
+				"type": "string"
+			},
+			"ETA_to_shipper": {
+				"description": "Estimated time of arrival to the shipper, or 'checked in' if already there",
+				"type": "string"
+			},
+			"Is_assigned_driver": {
+				"description": "Whether the person on the call is the driver assigned to the load",
+				"type": "boolean"
+			},
+			"Offloading_location": {
+				"description": "City and state where driver is getting offloaded (if applicable)",
+				"type": "string"
+			},
+			"Still_getting_offloaded": {
+				"description": "Whether the driver is still getting offloaded from previous load",
+				"type": "boolean"
+			},
+			"Time_until_empty": {
+				"description": "How long until driver will be empty from current offload (if applicable)",
+				"type": "string"
+			},
+			"Tracking_started": {
+				"description": "Whether the driver confirmed they opened the tracking link and tracking has started",
+				"type": "boolean"
+			},
+			"Will_be_late": {
+				"description": "Based on ETA vs appointment time, whether driver will be late",
+				"type": "boolean"
+			}
+		},
+		"required": [
+			"Driver_name_confirmed",
+			"Carrier_company_confirmed",
+			"Is_assigned_driver",
+			"Checked_in_at_shipper",
+			"ETA_to_shipper",
+			"Still_getting_offloaded",
+			"Confirmed_equipment",
+			"Tracking_started",
+			"Door_number",
+			"Will_be_late"
+		],
+		"type": "object"
+	},
+	"title": "At Pickup (Pre-arrival)",
+	"voice_questions": [
+		"Hi, this is Zuum calling on load ### - am I speaking with [driver name] from [carrier company]?",
+		"Have you checked in at the shipper yet? If not, what's your ETA to [pickup address]?",
+		"If still getting offloaded from previous load, ask what city/state and how long until you'll be empty to proceed to the shipper",
+		"Please confirm your tractor number, trailer number, and that you have the right equipment for this load",
+		"I've sent the Zuum tracking link - can you open it so tracking starts?",
+		"Have you already gotten a door number or are you still waiting for one?",
+		"If they have a door number, ask what door number was assigned"
+	]
+}

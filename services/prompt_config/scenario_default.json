@@ -1,0 +1,71 @@
+{
+	"fields": {
+		"carrier_name": {
+			"label": "Carrier Name",
+			"required": true,
+			"type": "text"
+		},
+		"contact_name": {
+			"label": "Contact Name",
+			"required": true,
+			"type": "text"
+		},
+		"contact_phone": {
+			"label": "Contact Phone",
+			"required": true,
+			"type": "tel"
+		},
+		"destination_address": {
+			"label": "Destination Address",
+			"required": true,
+			"type": "text"
+		},
+		"last_check_call_time": {
+			"label": "Last Check Call Time",
+			"required": false,
+			"type": "datetime-local"
+		},
+		"last_known_status": {
+			"label": "Last Known Status",
+			"required": true,
+			"type": "text"
+		},
+		"load_id": {
+			"label": "Load ID",
+			"required": true,
+			"type": "text"
+		},
+		"notes": {
+			"label": "Notes",
+			"required": false,
+			"type": "textarea"
+		},
+		"origin_address": {
+			"label": "Origin Address",
+			"required": true,
+			"type": "text"
+		},
+		"purpose": {
+			"label": "Purpose",
+			"required": true,
+			"type": "text"
+		},
+		"scheduled_delivery_time": {
+			"label": "Scheduled Delivery Time",
+			"required": true,
+			"type": "datetime-local"
+		},
+		"scheduled_pickup_time": {
+			"label": "Scheduled Pickup Time",
+			"required": true,
+			"type": "datetime-local"
+		}
+	},
+	"output_schema": {
+		"properties": {},
+		"required": [],
+		"type": "object"
+	},
+	"title": "Default Load Information",
+	"voice_questions": []
+}

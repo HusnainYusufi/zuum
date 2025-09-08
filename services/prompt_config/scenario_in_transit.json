@@ -1,0 +1,81 @@
+{
+	"fields": {
+		"contact_phone": {
+			"label": "Driver phone",
+			"required": true,
+			"type": "tel"
+		},
+		"current_location": {
+			"label": "Current GPS city/state",
+			"required": false,
+			"type": "text"
+		},
+		"delay_reason": {
+			"default": "None",
+			"label": "Known delay reason",
+			"options": [
+				"None",
+				"Weather",
+				"Traffic",
+				"HOS",
+				"Breakdown"
+			],
+			"required": false,
+			"type": "select"
+		},
+		"load_id": {
+			"label": "Load #",
+			"required": true,
+			"type": "text"
+		},
+		"remaining_miles": {
+			"label": "Remaining miles",
+			"required": false,
+			"type": "number"
+		},
+		"trucker_name": {
+			"label": "Driver name",
+			"required": true,
+			"type": "text"
+		}
+	},
+	"output_schema": {
+		"properties": {
+			"Current_location_manual": {
+				"description": "Driver's current location (city and state), manually confirmed if tracking is not available",
+				"type": "string"
+			},
+			"Delay_reason": {
+				"description": "Optional details about potential delay if risk is present",
+				"type": "string"
+			},
+			"Risk_of_delay": {
+				"description": "Whether the driver foresees any risk of delay (e.g., weather, HOS, equipment issues)",
+				"type": "boolean"
+			},
+			"Tracking_restarted": {
+				"description": "Whether the driver reopened the tracking app during the call",
+				"type": "boolean"
+			},
+			"Updated_ETA_to_receiver": {
+				"description": "Driver's updated estimated time of arrival to the receiver",
+				"type": "string"
+			}
+		},
+		"required": [
+			"Risk_of_delay",
+			"Delay_reason",
+			"Current_location_manual",
+			"Updated_ETA_to_receiver",
+			"Tracking_restarted"
+		],
+		"type": "object"
+	},
+	"title": "In Transit",
+	"voice_questions": [
+		"Tell the driver we are calling since we don't see them tracking or stopped tracking for some time and ask what city and state they are in.",
+		"What's your updated ETA to the receiver?",
+		"Do you foresee anything that could make you late—weather, HOS, equipment?",
+		"Tell the driver to please turn on tracking so we don't have to keep calling for updates"
+	]
+}
